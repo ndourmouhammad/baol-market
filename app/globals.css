@@ -23,3 +23,44 @@ body {
   font-family: var(--font-sans), sans-serif;
   @apply antialiased;
 }
+
+/* Motif géométrique subtil pour le hero — vannerie / tissage */
+.hero-pattern {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(241, 231, 211, 0.04) 0px,
+      rgba(241, 231, 211, 0.04) 2px,
+      transparent 2px,
+      transparent 12px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(241, 231, 211, 0.04) 0px,
+      rgba(241, 231, 211, 0.04) 2px,
+      transparent 2px,
+      transparent 12px
+    );
+}
+
+/* Utilitaire pour masquer la scrollbar (filtres catégorie) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Respect de prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
