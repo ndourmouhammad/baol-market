@@ -7,12 +7,12 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { data, error } = await supabaseAdmin
-    .from('merchants')
-    .select('id, name, phone, address, notes')
+    .from('riders')
+    .select('id, name, phone, is_active')
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ merchants: data })
+  return NextResponse.json({ riders: data })
 }
 
 export async function POST(request: Request) {
@@ -20,11 +20,10 @@ export async function POST(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const body = await request.json()
-  const { error } = await supabaseAdmin.from('merchants').insert({
+  const { error } = await supabaseAdmin.from('riders').insert({
     name: body.name,
     phone: body.phone,
-    address: body.address,
-    notes: body.notes || null,
+    is_active: true,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

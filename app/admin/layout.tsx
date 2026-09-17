@@ -26,6 +26,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-sable">
       <header className="bg-baobab text-white px-6 py-4">
         <h1 className="font-semibold">Baol Market — Back-office</h1>
+        <nav className="flex gap-4 mt-2 text-sm">
+          <a href="/admin/orders" className="hover:underline">Commandes</a>
+          <a href="/admin/products" className="hover:underline">Produits</a>
+          <a href="/admin/merchants" className="hover:underline">Commerçants</a>
+          <a href="/admin/riders" className="hover:underline">Livreurs</a>
+        </nav>
       </header>
       <main className="p-6">{children}</main>
     </div>
