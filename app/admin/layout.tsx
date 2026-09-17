@@ -12,11 +12,13 @@ import {
   LogOut,
   Menu,
   X,
-  Loader2
+  Loader2,
+  Tags
 } from 'lucide-react'
 
 const navItems = [
   { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
+  { href: '/admin/categories', label: 'Catégories', icon: Tags },
   { href: '/admin/products', label: 'Produits', icon: Package },
   { href: '/admin/merchants', label: 'Commerçants', icon: Store },
   { href: '/admin/riders', label: 'Livreurs', icon: Bike },
@@ -55,25 +57,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-sable md:flex">
-      {/* Navbar Mobile */}
-      <div className="md:hidden bg-baobab text-white p-4 flex justify-between items-center sticky top-0 z-20">
+      {/* Navbar Mobile (Hamburger) */}
+      <div className="md:hidden bg-baobab text-white p-4 flex justify-between items-center sticky top-0 z-30">
         <h1 className="font-semibold text-lg font-fraunces">Baol Admin</h1>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        <button onClick={() => setIsMobileMenuOpen(true)}>
+          <Menu size={24} />
         </button>
       </div>
 
+      {/* Overlay mobile */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar Desktop & Mobile */}
       <aside className={`
-        fixed md:sticky top-0 left-0 z-10 h-screen w-64 bg-white border-r border-mil/30
+        fixed md:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-mil/30
         transform transition-transform duration-200 ease-in-out flex flex-col
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-6 hidden md:block">
+        <div className="p-4 md:p-6 flex justify-between items-center border-b border-mil/30 md:border-none">
           <h1 className="text-2xl font-semibold text-baobab font-fraunces">Baol Admin</h1>
+          <button className="md:hidden text-terre hover:text-nuit-diourbel transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+            <X size={24} />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 md:py-0 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -104,14 +117,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
       </aside>
-
-      {/* Overlay mobile */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-0 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
 
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">

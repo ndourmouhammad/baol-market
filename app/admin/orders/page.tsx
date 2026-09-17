@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Inbox, MapPin, CreditCard } from 'lucide-react'
+import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type OrderItem = {
   quantity: number
@@ -45,11 +45,13 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const getStatusColor = (status: string) => STATUS_COLORS[status] || 'bg-gray-100 text-gray-800 border-gray-200'
+const ITEMS_PER_PAGE = 10
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   async function loadOrders() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -82,6 +84,9 @@ export default function AdminOrdersPage() {
     loadOrders()
   }
 
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE)
+  const paginatedOrders = orders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-terre">
@@ -106,7 +111,7 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {paginatedOrders.map((order) => (
             <div key={order.id} className="bg-white rounded-xl border border-mil/30 p-5 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-mil/20">
                 <div>
@@ -159,6 +164,29 @@ export default function AdminOrdersPage() {
               </div>
             </div>
           ))}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white px-4 py-3 border border-mil/30 rounded-xl mt-6">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <span className="text-sm text-terre font-medium">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+              >
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
