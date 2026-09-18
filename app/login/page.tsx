@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -24,12 +25,14 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     setLoading(false)
 
     if (error) {
       setError(getFriendlyErrorMessage(error.message))
+    } else if (data?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
+      router.push('/admin')
     } else {
       router.push('/')
     }
@@ -54,6 +57,10 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-sable lg:bg-transparent lg:border-none border border-terre/20 rounded-none p-8 lg:p-0">
+            <Link href="/" className="inline-flex items-center text-sm font-medium text-terre hover:text-terre/80 transition-colors mb-6 group">
+              <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+              Retour à l'accueil
+            </Link>
             <h2 className="font-serif text-3xl font-semibold text-baobab mb-8">Se connecter</h2>
             
             <form onSubmit={handleLogin} className="space-y-6">

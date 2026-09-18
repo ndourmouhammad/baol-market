@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
+  LayoutDashboard,
   ShoppingCart,
   Package,
   Store,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 
 const navItems = [
+  { href: '/admin', label: 'Tableau de Bord', icon: LayoutDashboard },
   { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
   { href: '/admin/categories', label: 'Catégories', icon: Tags },
   { href: '/admin/products', label: 'Produits', icon: Package },

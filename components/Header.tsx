@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function Header() {
   const [user, setUser] = useState<any>(null)
   const [isScrolled, setIsScrolled] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const checkUser = async () => {
@@ -32,6 +34,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    router.push('/login')
   }
 
   return (

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -61,6 +62,10 @@ export default function SignupPage() {
           </div>
 
           <div className="bg-sable lg:bg-transparent lg:border-none border border-terre/20 rounded-none p-8 lg:p-0">
+            <Link href="/" className="inline-flex items-center text-sm font-medium text-terre hover:text-terre/80 transition-colors mb-6 group">
+              <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+              Retour à l'accueil
+            </Link>
             <h2 className="font-serif text-3xl font-semibold text-baobab mb-8">Créer un compte</h2>
             
             <form onSubmit={handleSignup} className="space-y-6">
