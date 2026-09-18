@@ -1,38 +1,55 @@
 'use client'
 
-import { useState } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
-const CATEGORIES = [
-  'Tout',
-  'Alimentation',
-  'Électronique',
-  'Mode & Beauté',
-  'Maison',
-  'Équipement Pro'
-]
+type Category = { id: string; name: string; slug: string }
 
-export default function CategoryFilter() {
-  const [activeCategory, setActiveCategory] = useState('Tout')
+export default function CategoryFilter({ categories }: { categories: Category[] }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeSlug = searchParams.get('categorie') ?? ''
+
+  function selectCategory(slug: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (slug) {
+      params.set('categorie', slug)
+    } else {
+      params.delete('categorie')
+    }
+    const query = params.toString()
+    router.push(query ? `${pathname}?${query}` : pathname)
+  }
 
   return (
     <div className="py-6 border-b border-terre/10 mb-8 bg-sable sticky top-[64px] z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
+
           {/* Scrollable Categories */}
           <div className="flex-grow overflow-x-auto no-scrollbar">
             <div className="flex gap-2 min-w-max pb-2 md:pb-0">
-              {CATEGORIES.map((cat) => (
+              <button
+                onClick={() => selectCategory('')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border ${
+                  activeSlug === ''
+                    ? 'bg-terre text-sable border-terre'
+                    : 'bg-white text-baobab border-terre/20 hover:border-terre/50'
+                }`}
+              >
+                Tout
+              </button>
+              {categories.map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  key={cat.id}
+                  onClick={() => selectCategory(cat.slug)}
                   className={`px-4 py-2 text-sm font-medium transition-colors border ${
-                    activeCategory === cat
+                    activeSlug === cat.slug
                       ? 'bg-terre text-sable border-terre'
                       : 'bg-white text-baobab border-terre/20 hover:border-terre/50'
                   }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
             </div>

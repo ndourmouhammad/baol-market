@@ -3,12 +3,31 @@ import { supabase } from '@/lib/supabase'
 import CategoryFilter from '@/components/CategoryFilter'
 import VerifiedBadge from '@/components/VerifiedBadge'
 
-export default async function Home() {
-  const { data: products, error } = await supabase
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ categorie?: string }>
+}) {
+  const { categorie } = await searchParams
+
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, slug')
+    .order('name')
+
+  const activeCategory = categories?.find((c) => c.slug === categorie)
+
+  let query = supabase
     .from('products')
     .select('id, name, description, price, image_url')
     .eq('is_available', true)
     .order('created_at', { ascending: false })
+
+  if (activeCategory) {
+    query = query.eq('category_id', activeCategory.id)
+  }
+
+  const { data: products, error } = await query
 
   if (error) {
     return (
@@ -52,7 +71,7 @@ export default async function Home() {
       </section>
 
       {/* Filtres catégories + recherche */}
-      <CategoryFilter />
+      <CategoryFilter categories={categories ?? []} />
 
       {/* Catalogue */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,8 +80,14 @@ export default async function Home() {
             <svg className="mx-auto h-12 w-12 text-terre/50 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            <h2 className="font-serif text-2xl text-baobab mb-2">Catalogue en préparation</h2>
-            <p className="text-baobab/70">Notre équipe vérifie actuellement de nouveaux produits. Revenez très vite !</p>
+            <h2 className="font-serif text-2xl text-baobab mb-2">
+              {activeCategory ? 'Aucun produit dans cette catégorie' : 'Catalogue en préparation'}
+            </h2>
+            <p className="text-baobab/70">
+              {activeCategory
+                ? 'Revenez bientôt, ou explorez une autre catégorie.'
+                : 'Notre équipe vérifie actuellement de nouveaux produits. Revenez très vite !'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
@@ -71,7 +96,6 @@ export default async function Home() {
                 key={product.id}
                 className="group bg-white border border-terre/10 flex flex-col hover:-translate-y-1 hover:shadow-md transition-all duration-300"
               >
-                {/* Image */}
                 <div className="aspect-[4/3] w-full overflow-hidden bg-sable flex items-center justify-center relative border-b border-terre/10">
                   <VerifiedBadge />
                   {product.image_url ? (
@@ -90,7 +114,6 @@ export default async function Home() {
                   )}
                 </div>
 
-                {/* Contenu */}
                 <div className="p-5 flex flex-col flex-grow">
                   <span className="text-xs text-terre font-semibold uppercase tracking-wider mb-1">Produit local</span>
                   <h3 className="font-serif text-lg font-bold text-baobab mb-1">{product.name}</h3>
