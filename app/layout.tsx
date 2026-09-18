@@ -36,8 +36,9 @@ export default function RootLayout({
     <html
       lang="fr"
       className={`${inter.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans bg-sable text-baobab">
+      <body className="min-h-full flex flex-col font-sans bg-sable text-baobab" suppressHydrationWarning>
         <Header />
         <main className="flex-grow">{children}</main>
         <Footer />
