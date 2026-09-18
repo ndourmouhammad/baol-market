@@ -9,11 +9,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const { id } = await params
-  const { status } = await request.json()
+  const body = await request.json()
+
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (body.status !== undefined) updateData.status = body.status
+  if (body.rider_id !== undefined) updateData.rider_id = body.rider_id || null
 
   const { error } = await supabaseAdmin
     .from('orders')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', id)
 
   if (error) {
