@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Trash2, Power, PowerOff, PackageSearch, AlertTriangle, Edit, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, Trash2, Power, PowerOff, PackageSearch, AlertTriangle, Edit, ChevronLeft, ChevronRight, ImagePlus, X } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 4
 
@@ -16,6 +16,7 @@ type Product = {
   is_available: boolean
   category_id: string | null
   merchant_id: string | null
+  image_url: string | null
   categories: { name: string } | null
   merchants: { name: string } | null
 }
@@ -46,7 +47,12 @@ export default function AdminProductsPage() {
   const [categoryId, setCategoryId] = useState('')
   const [merchantId, setMerchantId] = useState('')
   const [saving, setSaving] = useState(false)
-  
+
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+
   const [productToDelete, setProductToDelete] = useState<string | null>(null)
 
   async function loadData() {
@@ -62,7 +68,7 @@ export default function AdminProductsPage() {
     const productsJson = await productsRes.json()
     if (!productsRes.ok) setError(productsJson.error)
     else setProducts(productsJson.products)
-    
+
     setLoading(false)
   }
 
@@ -70,10 +76,48 @@ export default function AdminProductsPage() {
     loadData()
   }, [])
 
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setError('')
+  }
+
+  function removeImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    setExistingImageUrl(null)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError('')
+
+    let imageUrl = existingImageUrl
+
+    if (imageFile) {
+      setUploading(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      const formData = new FormData()
+      formData.append('file', imageFile)
+
+      const uploadRes = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: formData,
+      })
+      const uploadJson = await uploadRes.json()
+      setUploading(false)
+
+      if (!uploadRes.ok) {
+        setError(uploadJson.error)
+        setSaving(false)
+        return
+      }
+      imageUrl = uploadJson.url
+    }
 
     const url = editingId ? `/api/admin/products/${editingId}` : '/api/admin/products'
     const method = editingId ? 'PATCH' : 'POST'
@@ -87,6 +131,7 @@ export default function AdminProductsPage() {
         price: Number(price),
         category_id: categoryId || null,
         merchant_id: merchantId || null,
+        image_url: imageUrl,
       }),
     })
 
@@ -108,6 +153,9 @@ export default function AdminProductsPage() {
     setPrice(product.price.toString())
     setCategoryId(product.category_id || '')
     setMerchantId(product.merchant_id || '')
+    setExistingImageUrl(product.image_url)
+    setImagePreview(product.image_url)
+    setImageFile(null)
     setError('')
   }
 
@@ -118,6 +166,9 @@ export default function AdminProductsPage() {
     setPrice('')
     setCategoryId('')
     setMerchantId('')
+    setImageFile(null)
+    setImagePreview(null)
+    setExistingImageUrl(null)
     setError('')
   }
 
@@ -158,6 +209,30 @@ export default function AdminProductsPage() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div className="space-y-1.5">
+              <label className="font-medium text-nuit-diourbel block">Photo du produit</label>
+              {imagePreview ? (
+                <div className="relative w-full h-40 rounded-lg overflow-hidden border border-mil/40">
+                  <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 hover:bg-white shadow-sm"
+                    title="Retirer l'image"
+                  >
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-mil/40 rounded-lg cursor-pointer hover:bg-sable/40 transition-colors">
+                  <ImagePlus className="w-8 h-8 text-terre/50 mb-2" />
+                  <span className="text-terre/70 text-sm">Choisir une photo</span>
+                  <span className="text-terre/40 text-xs mt-1">JPEG, PNG, WEBP ou GIF — 5 Mo max</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
+                </label>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <label className="font-medium text-nuit-diourbel block">Nom du produit</label>
               <input
                 type="text" placeholder="Ex: Riz parfumé 5kg" value={name}
@@ -165,7 +240,7 @@ export default function AdminProductsPage() {
                 className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all"
               />
             </div>
-            
+
             <div className="space-y-1.5">
               <label className="font-medium text-nuit-diourbel block">Description</label>
               <textarea
@@ -174,7 +249,7 @@ export default function AdminProductsPage() {
                 className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all resize-none"
               />
             </div>
-            
+
             <div className="space-y-1.5">
               <label className="font-medium text-nuit-diourbel block">Prix (FCFA)</label>
               <input
@@ -207,20 +282,20 @@ export default function AdminProductsPage() {
             </div>
 
             {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded">{error}</p>}
-            
+
             <div className="flex gap-2 mt-2">
-              <button 
-                type="submit" 
-                disabled={saving} 
+              <button
+                type="submit"
+                disabled={saving}
                 className="flex-1 bg-baobab text-white rounded-lg px-4 py-2.5 font-medium hover:bg-vert-feuille transition-colors flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {saving ? 'En cours...' : editingId ? 'Enregistrer' : 'Ajouter'}
+                {saving ? (uploading ? 'Envoi de la photo...' : 'En cours...') : editingId ? 'Enregistrer' : 'Ajouter'}
               </button>
               {editingId && (
-                <button 
-                  type="button" 
-                  onClick={cancelEdit} 
+                <button
+                  type="button"
+                  onClick={cancelEdit}
                   className="flex-1 bg-white text-terre border border-mil/40 rounded-lg px-4 py-2.5 font-medium hover:bg-gray-50 transition-colors"
                 >
                   Annuler
@@ -235,7 +310,7 @@ export default function AdminProductsPage() {
           <h2 className="text-2xl font-semibold text-baobab font-fraunces mb-6 flex items-center gap-3">
             Produits <span className="text-terre text-lg font-normal">({products.length})</span>
           </h2>
-          
+
           {products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-mil/30 text-terre">
               <PackageSearch className="w-12 h-12 mb-4 text-mil" />
@@ -247,51 +322,62 @@ export default function AdminProductsPage() {
                 {paginatedProducts.map((p) => (
                   <div key={p.id} className={`bg-white p-4 rounded-xl border transition-all ${p.is_available ? 'border-mil/30 hover:shadow-sm' : 'border-mil/30 opacity-75 bg-gray-50/50'} flex flex-col justify-between gap-4`}>
                     <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-nuit-diourbel text-base leading-tight">{p.name}</h3>
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${p.is_available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                          {p.is_available ? 'Actif' : 'Inactif'}
-                        </span>
+                      <div className="flex gap-3 mb-2">
+                        {p.image_url ? (
+                          <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-lg object-cover border border-mil/20 shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-sable flex items-center justify-center border border-mil/20 shrink-0">
+                            <ImagePlus className="w-5 h-5 text-terre/30" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start gap-2">
+                            <h3 className="font-semibold text-nuit-diourbel text-base leading-tight">{p.name}</h3>
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${p.is_available ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                              {p.is_available ? 'Actif' : 'Inactif'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-terre line-clamp-2">{p.description || "Aucune description"}</p>
+                        </div>
                       </div>
-                      <p className="text-sm text-terre line-clamp-2 mb-3">{p.description || "Aucune description"}</p>
-                      
+
                       <div className="space-y-1 text-sm text-nuit-diourbel">
                         <p className="flex justify-between border-b border-mil/20 pb-1">
-                          <span className="text-terre">Prix</span> 
+                          <span className="text-terre">Prix</span>
                           <span className="font-semibold">{p.price.toLocaleString('fr-FR')} FCFA</span>
                         </p>
                         <p className="flex justify-between border-b border-mil/20 pb-1 pt-1">
-                          <span className="text-terre">Catégorie</span> 
+                          <span className="text-terre">Catégorie</span>
                           <span>{p.categories?.name}</span>
                         </p>
                         <p className="flex justify-between pt-1">
-                          <span className="text-terre">Commerçant</span> 
+                          <span className="text-terre">Commerçant</span>
                           <span className="truncate max-w-30 text-right">{p.merchants?.name}</span>
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-[1fr_auto_auto] gap-2 mt-2">
-                      <button 
-                        onClick={() => toggleAvailability(p)} 
+                      <button
+                        onClick={() => toggleAvailability(p)}
                         className={`flex items-center justify-center gap-1.5 text-sm rounded-lg px-2 py-2 transition-colors border ${
-                          p.is_available 
-                            ? 'border-mil/40 text-terre hover:bg-gray-50' 
+                          p.is_available
+                            ? 'border-mil/40 text-terre hover:bg-gray-50'
                             : 'border-baobab/30 text-baobab hover:bg-baobab/5'
                         }`}
                         title={p.is_available ? 'Désactiver' : 'Activer'}
                       >
                         {p.is_available ? <PowerOff className="w-4 h-4"/> : <Power className="w-4 h-4"/>}
                       </button>
-                      <button 
-                        onClick={() => startEdit(p)} 
+                      <button
+                        onClick={() => startEdit(p)}
                         className="border border-mil/40 text-terre hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors flex items-center justify-center"
                         title="Modifier"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button 
-                        onClick={() => setProductToDelete(p.id)} 
+                      <button
+                        onClick={() => setProductToDelete(p.id)}
                         className="text-red-600 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-colors flex items-center justify-center"
                         title="Supprimer"
                       >
@@ -342,13 +428,13 @@ export default function AdminProductsPage() {
               Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible et supprimera le produit de manière permanente.
             </p>
             <div className="flex gap-3 justify-end">
-              <button 
+              <button
                 onClick={() => setProductToDelete(null)}
                 className="px-4 py-2 text-terre hover:bg-mil/20 rounded-lg font-medium transition-colors"
               >
                 Annuler
               </button>
-              <button 
+              <button
                 onClick={() => deleteProduct(productToDelete)}
                 className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition-colors"
               >
