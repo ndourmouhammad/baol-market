@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdmin } from '@/lib/verifyAdmin'
+import { orderStatusUpdateEmail, STATUS_LABELS } from '@/lib/emailTemplates'
 
 export async function GET(request: Request) {
   const admin = await verifyAdmin(request)

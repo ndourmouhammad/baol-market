@@ -86,13 +86,29 @@ export default function OrderPage() {
       unit_price: product.price,
     })
 
-    setLoading(false)
-
     if (itemError) {
+      setLoading(false)
       setError("Votre commande a été créée, mais un souci est survenu avec les articles. Contactez le support.")
-    } else {
-      router.push('/orders')
+      return
     }
+
+    // Envoi de l'email de confirmation — ne bloque jamais la commande si ça échoue
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch('/api/notifications/order-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+    } catch (e) {
+      console.error("L'email de confirmation n'a pas pu être envoyé:", e)
+    }
+
+    setLoading(false)
+    router.push('/orders')
   }
 
   const increaseQty = () => setQuantity(q => q + 1)
@@ -134,7 +150,6 @@ export default function OrderPage() {
           <div className="bg-white border border-terre/20 p-6 sticky top-20">
             <h2 className="font-serif text-2xl font-bold text-baobab mb-6 border-b border-terre/10 pb-4">Récapitulatif</h2>
 
-            {/* Image du produit */}
             <div className="aspect-[4/3] w-full overflow-hidden bg-sable mb-4 border border-terre/10 flex items-center justify-center">
               {product.image_url ? (
                 <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
@@ -150,7 +165,6 @@ export default function OrderPage() {
             <h3 className="font-serif text-xl font-medium text-baobab">{product.name}</h3>
             <p className="text-baobab/70 mt-1">{product.price.toLocaleString('fr-SN')} FCFA / unité</p>
 
-            {/* Réassurance dans le récapitulatif */}
             <div className="mt-6 pt-4 border-t border-terre/10 space-y-2">
               <div className="flex items-center gap-2 text-xs text-vert-feuille">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -171,7 +185,6 @@ export default function OrderPage() {
 
             <form onSubmit={handleSubmit} className="space-y-0">
 
-              {/* Étape 1 — Quantité */}
               <div className="pb-8 border-b border-terre/10">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">1</span>
@@ -190,7 +203,6 @@ export default function OrderPage() {
                 </div>
               </div>
 
-              {/* Étape 2 — Adresse de livraison */}
               <div className="py-8 border-b border-terre/10">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">2</span>
@@ -206,7 +218,6 @@ export default function OrderPage() {
                 />
               </div>
 
-              {/* Étape 3 — Mode de paiement */}
               <div className="py-8">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">3</span>
@@ -214,7 +225,6 @@ export default function OrderPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                  {/* Option 1: A la livraison */}
                   <label className={`cursor-pointer border p-4 flex flex-col relative transition-all ${paymentMethod === 'a_la_livraison' ? paymentActiveClass : paymentInactiveClass}`}>
                     <input
                       type="radio"
@@ -233,7 +243,6 @@ export default function OrderPage() {
                     )}
                   </label>
 
-                  {/* Option 2: En ligne (Désactivé) */}
                   <label className="cursor-not-allowed border border-baobab/10 bg-black/5 p-4 flex flex-col relative opacity-60">
                     <input type="radio" name="payment_method" value="en_ligne" disabled className="sr-only" />
                     <span className="font-serif font-semibold text-baobab/50 text-lg mb-1">En ligne</span>
@@ -244,14 +253,12 @@ export default function OrderPage() {
                 </div>
               </div>
 
-              {/* Message d'erreur */}
               {error && (
                 <div className="bg-terre/10 border-l-4 border-terre p-4 mb-6">
                   <p className="text-terre text-sm font-medium">{error}</p>
                 </div>
               )}
 
-              {/* Total et Validation */}
               <div className="pt-6 border-t border-terre/20">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-lg text-baobab">Total à régler</span>
@@ -266,7 +273,6 @@ export default function OrderPage() {
                   {loading ? 'Enregistrement...' : 'Confirmer la commande'}
                 </button>
 
-                {/* Réassurance */}
                 <p className="text-center text-xs text-baobab/50 mt-4">
                   Paiement sécurisé · Produit vérifié avant expédition · Suivi de commande en temps réel
                 </p>
