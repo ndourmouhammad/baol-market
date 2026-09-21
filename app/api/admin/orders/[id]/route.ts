@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .from('orders')
     .update(updateData)
     .eq('id', id)
-    .select('id, status, customer_id, total_amount')
+    .select('id, status, customer_id, guest_email, total_amount')
     .single()
 
   if (error) {
@@ -30,19 +30,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (body.status !== undefined && order) {
     try {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.customer_id)
-      const email = userData?.user?.email
+      let email: string | null | undefined = order.guest_email
+
+      if (order.customer_id) {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.customer_id)
+        email = userData?.user?.email
+      }
+
       if (email) {
         await resend.emails.send({
           from: 'Baol Market <onboarding@resend.dev>',
           to: email,
-          subject: `Commande #${order.id.slice(0, 8).toUpperCase()} - ${STATUS_LABELS[order.status] ?? order.status}`,
+          subject: `Commande #${order.id.slice(0, 8).toUpperCase()} — ${STATUS_LABELS[order.status] ?? order.status}`,
           html: orderStatusUpdateEmail(order),
         })
       }
     } catch (e) {
       console.error('Erreur envoi email de statut:', e)
-      // On ne bloque jamais la mise à jour du statut si l'email échoue
     }
   }
 

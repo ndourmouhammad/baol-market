@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 
 type Product = {
   id: string
@@ -16,20 +17,20 @@ export default function OrderPage() {
   const router = useRouter()
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('a_la_livraison')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [initLoading, setInitLoading] = useState(true)
 
   useEffect(() => {
-    async function checkUserAndLoadProduct() {
+    async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      setUser(user)
 
       const { data, error } = await supabase
         .from('products')
@@ -44,77 +45,103 @@ export default function OrderPage() {
       }
       setInitLoading(false)
     }
-    checkUserAndLoadProduct()
-  }, [id, router])
+    loadData()
+  }, [id])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!product || !address.trim() || !paymentMethod) return
+    if (!user && phone.trim().length < 8) {
+      setError('Un numéro de téléphone valide est requis.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (user) {
+      // Parcours client connecté — inchangé
+      const totalAmount = product.price * quantity
 
-    const totalAmount = product.price * quantity
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: user.id,
+          status: 'created',
+          payment_method: paymentMethod,
+          total_amount: totalAmount,
+          delivery_address: address,
+        })
+        .select()
+        .single()
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        customer_id: user.id,
-        status: 'created',
-        payment_method: paymentMethod,
-        total_amount: totalAmount,
-        delivery_address: address,
+      if (orderError) {
+        setError("Une erreur est survenue lors de la création de votre commande. Veuillez réessayer.")
+        setLoading(false)
+        return
+      }
+
+      const { error: itemError } = await supabase.from('order_items').insert({
+        order_id: order.id,
+        product_id: product.id,
+        quantity,
+        unit_price: product.price,
       })
-      .select()
-      .single()
 
-    if (orderError) {
-      setError("Une erreur est survenue lors de la création de votre commande. Veuillez réessayer.")
+      if (itemError) {
+        setLoading(false)
+        setError("Votre commande a été créée, mais un souci est survenu avec les articles. Contactez le support.")
+        return
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        await fetch('/api/notifications/order-confirmation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ orderId: order.id }),
+        })
+      } catch (e) {
+        console.error("L'email de confirmation n'a pas pu être envoyé:", e)
+      }
+
       setLoading(false)
-      return
-    }
-
-    const { error: itemError } = await supabase.from('order_items').insert({
-      order_id: order.id,
-      product_id: product.id,
-      quantity,
-      unit_price: product.price,
-    })
-
-    if (itemError) {
-      setLoading(false)
-      setError("Votre commande a été créée, mais un souci est survenu avec les articles. Contactez le support.")
-      return
-    }
-
-    // Envoi de l'email de confirmation — ne bloque jamais la commande si ça échoue
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      await fetch('/api/notifications/order-confirmation', {
+      router.push('/orders')
+    } else {
+      // Parcours invité — nouveau
+      const res = await fetch('/api/orders/guest', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ orderId: order.id }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity,
+          address,
+          paymentMethod,
+          phone,
+          email: email.trim() || undefined,
+        }),
       })
-    } catch (e) {
-      console.error("L'email de confirmation n'a pas pu être envoyé:", e)
-    }
+      const json = await res.json()
+      setLoading(false)
 
-    setLoading(false)
-    router.push('/orders')
+      if (!res.ok) {
+        setError(json.error)
+      } else {
+        router.push(`/commande-confirmee?code=${encodeURIComponent(json.trackingCode)}`)
+      }
+    }
   }
 
   const increaseQty = () => setQuantity(q => q + 1)
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
-  const isFormValid = address.trim().length > 0 && paymentMethod === 'a_la_livraison'
+  const isFormValid =
+    address.trim().length > 0 &&
+    paymentMethod === 'a_la_livraison' &&
+    (!!user || phone.trim().length >= 8)
 
   if (initLoading) {
     return (
@@ -145,7 +172,6 @@ export default function OrderPage() {
     <div className="bg-sable py-12 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
 
-        {/* Colonne Gauche — Récapitulatif produit */}
         <div className="w-full md:w-1/3">
           <div className="bg-white border border-terre/20 p-6 sticky top-20">
             <h2 className="font-serif text-2xl font-bold text-baobab mb-6 border-b border-terre/10 pb-4">Récapitulatif</h2>
@@ -178,10 +204,15 @@ export default function OrderPage() {
           </div>
         </div>
 
-        {/* Colonne Droite — Formulaire */}
         <div className="w-full md:w-2/3">
           <div className="bg-white border border-terre/20 p-6 md:p-8">
-            <h1 className="font-serif text-3xl font-bold text-baobab mb-8">Finaliser la commande</h1>
+            <h1 className="font-serif text-3xl font-bold text-baobab mb-2">Finaliser la commande</h1>
+            {!user && (
+              <p className="text-sm text-baobab/60 mb-6">
+                Pas besoin de compte — indiquez juste votre téléphone.{' '}
+                <a href="/login" className="text-terre underline">Vous avez déjà un compte ?</a>
+              </p>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-0">
 
@@ -218,9 +249,35 @@ export default function OrderPage() {
                 />
               </div>
 
+              {!user && (
+                <div className="py-8 border-b border-terre/10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">3</span>
+                    <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Vos coordonnées</label>
+                  </div>
+                  <div className="space-y-3">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                      className="block w-full border border-terre/30 bg-sable/20 px-4 py-3 text-baobab placeholder-baobab/40 focus:border-terre focus:outline-none focus:ring-1 focus:ring-terre transition-colors"
+                      placeholder="Numéro de téléphone (obligatoire)"
+                    />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="block w-full border border-terre/30 bg-sable/20 px-4 py-3 text-baobab placeholder-baobab/40 focus:border-terre focus:outline-none focus:ring-1 focus:ring-terre transition-colors"
+                      placeholder="Email (optionnel — pour recevoir un suivi par mail)"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="py-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">3</span>
+                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">{user ? 3 : 4}</span>
                   <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Mode de paiement</label>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

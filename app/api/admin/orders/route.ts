@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdmin } from '@/lib/verifyAdmin'
-import { orderStatusUpdateEmail, STATUS_LABELS } from '@/lib/emailTemplates'
 
 export async function GET(request: Request) {
   const admin = await verifyAdmin(request)
@@ -13,6 +12,7 @@ export async function GET(request: Request) {
     .from('orders')
     .select(`
       id, status, payment_method, total_amount, delivery_address, created_at, customer_id, rider_id,
+      guest_phone, guest_email, tracking_code,
       order_items ( quantity, unit_price, products ( name ) ),
       riders ( id, name )
     `)

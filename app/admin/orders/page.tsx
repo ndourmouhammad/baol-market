@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck } from 'lucide-react'
+import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, User, Phone } from 'lucide-react'
 
 type OrderItem = {
   quantity: number
@@ -20,6 +20,10 @@ type Order = {
   delivery_address: string
   created_at: string
   rider_id: string | null
+  customer_id: string | null
+  guest_phone: string | null
+  guest_email: string | null
+  tracking_code: string | null
   order_items: OrderItem[]
   riders: Rider | null
 }
@@ -145,9 +149,16 @@ export default function AdminOrdersPage() {
             <div key={order.id} className="bg-white rounded-xl border border-mil/30 p-5 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-mil/20">
                 <div>
-                  <p className="text-xs text-terre mb-1">
-                    Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs text-terre">
+                      Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      order.customer_id ? 'bg-nuit-diourbel/10 text-nuit-diourbel' : 'bg-mil/20 text-baobab'
+                    }`}>
+                      {order.customer_id ? 'Compte' : 'Invité'}
+                    </span>
+                  </div>
                   <p className="font-semibold text-nuit-diourbel text-lg">
                     {order.total_amount.toLocaleString('fr-FR')} FCFA
                   </p>
@@ -204,6 +215,21 @@ export default function AdminOrdersPage() {
                     <div className="flex items-center gap-2 text-sm">
                       <Truck className="w-4 h-4 text-terre shrink-0" />
                       <span className="text-nuit-diourbel">{order.riders.name}</span>
+                    </div>
+                  )}
+                  {!order.customer_id && order.guest_phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="w-4 h-4 text-terre shrink-0" />
+                      <span className="text-nuit-diourbel">
+                        {order.guest_phone}
+                        {order.guest_email ? ` · ${order.guest_email}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {!order.customer_id && order.tracking_code && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="w-4 h-4 text-terre shrink-0" />
+                      <span className="text-nuit-diourbel font-mono">{order.tracking_code}</span>
                     </div>
                   )}
                 </div>
