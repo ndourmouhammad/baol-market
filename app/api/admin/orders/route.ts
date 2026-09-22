@@ -11,10 +11,12 @@ export async function GET(request: Request) {
   const { data: orders, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, status, payment_method, total_amount, delivery_address, created_at, customer_id, rider_id,
+      id, status, payment_method, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed,
+      delivery_address, created_at, customer_id, rider_id,
       guest_phone, guest_email, tracking_code,
       order_items ( quantity, unit_price, products ( name ) ),
-      riders ( id, name )
+      riders ( id, name ),
+      delivery_zones ( id, name )
     `)
     .order('created_at', { ascending: false })
 

@@ -6,9 +6,9 @@ import { generateTrackingCode } from '@/lib/trackingCode'
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { productId, quantity, address, paymentMethod, phone, email } = body
+  const { productId, quantity, address, paymentMethod, phone, email, deliveryZoneId } = body
 
-  if (!productId || !quantity || !address || !paymentMethod) {
+  if (!productId || !quantity || !address || !paymentMethod || !deliveryZoneId) {
     return NextResponse.json({ error: 'Informations de commande incomplètes.' }, { status: 400 })
   }
   if (!phone || phone.trim().length < 8) {
@@ -25,7 +25,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Produit introuvable.' }, { status: 404 })
   }
 
-  const totalAmount = product.price * quantity
+  const { data: zone, error: zoneError } = await supabaseAdmin
+    .from('delivery_zones')
+    .select('id, fee, is_variable')
+    .eq('id', deliveryZoneId)
+    .single()
+
+  if (zoneError || !zone) {
+    return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+  }
+
+  const subtotalAmount = product.price * quantity
+  const totalAmount = subtotalAmount + zone.fee
 
   let trackingCode = ''
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -46,8 +57,12 @@ export async function POST(request: Request) {
       guest_email: email?.trim() || null,
       status: 'created',
       payment_method: paymentMethod,
+      subtotal_amount: subtotalAmount,
+      delivery_fee: zone.fee,
+      delivery_fee_confirmed: !zone.is_variable,
       total_amount: totalAmount,
       delivery_address: address,
+      delivery_zone_id: zone.id,
       tracking_code: trackingCode,
     })
     .select()

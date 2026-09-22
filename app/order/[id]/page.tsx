@@ -12,14 +12,24 @@ type Product = {
   image_url?: string
 }
 
+type DeliveryZone = {
+  id: string
+  name: string
+  fee: number
+  is_variable: boolean
+  display_group: string | null
+}
+
 export default function OrderPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [zones, setZones] = useState<DeliveryZone[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [address, setAddress] = useState('')
+  const [zoneId, setZoneId] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('a_la_livraison')
@@ -32,25 +42,33 @@ export default function OrderPage() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
 
-      const { data, error } = await supabase
+      const { data: productData, error: productError } = await supabase
         .from('products')
         .select('id, name, price, image_url')
         .eq('id', id)
         .single()
 
-      if (error) {
+      const { data: zonesData } = await supabase
+        .from('delivery_zones')
+        .select('id, name, fee, is_variable, display_group')
+        .order('sort_order')
+
+      if (productError) {
         setError('Ce produit est introuvable ou indisponible.')
       } else {
-        setProduct(data)
+        setProduct(productData)
       }
+      setZones(zonesData || [])
       setInitLoading(false)
     }
     loadData()
   }, [id])
 
+  const selectedZone = zones.find((z) => z.id === zoneId)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!product || !address.trim() || !paymentMethod) return
+    if (!product || !address.trim() || !paymentMethod || !zoneId) return
     if (!user && phone.trim().length < 8) {
       setError('Un numéro de téléphone valide est requis.')
       return
@@ -59,18 +77,23 @@ export default function OrderPage() {
     setLoading(true)
     setError('')
 
-    if (user) {
-      // Parcours client connecté — inchangé
-      const totalAmount = product.price * quantity
+    const subtotalAmount = product.price * quantity
+    const deliveryFee = selectedZone?.fee ?? 0
+    const totalAmount = subtotalAmount + deliveryFee
 
+    if (user) {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_id: user.id,
           status: 'created',
           payment_method: paymentMethod,
+          subtotal_amount: subtotalAmount,
+          delivery_fee: deliveryFee,
+          delivery_fee_confirmed: !selectedZone?.is_variable,
           total_amount: totalAmount,
           delivery_address: address,
+          delivery_zone_id: zoneId,
         })
         .select()
         .single()
@@ -111,7 +134,6 @@ export default function OrderPage() {
       setLoading(false)
       router.push('/orders')
     } else {
-      // Parcours invité — nouveau
       const res = await fetch('/api/orders/guest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,6 +144,7 @@ export default function OrderPage() {
           paymentMethod,
           phone,
           email: email.trim() || undefined,
+          deliveryZoneId: zoneId,
         }),
       })
       const json = await res.json()
@@ -141,6 +164,7 @@ export default function OrderPage() {
   const isFormValid =
     address.trim().length > 0 &&
     paymentMethod === 'a_la_livraison' &&
+    !!zoneId &&
     (!!user || phone.trim().length >= 8)
 
   if (initLoading) {
@@ -168,6 +192,18 @@ export default function OrderPage() {
   const paymentActiveClass = 'border-terre bg-terre/5'
   const paymentInactiveClass = 'border-terre/20 hover:border-terre/50'
 
+  const subtotal = product.price * quantity
+  const deliveryFee = selectedZone?.fee ?? 0
+  const total = subtotal + deliveryFee
+
+  // Regroupe les zones par display_group pour un menu déroulant plus lisible
+  const zoneGroups = zones.reduce<Record<string, DeliveryZone[]>>((acc, zone) => {
+    const group = zone.display_group ?? 'Autres zones'
+    if (!acc[group]) acc[group] = []
+    acc[group].push(zone)
+    return acc
+  }, {})
+
   return (
     <div className="bg-sable py-12 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
@@ -176,7 +212,7 @@ export default function OrderPage() {
           <div className="bg-white border border-terre/20 p-6 sticky top-20">
             <h2 className="font-serif text-2xl font-bold text-baobab mb-6 border-b border-terre/10 pb-4">Récapitulatif</h2>
 
-            <div className="aspect-[4/3] w-full overflow-hidden bg-sable mb-4 border border-terre/10 flex items-center justify-center">
+            <div className="aspect-4/3 w-full overflow-hidden bg-sable mb-4 border border-terre/10 flex items-center justify-center">
               {product.image_url ? (
                 <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
               ) : (
@@ -190,6 +226,25 @@ export default function OrderPage() {
 
             <h3 className="font-serif text-xl font-medium text-baobab">{product.name}</h3>
             <p className="text-baobab/70 mt-1">{product.price.toLocaleString('fr-SN')} FCFA / unité</p>
+
+            <div className="mt-6 pt-4 border-t border-terre/10 space-y-1 text-sm">
+              <div className="flex justify-between text-baobab/70">
+                <span>Sous-total</span>
+                <span>{subtotal.toLocaleString('fr-SN')} FCFA</span>
+              </div>
+              <div className="flex justify-between text-baobab/70">
+                <span>Livraison</span>
+                <span>
+                  {zoneId
+                    ? `${deliveryFee.toLocaleString('fr-SN')} FCFA${selectedZone?.is_variable ? ' (à confirmer)' : ''}`
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between font-bold text-baobab pt-2 border-t border-terre/10">
+                <span>Total</span>
+                <span>{total.toLocaleString('fr-SN')} FCFA</span>
+              </div>
+            </div>
 
             <div className="mt-6 pt-4 border-t border-terre/10 space-y-2">
               <div className="flex items-center gap-2 text-xs text-vert-feuille">
@@ -218,7 +273,7 @@ export default function OrderPage() {
 
               <div className="pb-8 border-b border-terre/10">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">1</span>
+                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full shrink-0">1</span>
                   <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Quantité</label>
                 </div>
                 <div className="flex items-center">
@@ -236,23 +291,45 @@ export default function OrderPage() {
 
               <div className="py-8 border-b border-terre/10">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">2</span>
-                  <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Adresse de livraison</label>
+                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full shrink-0">2</span>
+                  <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Zone de livraison</label>
                 </div>
+                <select
+                  value={zoneId}
+                  onChange={(e) => setZoneId(e.target.value)}
+                  required
+                  className="block w-full border border-terre/30 bg-sable/20 px-4 py-3 text-baobab focus:border-terre focus:outline-none focus:ring-1 focus:ring-terre transition-colors mb-4"
+                >
+                  <option value="" disabled>Choisissez votre quartier</option>
+                  {Object.entries(zoneGroups).map(([group, groupZones]) => (
+                    <optgroup key={group} label={group}>
+                      {groupZones.map((z) => (
+                        <option key={z.id} value={z.id}>{z.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+
+                {selectedZone?.is_variable && (
+                  <p className="text-xs text-terre bg-terre/10 border-l-4 border-terre p-3 mb-4">
+                    Frais de livraison à partir de {selectedZone.fee.toLocaleString('fr-SN')} FCFA — le montant exact vous sera confirmé par téléphone.
+                  </p>
+                )}
+
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   required
                   className="block w-full border border-terre/30 bg-sable/20 px-4 py-3 text-baobab placeholder-baobab/40 focus:border-terre focus:outline-none focus:ring-1 focus:ring-terre transition-colors"
-                  placeholder="Quartier, rue, repère — ex. Médina, Rue 15 près du marché"
+                  placeholder="Précisez : rue, repère — ex. Rue 15 près du marché"
                 />
               </div>
 
               {!user && (
                 <div className="py-8 border-b border-terre/10">
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">3</span>
+                    <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full shrink-0">3</span>
                     <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Vos coordonnées</label>
                   </div>
                   <div className="space-y-3">
@@ -277,7 +354,7 @@ export default function OrderPage() {
 
               <div className="py-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full flex-shrink-0">{user ? 3 : 4}</span>
+                  <span className="w-7 h-7 flex items-center justify-center bg-terre text-sable text-sm font-bold rounded-full shrink-0">{user ? 3 : 4}</span>
                   <label className="text-sm font-semibold text-baobab uppercase tracking-wider">Mode de paiement</label>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -319,7 +396,7 @@ export default function OrderPage() {
               <div className="pt-6 border-t border-terre/20">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-lg text-baobab">Total à régler</span>
-                  <span className="font-serif text-3xl font-bold text-terre">{(product.price * quantity).toLocaleString('fr-SN')} FCFA</span>
+                  <span className="font-serif text-3xl font-bold text-terre">{total.toLocaleString('fr-SN')} FCFA</span>
                 </div>
 
                 <button

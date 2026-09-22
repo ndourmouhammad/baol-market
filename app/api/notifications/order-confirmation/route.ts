@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const { data: order, error } = await supabaseAdmin
     .from('orders')
-    .select('id, total_amount, delivery_address, payment_method, customer_id, order_items(quantity, unit_price, products(name))')
+    .select('id, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed, delivery_address, payment_method, customer_id, order_items(quantity, unit_price, products(name))')
     .eq('id', orderId)
     .single()
 
@@ -37,7 +37,6 @@ export async function POST(request: Request) {
       })
     } catch (e) {
       console.error('Erreur envoi email de confirmation:', e)
-      // On ne bloque jamais la commande si l'email échoue
     }
   }
 

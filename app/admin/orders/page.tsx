@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, User, Phone } from 'lucide-react'
+import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, User, Phone, AlertCircle, Check } from 'lucide-react'
 
 type OrderItem = {
   quantity: number
@@ -11,12 +11,16 @@ type OrderItem = {
 }
 
 type Rider = { id: string; name: string }
+type DeliveryZoneInfo = { id: string; name: string } | null
 
 type Order = {
   id: string
   status: string
   payment_method: string
   total_amount: number
+  subtotal_amount: number | null
+  delivery_fee: number | null
+  delivery_fee_confirmed: boolean | null
   delivery_address: string
   created_at: string
   rider_id: string | null
@@ -26,6 +30,7 @@ type Order = {
   tracking_code: string | null
   order_items: OrderItem[]
   riders: Rider | null
+  delivery_zones: DeliveryZoneInfo
 }
 
 const STATUS_OPTIONS = [
@@ -69,6 +74,8 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [feeEdits, setFeeEdits] = useState<Record<string, string>>({})
+  const [savingFeeFor, setSavingFeeFor] = useState<string | null>(null)
 
   async function loadOrders() {
     const res = await authFetch('/api/admin/orders')
@@ -110,6 +117,24 @@ export default function AdminOrdersPage() {
     loadOrders()
   }
 
+  async function saveDeliveryFee(orderId: string) {
+    const value = feeEdits[orderId]
+    if (value === undefined || value === '') return
+    setSavingFeeFor(orderId)
+    await authFetch(`/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delivery_fee: Number(value) }),
+    })
+    setSavingFeeFor(null)
+    setFeeEdits((prev) => {
+      const next = { ...prev }
+      delete next[orderId]
+      return next
+    })
+    loadOrders()
+  }
+
   const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE)
   const paginatedOrders = orders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
@@ -145,107 +170,156 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {paginatedOrders.map((order) => (
-            <div key={order.id} className="bg-white rounded-xl border border-mil/30 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-mil/20">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs text-terre">
-                      Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      order.customer_id ? 'bg-nuit-diourbel/10 text-nuit-diourbel' : 'bg-mil/20 text-baobab'
-                    }`}>
-                      {order.customer_id ? 'Compte' : 'Invité'}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-nuit-diourbel text-lg">
-                    {order.total_amount.toLocaleString('fr-FR')} FCFA
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <div className="relative">
-                    <select
-                      value={order.rider_id ?? ''}
-                      onChange={(e) => assignRider(order.id, e.target.value)}
-                      className="appearance-none font-medium text-sm pl-8 pr-8 py-2 rounded-full border border-mil/40 bg-sable/50 text-nuit-diourbel outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors"
-                    >
-                      <option value="">Aucun livreur</option>
-                      {riders.map((r) => {
-                        const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
-                        return (
-                          <option key={r.id} value={r.id} disabled={isBusyElsewhere}>
-                            {r.name}{isBusyElsewhere ? ' (occupé)' : ''}
-                          </option>
-                        )
-                      })}
-                    </select>
-                    <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-terre pointer-events-none" />
-                  </div>
-                  <div className="relative">
-                    <select
-                      value={order.status}
-                      onChange={(e) => updateStatus(order.id, e.target.value)}
-                      className={`appearance-none font-medium text-sm px-4 py-2 pr-8 rounded-full border outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors ${getStatusColor(order.status)}`}
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-70">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {paginatedOrders.map((order) => {
+            const subtotal = order.subtotal_amount ?? order.total_amount
+            const deliveryFee = order.delivery_fee ?? 0
+            const feeNeedsConfirmation = order.delivery_fee_confirmed === false
+            const editingValue = feeEdits[order.id]
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="w-4 h-4 text-terre mt-0.5 shrink-0" />
-                    <span className="text-nuit-diourbel">{order.delivery_address}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <CreditCard className="w-4 h-4 text-terre shrink-0" />
-                    <span className="text-nuit-diourbel capitalize">{order.payment_method.replace('_', ' ')}</span>
-                  </div>
-                  {order.riders && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Truck className="w-4 h-4 text-terre shrink-0" />
-                      <span className="text-nuit-diourbel">{order.riders.name}</span>
+            return (
+              <div key={order.id} className="bg-white rounded-xl border border-mil/30 p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-mil/20">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-xs text-terre">
+                        Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        order.customer_id ? 'bg-nuit-diourbel/10 text-nuit-diourbel' : 'bg-mil/20 text-baobab'
+                      }`}>
+                        {order.customer_id ? 'Compte' : 'Invité'}
+                      </span>
+                      {feeNeedsConfirmation && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                          <AlertCircle className="w-3 h-3" /> Frais à confirmer
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {!order.customer_id && order.guest_phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="w-4 h-4 text-terre shrink-0" />
+                    <p className="font-semibold text-nuit-diourbel text-lg">
+                      {order.total_amount.toLocaleString('fr-FR')} FCFA
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <div className="relative">
+                      <select
+                        value={order.rider_id ?? ''}
+                        onChange={(e) => assignRider(order.id, e.target.value)}
+                        className="appearance-none font-medium text-sm pl-8 pr-8 py-2 rounded-full border border-mil/40 bg-sable/50 text-nuit-diourbel outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors"
+                      >
+                        <option value="">Aucun livreur</option>
+                        {riders.map((r) => {
+                          const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
+                          return (
+                            <option key={r.id} value={r.id} disabled={isBusyElsewhere}>
+                              {r.name}{isBusyElsewhere ? ' (occupé)' : ''}
+                            </option>
+                          )
+                        })}
+                      </select>
+                      <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-terre pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateStatus(order.id, e.target.value)}
+                        className={`appearance-none font-medium text-sm px-4 py-2 pr-8 rounded-full border outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors ${getStatusColor(order.status)}`}
+                      >
+                        {STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-70">
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-terre mt-0.5 shrink-0" />
                       <span className="text-nuit-diourbel">
-                        {order.guest_phone}
-                        {order.guest_email ? ` · ${order.guest_email}` : ''}
+                        {order.delivery_zones?.name ? `${order.delivery_zones.name} — ` : ''}{order.delivery_address}
                       </span>
                     </div>
-                  )}
-                  {!order.customer_id && order.tracking_code && (
                     <div className="flex items-center gap-2 text-sm">
-                      <User className="w-4 h-4 text-terre shrink-0" />
-                      <span className="text-nuit-diourbel font-mono">{order.tracking_code}</span>
+                      <CreditCard className="w-4 h-4 text-terre shrink-0" />
+                      <span className="text-nuit-diourbel capitalize">{order.payment_method.replace('_', ' ')}</span>
                     </div>
-                  )}
-                </div>
-                <div className="bg-sable/50 rounded-lg p-3 text-sm">
-                  <p className="font-medium text-terre mb-2 text-xs uppercase tracking-wider">Articles</p>
-                  <ul className="space-y-1">
-                    {order.order_items.map((item, i) => (
-                      <li key={i} className="flex justify-between text-nuit-diourbel">
-                        <span>{item.quantity}× {item.products?.name ?? 'Produit inconnu'}</span>
-                      </li>
-                    ))}
-                  </ul>
+                    {order.riders && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Truck className="w-4 h-4 text-terre shrink-0" />
+                        <span className="text-nuit-diourbel">{order.riders.name}</span>
+                      </div>
+                    )}
+                    {!order.customer_id && order.guest_phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-terre shrink-0" />
+                        <span className="text-nuit-diourbel">
+                          {order.guest_phone}
+                          {order.guest_email ? ` · ${order.guest_email}` : ''}
+                        </span>
+                      </div>
+                    )}
+                    {!order.customer_id && order.tracking_code && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="w-4 h-4 text-terre shrink-0" />
+                        <span className="text-nuit-diourbel font-mono">{order.tracking_code}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-sable/50 rounded-lg p-3 text-sm">
+                      <p className="font-medium text-terre mb-2 text-xs uppercase tracking-wider">Articles</p>
+                      <ul className="space-y-1 mb-2">
+                        {order.order_items.map((item, i) => (
+                          <li key={i} className="flex justify-between text-nuit-diourbel">
+                            <span>{item.quantity}× {item.products?.name ?? 'Produit inconnu'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="border-t border-mil/20 pt-2 space-y-1">
+                        <div className="flex justify-between text-nuit-diourbel/80 text-xs">
+                          <span>Sous-total</span>
+                          <span>{subtotal.toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                        <div className="flex justify-between items-center text-nuit-diourbel/80 text-xs">
+                          <span>Livraison</span>
+                          <span>{deliveryFee.toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-nuit-diourbel text-sm pt-1">
+                          <span>Total</span>
+                          <span>{order.total_amount.toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        placeholder={`Corriger : ${deliveryFee}`}
+                        value={editingValue ?? ''}
+                        onChange={(e) => setFeeEdits((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                        className="w-full text-xs border border-mil/40 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none"
+                      />
+                      <button
+                        onClick={() => saveDeliveryFee(order.id)}
+                        disabled={editingValue === undefined || editingValue === '' || savingFeeFor === order.id}
+                        className="shrink-0 flex items-center gap-1 text-xs bg-baobab text-white rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-vert-feuille transition-colors"
+                      >
+                        {savingFeeFor === order.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        Valider
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between bg-white px-4 py-3 border border-mil/30 rounded-xl mt-6">
