@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard } from 'lucide-react'
 
@@ -11,6 +11,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
 
   const isAdmin = user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
 
@@ -61,6 +62,10 @@ export default function Header() {
     router.push('/login')
   }
 
+  if (pathname === '/login' || pathname === '/signup') {
+    return null
+  }
+
   return (
     <>
       <header
@@ -106,7 +111,7 @@ export default function Header() {
 
               {user ? (
                 <div className="flex items-center gap-3 pl-2 border-l border-terre/15">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-terre to-mil text-sable flex items-center justify-center font-serif font-bold text-sm">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-terre to-mil text-sable flex items-center justify-center font-serif font-bold text-sm">
                     {user.email?.charAt(0).toUpperCase()}
                   </div>
                   <button
@@ -142,14 +147,14 @@ export default function Header() {
       {/* Overlay Mobile */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-[60] animate-fade-in md:hidden"
+          className="fixed inset-0 bg-black/40 z-60 animate-fade-in md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Drawer Mobile */}
       {mobileMenuOpen && (
-        <div className="fixed inset-y-0 right-0 w-[280px] bg-sable z-[70] shadow-2xl animate-slide-in-right md:hidden flex flex-col">
+        <div className="fixed inset-y-0 right-0 w-70 bg-sable z-70 shadow-2xl animate-slide-in-right md:hidden flex flex-col">
           {/* Drawer Header */}
           <div className="flex items-center justify-between p-4 border-b border-terre/10">
             <span className="font-serif font-bold text-lg text-baobab">Menu</span>
@@ -166,7 +171,7 @@ export default function Header() {
           {user && (
             <div className="px-4 py-4 bg-terre/5 border-b border-terre/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-terre to-mil text-sable flex items-center justify-center font-serif font-bold">
+                <div className="w-10 h-10 rounded-full bg-linear-to-br from-terre to-mil text-sable flex items-center justify-center font-serif font-bold">
                   {user.email?.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">

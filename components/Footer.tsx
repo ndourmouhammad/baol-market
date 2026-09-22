@@ -1,7 +1,16 @@
+'use client'
+
 import Link from 'next/link'
 import { ShieldCheck, Truck, MessageCircle } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 
 export default function Footer() {
+  const pathname = usePathname()
+
+  if (pathname === '/login' || pathname === '/signup') {
+    return null
+  }
+
   return (
     <footer className="bg-baobab text-sable mt-auto">
       {/* Bandeau de confiance */}
