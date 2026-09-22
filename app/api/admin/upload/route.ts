@@ -3,7 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdmin } from '@/lib/verifyAdmin'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 Mo
+const MAX_SIZE_BYTES = 5 * 1024 * 1024
+const ALLOWED_BUCKETS = ['products', 'categories']
 
 export async function POST(request: Request) {
   const admin = await verifyAdmin(request)
@@ -13,6 +14,11 @@ export async function POST(request: Request) {
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
+  const bucket = (formData.get('bucket') as string) || 'products'
+
+  if (!ALLOWED_BUCKETS.includes(bucket)) {
+    return NextResponse.json({ error: 'Destination de stockage invalide.' }, { status: 400 })
+  }
 
   if (!file) {
     return NextResponse.json({ error: 'Aucun fichier reçu' }, { status: 400 })
@@ -37,30 +43,21 @@ export async function POST(request: Request) {
   const fileName = `${crypto.randomUUID()}.${extension}`
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from('products')
+    .from(bucket)
     .upload(fileName, arrayBuffer, { contentType: file.type })
 
   if (uploadError) {
-    // Le bucket Supabase applique aussi ses propres règles (taille/type) :
-    // si jamais un fichier passe nos contrôles mais est bloqué côté Supabase,
-    // on traduit le message brut en quelque chose de compréhensible.
     const message = uploadError.message.toLowerCase()
     if (message.includes('mime') || message.includes('type')) {
-      return NextResponse.json(
-        { error: 'Format non accepté par le serveur de stockage.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Format non accepté par le serveur de stockage.' }, { status: 400 })
     }
     if (message.includes('size') || message.includes('exceeded')) {
-      return NextResponse.json(
-        { error: 'Image trop lourde pour le serveur de stockage.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Image trop lourde pour le serveur de stockage.' }, { status: 400 })
     }
     return NextResponse.json({ error: uploadError.message }, { status: 500 })
   }
 
-  const { data: publicUrlData } = supabaseAdmin.storage.from('products').getPublicUrl(fileName)
+  const { data: publicUrlData } = supabaseAdmin.storage.from(bucket).getPublicUrl(fileName)
 
   return NextResponse.json({ url: publicUrlData.publicUrl })
 }

@@ -10,7 +10,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = await request.json()
   const slug = body.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-  const { error } = await supabaseAdmin.from('categories').update({ name: body.name, slug }).eq('id', id)
+  const { error } = await supabaseAdmin.from('categories').update({
+    name: body.name,
+    slug,
+    description: body.description || null,
+    image_url: body.image_url || null,
+  }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

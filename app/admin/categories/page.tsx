@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Tags, Trash2, Edit, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, Tags, Trash2, Edit, AlertTriangle, ChevronLeft, ChevronRight, ImagePlus, X } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 8
 
-type Category = { id: string; name: string; slug: string }
+type Category = { id: string; name: string; slug: string; description: string | null; image_url: string | null }
 
 async function authFetch(url: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -19,12 +19,18 @@ async function authFetch(url: string, options: RequestInit = {}) {
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
 
   async function loadCategories() {
     setLoading(true)
@@ -36,10 +42,49 @@ export default function AdminCategoriesPage() {
 
   useEffect(() => { loadCategories() }, [])
 
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setError('')
+  }
+
+  function removeImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    setExistingImageUrl(null)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError('')
+
+    let imageUrl = existingImageUrl
+
+    if (imageFile) {
+      setUploading(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      const formData = new FormData()
+      formData.append('file', imageFile)
+      formData.append('bucket', 'categories')
+
+      const uploadRes = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: formData,
+      })
+      const uploadJson = await uploadRes.json()
+      setUploading(false)
+
+      if (!uploadRes.ok) {
+        setError(uploadJson.error)
+        setSaving(false)
+        return
+      }
+      imageUrl = uploadJson.url
+    }
 
     const url = editingId ? `/api/admin/categories/${editingId}` : '/api/admin/categories'
     const method = editingId ? 'PATCH' : 'POST'
@@ -47,7 +92,7 @@ export default function AdminCategoriesPage() {
     const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description, image_url: imageUrl }),
     })
 
     const json = await res.json()
@@ -56,8 +101,7 @@ export default function AdminCategoriesPage() {
     if (!res.ok) {
       setError(json.error)
     } else {
-      setName('')
-      setEditingId(null)
+      resetForm()
       loadCategories()
     }
   }
@@ -65,12 +109,20 @@ export default function AdminCategoriesPage() {
   function startEdit(category: Category) {
     setEditingId(category.id)
     setName(category.name)
+    setDescription(category.description || '')
+    setExistingImageUrl(category.image_url)
+    setImagePreview(category.image_url)
+    setImageFile(null)
     setError('')
   }
 
-  function cancelEdit() {
+  function resetForm() {
     setEditingId(null)
     setName('')
+    setDescription('')
+    setImageFile(null)
+    setImagePreview(null)
+    setExistingImageUrl(null)
     setError('')
   }
 
@@ -102,6 +154,30 @@ export default function AdminCategoriesPage() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div className="space-y-1.5">
+              <label className="font-medium text-nuit-diourbel block">Image (optionnelle)</label>
+              {imagePreview ? (
+                <div className="relative w-full h-32 rounded-lg overflow-hidden border border-mil/40">
+                  <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 hover:bg-white shadow-sm"
+                    title="Retirer l'image"
+                  >
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-mil/40 rounded-lg cursor-pointer hover:bg-sable/40 transition-colors">
+                  <ImagePlus className="w-6 h-6 text-terre/50 mb-1" />
+                  <span className="text-terre/70 text-xs">Choisir une image</span>
+                  <span className="text-terre/40 text-xs mt-0.5">Sinon une icône générique sera utilisée</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
+                </label>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <label className="font-medium text-nuit-diourbel block">Nom de la catégorie</label>
               <input
                 type="text" placeholder="Ex: Céréales" value={name}
@@ -109,22 +185,31 @@ export default function AdminCategoriesPage() {
                 className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all"
               />
             </div>
-            
+
+            <div className="space-y-1.5">
+              <label className="font-medium text-nuit-diourbel block">Description (optionnelle)</label>
+              <textarea
+                placeholder="Courte description affichée sur la page catégorie" value={description}
+                onChange={(e) => setDescription(e.target.value)} rows={3}
+                className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all resize-none"
+              />
+            </div>
+
             {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded">{error}</p>}
-            
+
             <div className="flex gap-2 mt-2">
-              <button 
-                type="submit" 
-                disabled={saving} 
+              <button
+                type="submit"
+                disabled={saving}
                 className="flex-1 bg-baobab text-white rounded-lg px-4 py-2.5 font-medium hover:bg-vert-feuille transition-colors flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {saving ? 'Enregistrement...' : editingId ? 'Enregistrer' : 'Ajouter'}
+                {saving ? (uploading ? 'Envoi de l\'image...' : 'Enregistrement...') : editingId ? 'Enregistrer' : 'Ajouter'}
               </button>
               {editingId && (
-                <button 
-                  type="button" 
-                  onClick={cancelEdit} 
+                <button
+                  type="button"
+                  onClick={resetForm}
                   className="flex-1 bg-white text-terre border border-mil/40 rounded-lg px-4 py-2.5 font-medium hover:bg-gray-50 transition-colors"
                 >
                   Annuler
@@ -139,7 +224,7 @@ export default function AdminCategoriesPage() {
           <h2 className="text-2xl font-semibold text-baobab font-fraunces mb-6 flex items-center gap-3">
             Catégories <span className="text-terre text-lg font-normal">({categories.length})</span>
           </h2>
-          
+
           {categories.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-mil/30 text-terre">
               <Tags className="w-12 h-12 mb-4 text-mil" />
@@ -150,19 +235,29 @@ export default function AdminCategoriesPage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {paginatedCategories.map((c) => (
                   <div key={c.id} className="bg-white p-5 rounded-xl border border-mil/30 hover:shadow-sm transition-shadow flex flex-col justify-between">
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-nuit-diourbel text-lg">{c.name}</h3>
-                      <p className="text-sm text-terre">/{c.slug}</p>
+                    <div className="flex gap-3 mb-4">
+                      {c.image_url ? (
+                        <img src={c.image_url} alt={c.name} className="w-14 h-14 rounded-lg object-cover border border-mil/20 shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-sable flex items-center justify-center border border-mil/20 shrink-0">
+                          <Tags className="w-5 h-5 text-terre/30" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-nuit-diourbel text-lg">{c.name}</h3>
+                        <p className="text-sm text-terre">/{c.slug}</p>
+                        {c.description && <p className="text-sm text-terre/70 line-clamp-2">{c.description}</p>}
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => startEdit(c)} 
+                      <button
+                        onClick={() => startEdit(c)}
                         className="flex-1 flex items-center justify-center gap-1.5 text-sm rounded-lg px-3 py-2 transition-colors border border-mil/40 text-terre hover:bg-gray-50"
                       >
                         <Edit className="w-4 h-4" /> Modifier
                       </button>
-                      <button 
-                        onClick={() => setCategoryToDelete(c.id)} 
+                      <button
+                        onClick={() => setCategoryToDelete(c.id)}
                         className="text-red-600 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-colors"
                         title="Supprimer"
                       >
@@ -213,14 +308,14 @@ export default function AdminCategoriesPage() {
               Êtes-vous sûr de vouloir supprimer cette catégorie ? Les produits associés risquent de perdre leur catégorie.
             </p>
             <div className="flex gap-3 justify-end">
-              <button 
+              <button
                 onClick={() => setCategoryToDelete(null)}
                 className="px-4 py-2 text-terre hover:bg-mil/20 rounded-lg font-medium transition-colors"
               >
                 Annuler
               </button>
-              <button 
-                onClick={() => deleteCategory(categoryToDelete)}
+              <button
+                onClick={() => categoryToDelete && deleteCategory(categoryToDelete)}
                 className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition-colors"
               >
                 Oui, supprimer
