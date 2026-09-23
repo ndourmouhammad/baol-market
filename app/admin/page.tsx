@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   ShoppingCart,
@@ -17,12 +18,27 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     async function fetchStats() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (!session) throw new Error('Non authentifié')
+        if (!session) {
+          router.push('/login')
+          return
+        }
+
+        const { data: staffRow } = await supabase
+          .from('staff')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle()
+          
+        if (staffRow?.role === 'moderator') {
+          router.push('/admin/orders')
+          return
+        }
 
         const response = await fetch('/api/admin/stats', {
           headers: {

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { verifyAdmin } from '@/lib/verifyAdmin'
+import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 
 export async function GET(request: Request) {
-  const admin = await verifyAdmin(request)
-  if (!admin) {
+  const staff = await verifyStaff(request)
+  if (!staff || !hasRole(staff.role, 'admin')) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
   }
 

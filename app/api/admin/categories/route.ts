@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { verifyAdmin } from '@/lib/verifyAdmin'
+import { verifyStaff } from '@/lib/verifyStaff'
 
 export async function GET(request: Request) {
-  const admin = await verifyAdmin(request)
-  if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  const staff = await verifyStaff(request)
+  if (!staff) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { data, error } = await supabaseAdmin
     .from('categories')
@@ -16,8 +16,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const admin = await verifyAdmin(request)
-  if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  const staff = await verifyStaff(request)
+  if (!staff) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const body = await request.json()
   const slug = body.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')

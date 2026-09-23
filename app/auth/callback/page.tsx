@@ -11,19 +11,22 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     let redirected = false
 
-    function redirectAfterLogin(email?: string | null) {
-      if (redirected) return
+    async function redirectAfterLogin(userId?: string) {
+      if (redirected || !userId) return
       redirected = true
-      if (email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-        router.replace('/admin')
-      } else {
+      const { data: staffRow } = await supabase.from('staff').select('role').eq('id', userId).maybeSingle()
+      if (!staffRow) {
         router.replace('/')
+      } else if (staffRow.role === 'moderator') {
+        router.replace('/admin/orders')
+      } else {
+        router.replace('/admin')
       }
     }
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        redirectAfterLogin(session.user.email)
+        redirectAfterLogin(session.user.id)
       }
     })
 
@@ -32,7 +35,7 @@ export default function AuthCallbackPage() {
       if (code) {
         const { data } = await supabase.auth.exchangeCodeForSession(code)
         if (data.session) {
-          redirectAfterLogin(data.session.user.email)
+          redirectAfterLogin(data.session.user.id)
           return
         }
       }
@@ -40,7 +43,7 @@ export default function AuthCallbackPage() {
       // automatiquement au chargement de la page (detectSessionInUrl est activé par défaut).
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        redirectAfterLogin(session.user.email)
+        redirectAfterLogin(session.user.id)
       }
     }
     handle()

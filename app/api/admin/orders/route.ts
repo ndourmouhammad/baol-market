@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { verifyAdmin } from '@/lib/verifyAdmin'
+import { verifyStaff } from '@/lib/verifyStaff'
 
 export async function GET(request: Request) {
-  const admin = await verifyAdmin(request)
-  if (!admin) {
-    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
-  }
+  const staff = await verifyStaff(request)
+  if (!staff) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { data: orders, error } = await supabaseAdmin
     .from('orders')
@@ -20,9 +18,6 @@ export async function GET(request: Request) {
     `)
     .order('created_at', { ascending: false })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ orders })
 }

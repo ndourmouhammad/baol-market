@@ -32,8 +32,15 @@ export default function LoginPage() {
 
     if (error) {
       setError(getFriendlyErrorMessage(error.message))
-    } else if (data?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      router.push('/admin')
+    } else if (data?.user) {
+      const { data: staffRow } = await supabase.from('staff').select('role').eq('id', data.user.id).maybeSingle()
+      if (!staffRow) {
+        router.push('/')
+      } else if (staffRow.role === 'moderator') {
+        router.push('/admin/orders')
+      } else {
+        router.push('/admin')
+      }
     } else {
       router.push('/')
     }

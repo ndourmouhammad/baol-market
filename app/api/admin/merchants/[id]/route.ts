@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { verifyAdmin } from '@/lib/verifyAdmin'
+import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await verifyAdmin(request)
-  if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  const staff = await verifyStaff(request)
+  if (!staff || !hasRole(staff.role, 'admin')) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  }
 
   const { id } = await params
   const body = await request.json()
@@ -14,8 +16,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await verifyAdmin(request)
-  if (!admin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  const staff = await verifyStaff(request)
+  if (!staff || !hasRole(staff.role, 'admin')) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  }
 
   const { id } = await params
   const { error } = await supabaseAdmin.from('merchants').delete().eq('id', id)
