@@ -46,15 +46,15 @@ const STATUS_OPTIONS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  created: 'bg-gray-100 text-gray-800 border-gray-200',
+  created: 'bg-gray-100 text-(--gris-texte) border-gray-200',
   confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
   payment_pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   preparing: 'bg-orange-100 text-orange-800 border-orange-200',
-  delivering: 'bg-purple-100 text-purple-800 border-purple-200',
-  delivered: 'bg-green-100 text-green-800 border-green-200',
+  delivering: 'bg-(--or-senegal) text-(--encre) border-(--or-senegal)',
+  delivered: 'bg-(--vert-baol) text-white border-(--vert-baol-fonce)',
   cancelled: 'bg-red-100 text-red-800 border-red-200',
-  refunded: 'bg-rose-100 text-rose-800 border-rose-200',
+  refunded: 'bg-gray-200 text-gray-800 border-gray-300',
 }
 
 const getStatusColor = (status: string) => STATUS_COLORS[status] || 'bg-gray-100 text-gray-800 border-gray-200'
@@ -148,24 +148,24 @@ export default function AdminOrdersPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-terre">
-        <Loader2 className="w-8 h-8 animate-spin text-baobab mb-4" />
+      <div className="flex flex-col items-center justify-center py-20 text-(--gris-texte)">
+        <Loader2 className="w-8 h-8 animate-spin text-(--vert-baol) mb-4" />
         <p>Chargement des commandes...</p>
       </div>
     )
   }
 
-  if (error) return <p className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">{error}</p>
+  if (error) return <p className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl">{error}</p>
 
   return (
     <div className="max-w-5xl mx-auto">
-      <h2 className="text-2xl font-semibold text-baobab font-fraunces mb-6">
-        Commandes <span className="text-terre text-lg font-normal">({orders.length})</span>
+      <h2 className="text-2xl font-bold text-(--encre) mb-6">
+        Commandes <span className="text-(--gris-texte) text-lg font-normal">({orders.length})</span>
       </h2>
 
       {orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-mil/30 text-terre">
-          <Inbox className="w-12 h-12 mb-4 text-mil" />
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-(--gris-texte)">
+          <Inbox className="w-12 h-12 mb-4 text-gray-300" />
           <p className="text-lg">Aucune commande pour le moment.</p>
         </div>
       ) : (
@@ -177,25 +177,25 @@ export default function AdminOrdersPage() {
             const editingValue = feeEdits[order.id]
 
             return (
-              <div key={order.id} className="bg-white rounded-xl border border-mil/30 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-mil/20">
+              <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-100">
                   <div>
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="text-xs text-terre">
+                      <p className="text-xs text-(--gris-texte)">
                         Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                       </p>
-                      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        order.customer_id ? 'bg-nuit-diourbel/10 text-nuit-diourbel' : 'bg-mil/20 text-baobab'
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        order.customer_id ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'bg-gray-100 text-(--gris-texte)'
                       }`}>
                         {order.customer_id ? 'Compte' : 'Invité'}
                       </span>
                       {feeNeedsConfirmation && (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
                           <AlertCircle className="w-3 h-3" /> Frais à confirmer
                         </span>
                       )}
                     </div>
-                    <p className="font-semibold text-nuit-diourbel text-lg">
+                    <p className="font-bold text-(--encre) text-lg">
                       {order.total_amount.toLocaleString('fr-FR')} FCFA
                     </p>
                   </div>
@@ -204,7 +204,7 @@ export default function AdminOrdersPage() {
                       <select
                         value={order.rider_id ?? ''}
                         onChange={(e) => assignRider(order.id, e.target.value)}
-                        className="appearance-none font-medium text-sm pl-8 pr-8 py-2 rounded-full border border-mil/40 bg-sable/50 text-nuit-diourbel outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors"
+                        className="appearance-none font-bold text-sm pl-8 pr-8 py-2 rounded-xl border border-gray-200 bg-gray-50 text-(--encre) outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors"
                       >
                         <option value="">Aucun livreur</option>
                         {riders.map((r) => {
@@ -216,13 +216,13 @@ export default function AdminOrdersPage() {
                           )
                         })}
                       </select>
-                      <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-terre pointer-events-none" />
+                      <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-(--gris-texte) pointer-events-none" />
                     </div>
                     <div className="relative">
                       <select
                         value={order.status}
                         onChange={(e) => updateStatus(order.id, e.target.value)}
-                        className={`appearance-none font-medium text-sm px-4 py-2 pr-8 rounded-full border outline-none cursor-pointer focus:ring-2 focus:ring-baobab transition-colors ${getStatusColor(order.status)}`}
+                        className={`appearance-none font-bold text-sm px-4 py-2 pr-8 rounded-xl border outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${getStatusColor(order.status)}`}
                       >
                         {STATUS_OPTIONS.map((s) => (
                           <option key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</option>
@@ -240,25 +240,25 @@ export default function AdminOrdersPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="w-4 h-4 text-terre mt-0.5 shrink-0" />
-                      <span className="text-nuit-diourbel">
+                      <MapPin className="w-4 h-4 text-(--gris-texte) mt-0.5 shrink-0" />
+                      <span className="text-(--encre) font-medium">
                         {order.delivery_zones?.name ? `${order.delivery_zones.name} — ` : ''}{order.delivery_address}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <CreditCard className="w-4 h-4 text-terre shrink-0" />
-                      <span className="text-nuit-diourbel capitalize">{order.payment_method.replace('_', ' ')}</span>
+                      <CreditCard className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                      <span className="text-(--encre) font-medium capitalize">{order.payment_method.replace('_', ' ')}</span>
                     </div>
                     {order.riders && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Truck className="w-4 h-4 text-terre shrink-0" />
-                        <span className="text-nuit-diourbel">{order.riders.name}</span>
+                        <Truck className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                        <span className="text-(--encre) font-medium">{order.riders.name}</span>
                       </div>
                     )}
                     {!order.customer_id && order.guest_phone && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-terre shrink-0" />
-                        <span className="text-nuit-diourbel">
+                        <Phone className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                        <span className="text-(--encre) font-medium">
                           {order.guest_phone}
                           {order.guest_email ? ` · ${order.guest_email}` : ''}
                         </span>
@@ -266,32 +266,32 @@ export default function AdminOrdersPage() {
                     )}
                     {!order.customer_id && order.tracking_code && (
                       <div className="flex items-center gap-2 text-sm">
-                        <User className="w-4 h-4 text-terre shrink-0" />
-                        <span className="text-nuit-diourbel font-mono">{order.tracking_code}</span>
+                        <User className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                        <span className="text-(--encre) font-medium font-mono">{order.tracking_code}</span>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-3">
-                    <div className="bg-sable/50 rounded-lg p-3 text-sm">
-                      <p className="font-medium text-terre mb-2 text-xs uppercase tracking-wider">Articles</p>
+                    <div className="bg-gray-50 rounded-xl p-3 text-sm border border-gray-100">
+                      <p className="font-bold text-(--gris-texte) mb-2 text-xs uppercase tracking-wider">Articles</p>
                       <ul className="space-y-1 mb-2">
                         {order.order_items.map((item, i) => (
-                          <li key={i} className="flex justify-between text-nuit-diourbel">
+                          <li key={i} className="flex justify-between text-(--encre)">
                             <span>{item.quantity}× {item.products?.name ?? 'Produit inconnu'}</span>
                           </li>
                         ))}
                       </ul>
-                      <div className="border-t border-mil/20 pt-2 space-y-1">
-                        <div className="flex justify-between text-nuit-diourbel/80 text-xs">
+                      <div className="border-t border-gray-200 pt-2 space-y-1">
+                        <div className="flex justify-between text-(--gris-texte) text-xs">
                           <span>Sous-total</span>
                           <span>{subtotal.toLocaleString('fr-FR')} FCFA</span>
                         </div>
-                        <div className="flex justify-between items-center text-nuit-diourbel/80 text-xs">
+                        <div className="flex justify-between items-center text-(--gris-texte) text-xs">
                           <span>Livraison</span>
                           <span>{deliveryFee.toLocaleString('fr-FR')} FCFA</span>
                         </div>
-                        <div className="flex justify-between font-semibold text-nuit-diourbel text-sm pt-1">
+                        <div className="flex justify-between font-bold text-(--encre) text-sm pt-1">
                           <span>Total</span>
                           <span>{order.total_amount.toLocaleString('fr-FR')} FCFA</span>
                         </div>
@@ -304,14 +304,14 @@ export default function AdminOrdersPage() {
                         placeholder={`Corriger : ${deliveryFee}`}
                         value={editingValue ?? ''}
                         onChange={(e) => setFeeEdits((prev) => ({ ...prev, [order.id]: e.target.value }))}
-                        className="w-full text-xs border border-mil/40 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none"
+                        className="w-full text-sm font-medium border border-gray-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none"
                       />
                       <button
                         onClick={() => saveDeliveryFee(order.id)}
                         disabled={editingValue === undefined || editingValue === '' || savingFeeFor === order.id}
-                        className="shrink-0 flex items-center gap-1 text-xs bg-baobab text-white rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-vert-feuille transition-colors"
+                        className="shrink-0 flex items-center gap-1 text-sm bg-(--vert-baol) text-white rounded-xl px-4 py-2.5 disabled:opacity-40 hover:bg-(--vert-baol-fonce) transition-colors font-medium"
                       >
-                        {savingFeeFor === order.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {savingFeeFor === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         Valider
                       </button>
                     </div>
@@ -322,21 +322,21 @@ export default function AdminOrdersPage() {
           })}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between bg-white px-4 py-3 border border-mil/30 rounded-xl mt-6">
+            <div className="flex items-center justify-between bg-white px-4 py-3 border border-gray-100 rounded-2xl mt-6">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-(--gris-texte) hover:text-(--encre) disabled:opacity-50 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" /> Précédent
               </button>
-              <span className="text-sm text-terre font-medium">
+              <span className="text-sm text-(--gris-texte) font-medium">
                 Page {currentPage} sur {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-(--gris-texte) hover:text-(--encre) disabled:opacity-50 transition-colors"
               >
                 Suivant <ChevronRight className="w-4 h-4" />
               </button>

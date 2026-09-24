@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Tags, Trash2, Edit, AlertTriangle, ChevronLeft, ChevronRight, ImagePlus, X } from 'lucide-react'
+import { Button } from '@/components/Button'
+import { FormField } from '@/components/FormField'
 
 const ITEMS_PER_PAGE = 8
 
@@ -134,8 +136,8 @@ export default function AdminCategoriesPage() {
 
   if (loading && categories.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-terre">
-        <Loader2 className="w-8 h-8 animate-spin text-baobab mb-4" />
+      <div className="flex flex-col items-center justify-center py-20 text-(--gris-texte)">
+        <Loader2 className="w-8 h-8 animate-spin text-(--vert-baol) mb-4" />
         <p>Chargement des catégories...</p>
       </div>
     )
@@ -148,15 +150,15 @@ export default function AdminCategoriesPage() {
     <div className="max-w-6xl mx-auto">
       <div className="grid gap-8 lg:grid-cols-[350px_1fr] items-start">
         {/* Formulaire */}
-        <div className="bg-white p-6 rounded-xl border border-mil/30 shadow-sm lg:sticky lg:top-24">
-          <h2 className="text-xl font-semibold text-baobab font-fraunces mb-6">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-24">
+          <h2 className="text-xl font-bold text-(--encre) mb-6">
             {editingId ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div className="space-y-1.5">
-              <label className="font-medium text-nuit-diourbel block">Image (optionnelle)</label>
+              <label className="font-bold text-(--encre) block">Image (optionnelle)</label>
               {imagePreview ? (
-                <div className="relative w-full h-32 rounded-lg overflow-hidden border border-mil/40">
+                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-gray-200">
                   <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -168,52 +170,43 @@ export default function AdminCategoriesPage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-mil/40 rounded-lg cursor-pointer hover:bg-sable/40 transition-colors">
-                  <ImagePlus className="w-6 h-6 text-terre/50 mb-1" />
-                  <span className="text-terre/70 text-xs">Choisir une image</span>
-                  <span className="text-terre/40 text-xs mt-0.5">Sinon une icône générique sera utilisée</span>
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                  <ImagePlus className="w-6 h-6 text-gray-400 mb-1" />
+                  <span className="text-(--gris-texte) text-xs font-medium">Choisir une image</span>
+                  <span className="text-gray-400 text-xs mt-0.5">Sinon une icône générique sera utilisée</span>
                   <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
                 </label>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="font-medium text-nuit-diourbel block">Nom de la catégorie</label>
-              <input
-                type="text" placeholder="Ex: Céréales" value={name}
-                onChange={(e) => setName(e.target.value)} required
-                className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all"
-              />
-            </div>
+            <FormField
+              label="Nom de la catégorie"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="Ex: Céréales"
+            />
 
             <div className="space-y-1.5">
-              <label className="font-medium text-nuit-diourbel block">Description (optionnelle)</label>
+              <label className="font-bold text-(--encre) block">Description (optionnelle)</label>
               <textarea
                 placeholder="Courte description affichée sur la page catégorie" value={description}
                 onChange={(e) => setDescription(e.target.value)} rows={3}
-                className="w-full border border-mil/40 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-baobab/50 focus:border-baobab outline-none transition-all resize-none"
+                className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none transition-all resize-none"
               />
             </div>
 
-            {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded">{error}</p>}
+            {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded-lg font-medium">{error}</p>}
 
-            <div className="flex gap-2 mt-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 bg-baobab text-white rounded-lg px-4 py-2.5 font-medium hover:bg-vert-feuille transition-colors flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {saving ? (uploading ? 'Envoi de l\'image...' : 'Enregistrement...') : editingId ? 'Enregistrer' : 'Ajouter'}
-              </button>
+            <div className="flex gap-2 mt-4">
+              <Button type="submit" disabled={saving} className="flex-1">
+                {saving ? (uploading ? 'Envoi...' : 'En cours...') : editingId ? 'Enregistrer' : 'Ajouter'}
+              </Button>
               {editingId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 bg-white text-terre border border-mil/40 rounded-lg px-4 py-2.5 font-medium hover:bg-gray-50 transition-colors"
-                >
+                <Button type="button" variant="secondary" onClick={resetForm} className="flex-1">
                   Annuler
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -221,44 +214,44 @@ export default function AdminCategoriesPage() {
 
         {/* Liste */}
         <div>
-          <h2 className="text-2xl font-semibold text-baobab font-fraunces mb-6 flex items-center gap-3">
-            Catégories <span className="text-terre text-lg font-normal">({categories.length})</span>
+          <h2 className="text-2xl font-bold text-(--encre) mb-6 flex items-center gap-3">
+            Catégories <span className="text-(--gris-texte) text-lg font-normal">({categories.length})</span>
           </h2>
 
           {categories.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-mil/30 text-terre">
-              <Tags className="w-12 h-12 mb-4 text-mil" />
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-(--gris-texte)">
+              <Tags className="w-12 h-12 mb-4 text-gray-300" />
               <p className="text-lg">Aucune catégorie pour le moment.</p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {paginatedCategories.map((c) => (
-                  <div key={c.id} className="bg-white p-5 rounded-xl border border-mil/30 hover:shadow-sm transition-shadow flex flex-col justify-between">
+                  <div key={c.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-sm transition-shadow flex flex-col justify-between">
                     <div className="flex gap-3 mb-4">
                       {c.image_url ? (
-                        <img src={c.image_url} alt={c.name} className="w-14 h-14 rounded-lg object-cover border border-mil/20 shrink-0" />
+                        <img src={c.image_url} alt={c.name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 shrink-0" />
                       ) : (
-                        <div className="w-14 h-14 rounded-lg bg-sable flex items-center justify-center border border-mil/20 shrink-0">
-                          <Tags className="w-5 h-5 text-terre/30" />
+                        <div className="w-14 h-14 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shrink-0">
+                          <Tags className="w-5 h-5 text-gray-300" />
                         </div>
                       )}
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-nuit-diourbel text-lg">{c.name}</h3>
-                        <p className="text-sm text-terre">/{c.slug}</p>
-                        {c.description && <p className="text-sm text-terre/70 line-clamp-2">{c.description}</p>}
+                        <h3 className="font-bold text-(--encre) text-lg">{c.name}</h3>
+                        <p className="text-sm text-(--gris-texte) font-medium">/{c.slug}</p>
+                        {c.description && <p className="text-sm text-(--gris-texte) line-clamp-2 mt-1">{c.description}</p>}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(c)}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-sm rounded-lg px-3 py-2 transition-colors border border-mil/40 text-terre hover:bg-gray-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl px-3 py-2 transition-colors border border-gray-200 text-(--gris-texte) hover:bg-gray-50 hover:text-(--encre)"
                       >
                         <Edit className="w-4 h-4" /> Modifier
                       </button>
                       <button
                         onClick={() => setCategoryToDelete(c.id)}
-                        className="text-red-600 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-colors"
+                        className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors border border-red-100"
                         title="Supprimer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -269,21 +262,21 @@ export default function AdminCategoriesPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white px-4 py-3 border border-mil/30 rounded-xl mt-6">
+                <div className="flex items-center justify-between bg-white px-4 py-3 border border-gray-100 rounded-2xl mt-6">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-(--gris-texte) hover:text-(--encre) disabled:opacity-50 transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" /> Précédent
                   </button>
-                  <span className="text-sm text-terre font-medium">
+                  <span className="text-sm text-(--gris-texte) font-medium">
                     Page {currentPage} sur {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-terre hover:text-nuit-diourbel disabled:opacity-50 disabled:hover:text-terre transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-(--gris-texte) hover:text-(--encre) disabled:opacity-50 transition-colors"
                   >
                     Suivant <ChevronRight className="w-4 h-4" />
                   </button>
@@ -297,26 +290,26 @@ export default function AdminCategoriesPage() {
       {/* Modal de suppression */}
       {categoryToDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-4 mb-4 text-red-600">
               <div className="bg-red-100 p-3 rounded-full">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold font-fraunces text-nuit-diourbel">Supprimer la catégorie ?</h3>
+              <h3 className="text-xl font-bold text-(--encre)">Supprimer la catégorie ?</h3>
             </div>
-            <p className="text-terre mb-6">
+            <p className="text-(--gris-texte) mb-6 font-medium">
               Êtes-vous sûr de vouloir supprimer cette catégorie ? Les produits associés risquent de perdre leur catégorie.
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setCategoryToDelete(null)}
-                className="px-4 py-2 text-terre hover:bg-mil/20 rounded-lg font-medium transition-colors"
+                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors"
               >
                 Annuler
               </button>
               <button
                 onClick={() => categoryToDelete && deleteCategory(categoryToDelete)}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition-colors"
+                className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors"
               >
                 Oui, supprimer
               </button>

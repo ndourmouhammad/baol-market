@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import OrderTimeline from '@/components/OrderTimeline'
+import { StatusBadge } from '@/components/StatusBadge'
+import { EmptyState } from '@/components/EmptyState'
+import { Button } from '@/components/Button'
 
 type Order = {
   id: string
@@ -15,28 +18,7 @@ type Order = {
   created_at: string
 }
 
-const STATUS_MAP: Record<string, { label: string; colors: string }> = {
-  'created': { label: 'Créée', colors: 'bg-baobab/10 text-baobab' },
-  'confirmed': { label: 'Confirmée', colors: 'bg-nuit-diourbel/10 text-nuit-diourbel' },
-  'payment_pending': { label: 'Paiement en attente', colors: 'bg-mil/20 text-baobab border border-mil/50' },
-  'paid': { label: 'Payée', colors: 'bg-vert-feuille/10 text-vert-feuille' },
-  'preparing': { label: 'En préparation', colors: 'bg-mil/20 text-baobab' },
-  'delivering': { label: 'En livraison', colors: 'bg-mil/40 text-baobab' },
-  'delivered': { label: 'Livrée', colors: 'bg-vert-feuille text-sable' },
-  'cancelled': { label: 'Annulée', colors: 'bg-terre/10 text-terre' },
-  'refunded': { label: 'Remboursée', colors: 'bg-terre/10 text-terre' },
-}
-
 const ACTIVE_STATUSES = ['created', 'confirmed', 'payment_pending', 'paid', 'preparing', 'delivering']
-
-const getStatusBadge = (status: string) => {
-  const mapped = STATUS_MAP[status] || { label: status, colors: 'bg-baobab/10 text-baobab' }
-  return (
-    <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider ${mapped.colors}`}>
-      {mapped.label}
-    </span>
-  )
-}
 
 const formatPaymentMethod = (method: string) => {
   if (method === 'a_la_livraison') return 'À la livraison'
@@ -81,71 +63,73 @@ export default function OrdersPage() {
   const pastOrders = orders.filter(o => !ACTIVE_STATUSES.includes(o.status))
 
   return (
-    <div className="bg-sable py-12 px-4 sm:px-6">
+    <div className="bg-(--fond) py-12 px-4 sm:px-6 min-h-screen">
       <div className="max-w-3xl mx-auto">
-        <h1 className="font-serif text-4xl font-bold text-baobab mb-8">Mes commandes</h1>
+        <h1 className="text-4xl font-bold text-(--encre) mb-8">Mes commandes</h1>
 
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white border border-terre/10 p-6 animate-pulse">
-                <div className="h-5 bg-baobab/10 w-1/4 mb-4"></div>
-                <div className="h-7 bg-terre/10 w-1/3 mb-6"></div>
-                <div className="h-4 bg-baobab/5 w-1/2 mb-2"></div>
-                <div className="h-4 bg-baobab/5 w-2/3"></div>
+              <div key={i} className="bg-white border border-gray-100 p-6 rounded-2xl animate-pulse">
+                <div className="h-5 bg-gray-200 w-1/4 mb-4 rounded"></div>
+                <div className="h-7 bg-gray-200 w-1/3 mb-6 rounded"></div>
+                <div className="h-4 bg-gray-100 w-1/2 mb-2 rounded"></div>
+                <div className="h-4 bg-gray-100 w-2/3 rounded"></div>
               </div>
             ))}
           </div>
         ) : orders.length === 0 ? (
-          <div className="text-center py-20 bg-white border border-terre/20">
-            <svg className="mx-auto h-16 w-16 text-terre/40 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-            <h2 className="font-serif text-2xl text-baobab mb-3">Vous n&#39;avez aucune commande</h2>
-            <p className="text-baobab/70 mb-8 max-w-sm mx-auto">Parcourez notre catalogue pour découvrir nos produits de qualité, vérifiés par notre équipe.</p>
-            <Link href="/" className="inline-block bg-terre text-sable px-8 py-3 font-medium hover:bg-terre/90 transition-colors">
-              Découvrir le catalogue
-            </Link>
-          </div>
+          <EmptyState
+            title="Vous n'avez aucune commande"
+            description="Parcourez notre catalogue pour découvrir nos produits de qualité, vérifiés par notre équipe."
+            actionText="Découvrir le catalogue"
+            onAction={() => router.push('/')}
+            icon={
+              <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            }
+          />
         ) : (
           <div className="space-y-10">
-
-            {/* Commandes Actives — avec Timeline */}
+            {/* Commandes Actives */}
             {activeOrders.length > 0 && (
               <section>
-                <h2 className="font-serif text-xl font-semibold text-baobab mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-terre rounded-full animate-pulse"></span>
+                <h2 className="text-xl font-bold text-(--encre) mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-(--vert-baol) rounded-full animate-pulse"></span>
                   En cours
                 </h2>
                 <div className="space-y-6">
                   {activeOrders.map((order) => (
-                    <div key={order.id} className="bg-white border-2 border-terre/30 p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                    <div key={order.id} className="bg-white border border-(--vert-baol)/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                         <div className="mb-3 sm:mb-0">
-                          <p className="text-sm text-baobab/60 mb-2">Commande du {formatDate(order.created_at)}</p>
-                          {getStatusBadge(order.status)}
+                          <p className="text-sm text-(--gris-texte) mb-2">Commande du {formatDate(order.created_at)}</p>
+                          <StatusBadge status={order.status} />
                         </div>
                         <div className="sm:text-right">
-                          <p className="font-serif text-2xl font-bold text-terre">{order.total_amount.toLocaleString('fr-SN')} FCFA</p>
+                          <p className="text-2xl font-bold text-(--encre)">{order.total_amount.toLocaleString('fr-SN')} FCFA</p>
                         </div>
                       </div>
 
                       {/* Timeline de progression */}
-                      <OrderTimeline status={order.status} />
+                      <div className="mb-4">
+                        <OrderTimeline status={order.status} />
+                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-baobab/80 mt-4 pt-4 border-t border-terre/10">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-(--gris-texte) mt-4 pt-4 border-t border-gray-100">
                         <div>
-                          <span className="block font-semibold text-baobab mb-1">Adresse de livraison</span>
+                          <span className="block font-bold text-(--encre) mb-1">Adresse de livraison</span>
                           <p>{order.delivery_address}</p>
                         </div>
                         <div>
-                          <span className="block font-semibold text-baobab mb-1">Mode de paiement</span>
+                          <span className="block font-bold text-(--encre) mb-1">Mode de paiement</span>
                           <p>{formatPaymentMethod(order.payment_method)}</p>
                         </div>
                       </div>
 
                       {order.status === 'payment_pending' && order.payment_method === 'a_la_livraison' && (
-                        <div className="mt-4 bg-mil/10 border-l-2 border-mil p-3 text-sm text-baobab">
+                        <div className="mt-4 bg-(--vert-baol)/10 border border-(--vert-baol)/20 p-3 rounded-xl text-sm text-(--vert-baol-fonce)">
                           Préparez le montant exact en espèces pour le livreur.
                         </div>
                       )}
@@ -155,20 +139,20 @@ export default function OrdersPage() {
               </section>
             )}
 
-            {/* Commandes Passées — liste compacte */}
+            {/* Commandes Passées */}
             {pastOrders.length > 0 && (
               <section>
-                <h2 className="font-serif text-xl font-semibold text-baobab mb-4">Historique</h2>
+                <h2 className="text-xl font-bold text-(--encre) mb-4">Historique</h2>
                 <div className="space-y-3">
                   {pastOrders.map((order) => (
-                    <div key={order.id} className="bg-white border border-terre/10 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div key={order.id} className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
                       <div className="flex items-center gap-4 flex-wrap">
-                        {getStatusBadge(order.status)}
-                        <span className="text-sm text-baobab/60">{formatDate(order.created_at)}</span>
+                        <StatusBadge status={order.status} />
+                        <span className="text-sm text-(--gris-texte)">{formatDate(order.created_at)}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="font-serif text-lg font-bold text-baobab">{order.total_amount.toLocaleString('fr-SN')} FCFA</span>
-                        <span className="text-xs text-baobab/50">{formatPaymentMethod(order.payment_method)}</span>
+                        <span className="text-lg font-bold text-(--encre)">{order.total_amount.toLocaleString('fr-SN')} FCFA</span>
+                        <span className="text-xs text-(--gris-texte)">{formatPaymentMethod(order.payment_method)}</span>
                       </div>
                     </div>
                   ))}

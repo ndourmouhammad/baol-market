@@ -59,8 +59,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-sable flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-baobab animate-spin" />
+      <div className="min-h-screen bg-(--fond) flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-(--vert-baol) animate-spin" />
       </div>
     )
   }
@@ -78,9 +78,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ]
 
   return (
-    <div className="min-h-screen bg-sable md:flex">
-      <div className="md:hidden bg-baobab text-white p-4 flex justify-between items-center sticky top-0 z-30">
-        <h1 className="font-semibold text-lg font-fraunces">Baol Admin</h1>
+    <div className="min-h-screen bg-(--fond) md:flex">
+      <div className="md:hidden bg-(--vert-baol-fonce) text-white p-4 flex justify-between items-center sticky top-0 z-30">
+        <h1 className="font-bold text-lg">Baol Admin</h1>
         <button onClick={() => setIsMobileMenuOpen(true)}>
           <Menu size={24} />
         </button>
@@ -94,13 +94,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       <aside className={`
-        fixed md:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-mil/30
-        transform transition-transform duration-200 ease-in-out flex flex-col
+        fixed md:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-gray-200
+        transform transition-transform duration-200 ease-in-out flex flex-col shadow-sm
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-4 md:p-6 flex justify-between items-center border-b border-mil/30 md:border-none">
-          <h1 className="text-2xl font-semibold text-baobab font-fraunces">Baol Admin</h1>
-          <button className="md:hidden text-terre hover:text-nuit-diourbel transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+        <div className="p-4 md:p-6 flex justify-between items-center border-b border-gray-100 md:border-none">
+          <h1 className="text-2xl font-bold text-(--encre)">Baol Admin</h1>
+          <button className="md:hidden text-(--gris-texte) hover:text-(--encre) transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
             <X size={24} />
           </button>
         </div>
@@ -113,10 +113,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                   isActive
-                    ? 'bg-baobab text-white'
-                    : 'text-terre hover:bg-mil/20 hover:text-nuit-diourbel'
+                    ? 'bg-(--vert-baol-fonce) text-white font-medium shadow-sm'
+                    : 'text-(--gris-texte) hover:bg-gray-50 hover:text-(--encre)'
                 }`}
               >
                 <item.icon size={20} />
@@ -126,15 +126,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="p-4 border-t border-mil/30 space-y-1">
+        <div className="p-4 border-t border-gray-100 space-y-1">
           {role && (
-            <p className="px-4 text-xs text-terre/70 mb-1">
+            <p className="px-4 text-xs text-(--gris-texte) mb-1">
               Connecté en tant que {role === 'super_admin' ? 'Super admin' : role === 'admin' ? 'Admin' : 'Modérateur'}
             </p>
           )}
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+            className="flex w-full items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
           >
             <LogOut size={20} />
             <span>Déconnexion</span>

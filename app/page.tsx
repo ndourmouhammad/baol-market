@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/Button'
 
 export default async function Home() {
   const { data: categories, error } = await supabase
@@ -10,69 +11,50 @@ export default async function Home() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-6 py-32 text-center">
-        <h1 className="font-serif text-3xl font-bold text-baobab mb-4">Oups, un souci technique</h1>
-        <p className="text-baobab/80 mb-6 max-w-md">Nous n&#39;avons pas pu charger le catalogue pour le moment. Veuillez réessayer dans quelques instants.</p>
-        <Link href="/" className="bg-terre text-sable px-6 py-3 font-medium rounded-lg hover:bg-terre/90 transition-colors">
-          Recharger la page
+        <h1 className="text-3xl font-bold text-(--encre) mb-4">Oups, un souci technique</h1>
+        <p className="text-(--gris-texte) mb-6 max-w-md">Nous n'avons pas pu charger le catalogue pour le moment. Veuillez réessayer dans quelques instants.</p>
+        <Link href="/">
+          <Button>Recharger la page</Button>
         </Link>
       </div>
     )
   }
 
   return (
-    <div className="bg-sable pb-20">
+    <div className="bg-(--fond) pb-20">
       {/* Hero Section */}
-      <section className="bg-nuit-diourbel text-sable hero-pattern relative overflow-hidden">
-        <div className="absolute -right-20 -top-20 w-80 h-80 bg-terre/10 rounded-full blur-3xl" />
-        <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-mil/10 rounded-full blur-3xl" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20 relative z-10">
+      <section className="bg-gray-50 text-(--encre) overflow-hidden border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-sable/10 backdrop-blur-sm border border-sable/10 rounded-full px-4 py-1.5 text-xs font-medium text-mil mb-6">
+            <div className="inline-flex items-center gap-2 bg-(--vert-baol)/10 rounded-full px-4 py-1.5 text-xs font-bold text-(--vert-baol-fonce) mb-6">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               Marketplace vérifiée au Sénégal
             </div>
 
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold mb-5 leading-[1.1]">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-5 leading-[1.1]">
               Des produits vérifiés,
               <br />
-              <span className="text-mil">livrés en confiance.</span>
+              <span className="text-(--vert-baol)">livrés en confiance.</span>
             </h1>
 
-            <p className="text-base md:text-lg font-light text-sable/80 max-w-xl mb-8 leading-relaxed">
+            <p className="text-base md:text-lg font-medium text-(--gris-texte) max-w-xl mb-8 leading-relaxed">
               Chaque article est inspecté physiquement par notre équipe avant mise en vente.
               Achetez local, en toute sérénité.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 mb-10">
-              <a
-                href="#catalogue"
-                className="inline-flex items-center justify-center gap-2 bg-terre text-sable px-7 py-3.5 rounded-lg font-medium hover:bg-terre/90 transition-colors shadow-lg shadow-terre/20 text-sm"
-              >
-                Explorer le catalogue
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
+            <div className="flex flex-col sm:flex-row gap-4 mb-10">
+              <a href="#catalogue">
+                <Button variant="primary" className="w-full sm:w-auto">
+                  Explorer le catalogue
+                </Button>
               </a>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center gap-2 bg-sable/10 text-sable border border-sable/20 px-7 py-3.5 rounded-lg font-medium hover:bg-sable/20 transition-colors text-sm"
-              >
-                Créer un compte
+              <Link href="/signup">
+                <Button variant="secondary" className="w-full sm:w-auto">
+                  Créer un compte
+                </Button>
               </Link>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-sable/60">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-vert-feuille rounded-full" />
-                50+ commerçants vérifiés
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-mil rounded-full" />
-                Dakar · Rufisque · Diourbel · Touba
-              </span>
             </div>
           </div>
         </div>
@@ -81,8 +63,8 @@ export default async function Home() {
       {/* Comment ça marche */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="text-center mb-10">
-          <h2 className="font-serif text-2xl md:text-3xl font-bold text-baobab mb-2">Comment ça marche ?</h2>
-          <p className="text-sm text-baobab/60">En 3 étapes simples</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-2">Comment ça marche ?</h2>
+          <p className="text-sm text-(--gris-texte)">En 3 étapes simples</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
           {[
@@ -117,13 +99,12 @@ export default async function Home() {
               ),
             },
           ].map((item) => (
-            <div key={item.step} className="text-center group">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-terre/10 text-terre flex items-center justify-center group-hover:bg-terre group-hover:text-sable transition-all duration-300">
+            <div key={item.step} className="text-center bg-gray-50 p-8 rounded-2xl border border-gray-100">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-(--vert-baol)/10 text-(--vert-baol) flex items-center justify-center">
                 {item.icon}
               </div>
-              <span className="text-xs font-bold text-terre/40 uppercase tracking-widest">Étape {item.step}</span>
-              <h3 className="font-serif text-xl font-bold text-baobab mt-1 mb-2">{item.title}</h3>
-              <p className="text-sm text-baobab/60 leading-relaxed max-w-xs mx-auto">{item.desc}</p>
+              <h3 className="text-xl font-bold text-(--encre) mt-1 mb-2">{item.title}</h3>
+              <p className="text-sm text-(--gris-texte) leading-relaxed max-w-xs mx-auto">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -132,24 +113,24 @@ export default async function Home() {
       {/* Catégories */}
       <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <h2 className="font-serif text-2xl md:text-3xl font-bold text-baobab mb-2">Parcourir par catégorie</h2>
-          <p className="text-sm text-baobab/60">Choisissez une catégorie pour découvrir les produits</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-2">Parcourir par catégorie</h2>
+          <p className="text-sm text-(--gris-texte)">Choisissez une catégorie pour découvrir les produits</p>
         </div>
 
         {!categories || categories.length === 0 ? (
-          <div className="text-center py-20 border border-terre/10 bg-white/50 rounded-2xl">
-            <h3 className="font-serif text-2xl text-baobab mb-2">Catalogue en préparation</h3>
-            <p className="text-baobab/60 text-sm">Notre équipe vérifie actuellement de nouveaux produits. Revenez très vite !</p>
+          <div className="text-center py-20 bg-gray-50 rounded-2xl border border-gray-100">
+            <h3 className="text-2xl font-bold text-(--encre) mb-2">Catalogue en préparation</h3>
+            <p className="text-(--gris-texte) text-sm">Notre équipe vérifie actuellement de nouveaux produits. Revenez très vite !</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {categories.map((category) => (
               <Link
                 key={category.id}
                 href={`/categorie/${category.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-terre/8 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
               >
-                <div className="aspect-square w-full overflow-hidden bg-sable/50 flex items-center justify-center">
+                <div className="aspect-square w-full overflow-hidden bg-gray-50 flex items-center justify-center relative">
                   {category.image_url ? (
                     <img
                       src={category.image_url}
@@ -157,17 +138,17 @@ export default async function Home() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-terre/10 text-terre flex items-center justify-center group-hover:bg-terre group-hover:text-sable transition-all duration-300">
+                    <div className="w-16 h-16 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center">
                       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375C2.754 3.75 2.25 4.254 2.25 4.875v1.5c0 .621.504 1.125 1.125 1.125z" />
                       </svg>
                     </div>
                   )}
                 </div>
-                <div className="p-4 md:p-5 flex flex-col grow">
-                  <h3 className="font-serif text-base md:text-lg font-bold text-baobab mb-1 line-clamp-1">{category.name}</h3>
+                <div className="p-4 md:p-5 flex flex-col grow text-center">
+                  <h3 className="text-lg font-bold text-(--encre) mb-1">{category.name}</h3>
                   {category.description && (
-                    <p className="text-xs md:text-sm text-baobab/60 line-clamp-2">{category.description}</p>
+                    <p className="text-sm text-(--gris-texte) line-clamp-2">{category.description}</p>
                   )}
                 </div>
               </Link>
@@ -176,18 +157,18 @@ export default async function Home() {
             {/* Card "Tous les produits" */}
             <Link
               href="/produits"
-              className="group bg-nuit-diourbel text-sable rounded-2xl overflow-hidden border border-terre/8 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+              className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
             >
-              <div className="aspect-square w-full flex items-center justify-center">
-                <div className="w-16 h-16 rounded-2xl bg-sable/10 flex items-center justify-center group-hover:bg-sable/20 transition-all duration-300">
+              <div className="aspect-square w-full flex items-center justify-center bg-(--vert-baol)/5">
+                <div className="w-16 h-16 rounded-2xl bg-(--vert-baol)/10 text-(--vert-baol) flex items-center justify-center group-hover:bg-(--vert-baol)/20 transition-all duration-300">
                   <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                   </svg>
                 </div>
               </div>
-              <div className="p-4 md:p-5 flex flex-col grow">
-                <h3 className="font-serif text-base md:text-lg font-bold mb-1">Tous les produits</h3>
-                <p className="text-xs md:text-sm text-sable/70">Voir l&#39;ensemble du catalogue</p>
+              <div className="p-4 md:p-5 flex flex-col grow text-center">
+                <h3 className="text-lg font-bold text-(--encre) mb-1">Tous les produits</h3>
+                <p className="text-sm text-(--gris-texte)">Voir l'ensemble du catalogue</p>
               </div>
             </Link>
           </div>

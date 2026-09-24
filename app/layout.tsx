@@ -17,14 +17,6 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Baol Market",
   description: "Marketplace e-commerce de proximité au Sénégal",
-  icons: {
-    icon: [
-      { url: '/icon.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-  },
 };
 
 export default function RootLayout({
@@ -38,9 +30,9 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans bg-sable text-baobab" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col font-sans bg-(--fond) text-(--encre)" suppressHydrationWarning>
         <Header />
-        <main className="flex-grow">{children}</main>
+        <main className="grow">{children}</main>
         <Footer />
       </body>
     </html>

@@ -13,6 +13,7 @@ import {
   Wallet,
   BadgeCheck
 } from 'lucide-react'
+import { StatusBadge } from '@/components/StatusBadge'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null)
@@ -64,14 +65,14 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-terre" />
+        <Loader2 className="h-8 w-8 animate-spin text-(--vert-baol)" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-center text-red-600 gap-3">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center text-red-600 gap-3">
         <AlertCircle className="h-5 w-5" />
         <p>Erreur: {error}</p>
       </div>
@@ -137,51 +138,26 @@ export default function AdminDashboard() {
     }
   ]
 
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'created':
-        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">Créée</span>
-      case 'confirmed':
-        return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">Confirmée</span>
-      case 'payment_pending':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Paiement en attente</span>
-      case 'paid':
-        return <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">Payée</span>
-      case 'preparing':
-        return <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">En préparation</span>
-      case 'delivering':
-        return <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">En livraison</span>
-      case 'delivered':
-        return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Livrée</span>
-      case 'cancelled':
-        return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Annulée</span>
-      case 'refunded':
-        return <span className="px-2 py-1 bg-rose-100 text-rose-800 rounded-full text-xs font-medium">Remboursée</span>
-      default:
-        return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">{status}</span>
-    }
-  }
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-serif font-bold text-baobab">Tableau de Bord</h1>
-        <p className="text-baobab/70 mt-2">Bienvenue sur votre espace d'administration. Voici un résumé de votre activité.</p>
+        <h1 className="text-3xl font-bold text-(--encre)">Tableau de Bord</h1>
+        <p className="text-(--gris-texte) mt-2">Bienvenue sur votre espace d'administration. Voici un résumé de votre activité.</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {cards.map((card, i) => (
-          <div key={i} className="bg-white rounded-xl shadow-sm border border-mil/30 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-baobab/70">{card.title}</p>
-                <h3 className="text-2xl font-bold text-baobab mt-2">{card.value}</h3>
+                <p className="text-sm font-medium text-(--gris-texte)">{card.title}</p>
+                <h3 className="text-2xl font-bold text-(--encre) mt-2">{card.value}</h3>
                 {card.subValue && (
-                  <p className="text-xs font-medium text-baobab/60 mt-1">{card.subValue}</p>
+                  <p className="text-xs font-medium text-gray-500 mt-1">{card.subValue}</p>
                 )}
               </div>
-              <div className={`p-3 rounded-lg ${card.bgColor} ${card.color}`}>
+              <div className={`p-3 rounded-xl ${card.bgColor} ${card.color}`}>
                 <card.icon className="h-6 w-6" />
               </div>
             </div>
@@ -190,13 +166,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Orders */}
-      <div className="bg-white rounded-xl shadow-sm border border-mil/30 overflow-hidden">
-        <div className="p-6 border-b border-mil/30 flex justify-between items-center">
-          <h2 className="text-xl font-serif font-semibold text-baobab">Dernières Commandes</h2>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-(--encre)">Dernières Commandes</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-sable/50 text-baobab font-medium border-b border-mil/30">
+            <thead className="bg-gray-50 text-(--encre) font-bold border-b border-gray-100">
               <tr>
                 <th className="px-6 py-4">ID Commande</th>
                 <th className="px-6 py-4">Date</th>
@@ -204,14 +180,14 @@ export default function AdminDashboard() {
                 <th className="px-6 py-4">Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-mil/30 text-baobab/80">
+            <tbody className="divide-y divide-gray-100 text-(--encre)">
               {recentOrders?.length > 0 ? (
                 recentOrders.map((order: any) => (
-                  <tr key={order.id} className="hover:bg-sable/20 transition-colors">
-                    <td className="px-6 py-4 font-medium text-baobab">
+                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-(--encre)">
                       #{order.id.slice(0, 8).toUpperCase()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-(--gris-texte)">
                       {new Date(order.created_at).toLocaleDateString('fr-FR', {
                         day: 'numeric',
                         month: 'short',
@@ -220,17 +196,17 @@ export default function AdminDashboard() {
                         minute: '2-digit'
                       })}
                     </td>
-                    <td className="px-6 py-4 font-medium">
+                    <td className="px-6 py-4 font-bold">
                       {formatCurrency(order.total_amount)}
                     </td>
                     <td className="px-6 py-4">
-                      {getStatusBadge(order.status)}
+                      <StatusBadge status={order.status} />
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-baobab/60">
+                  <td colSpan={4} className="px-6 py-8 text-center text-(--gris-texte)">
                     Aucune commande récente.
                   </td>
                 </tr>

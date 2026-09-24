@@ -60,7 +60,7 @@ function AuthCallbackContent() {
 
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="w-12 h-12 border-4 border-terre/30 border-t-terre rounded-full animate-spin"></div>
+      <div className="w-12 h-12 border-4 border-(--vert-baol)/30 border-t-(--vert-baol) rounded-full animate-spin"></div>
     </div>
   )
 }
@@ -69,7 +69,7 @@ export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="w-12 h-12 border-4 border-terre/30 border-t-terre rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-(--vert-baol)/30 border-t-(--vert-baol) rounded-full animate-spin"></div>
       </div>
     }>
       <AuthCallbackContent />

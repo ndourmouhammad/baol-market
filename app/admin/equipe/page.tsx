@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/Button'
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
 type StaffMember = { id: string; email: string; role: StaffRole; created_at: string }
@@ -78,52 +79,58 @@ export default function AdminStaffPage() {
     loadData()
   }
 
-  if (loading) return <p className="p-4 text-terre">Chargement...</p>
+  if (loading) return <p className="p-4 text-(--gris-texte)">Chargement...</p>
 
   const canCreateAdmin = currentRole === 'super_admin'
 
   return (
     <div className="grid gap-8 md:grid-cols-[350px_1fr]">
       <div>
-        <h2 className="text-xl font-semibold text-baobab mb-4">Ajouter un membre</h2>
-        <form onSubmit={handleSubmit} className="space-y-3 bg-white p-4 rounded-lg border border-mil/30">
-          <input
-            type="email" placeholder="Email" value={email}
-            onChange={(e) => setEmail(e.target.value)} required
-            className="w-full border border-mil/40 rounded px-3 py-2"
-          />
-          <select
-            value={role} onChange={(e) => setRole(e.target.value as StaffRole)}
-            className="w-full border border-mil/40 rounded px-3 py-2"
-          >
-            <option value="moderator">Modérateur</option>
-            {canCreateAdmin && <option value="admin">Admin</option>}
-          </select>
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-          <button type="submit" disabled={saving} className="w-full bg-baobab text-white rounded px-3 py-2">
+        <h2 className="text-xl font-bold text-(--encre) mb-4">Ajouter un membre</h2>
+        <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="space-y-1.5">
+            <label className="font-bold text-(--encre) block">Email</label>
+            <input
+              type="email" placeholder="Email" value={email}
+              onChange={(e) => setEmail(e.target.value)} required
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="font-bold text-(--encre) block">Rôle</label>
+            <select
+              value={role} onChange={(e) => setRole(e.target.value as StaffRole)}
+              className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none"
+            >
+              <option value="moderator">Modérateur</option>
+              {canCreateAdmin && <option value="admin">Admin</option>}
+            </select>
+          </div>
+          {error && <p className="text-red-600 text-sm font-medium bg-red-50 p-2 rounded-lg">{error}</p>}
+          <Button type="submit" disabled={saving} className="w-full mt-2">
             {saving ? 'Création...' : 'Créer le compte'}
-          </button>
+          </Button>
         </form>
 
         {tempPassword && (
-          <div className="mt-4 bg-yellow-50 border border-yellow-300 rounded p-4">
-            <p className="text-sm font-medium text-baobab mb-1">Mot de passe temporaire (à communiquer, affiché une seule fois) :</p>
-            <p className="font-mono text-lg text-terre">{tempPassword}</p>
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
+            <p className="text-sm font-bold text-(--encre) mb-2">Mot de passe temporaire (à communiquer, affiché une seule fois) :</p>
+            <p className="font-mono text-xl font-bold text-(--encre)">{tempPassword}</p>
           </div>
         )}
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold text-baobab mb-4">Équipe ({staffList.length})</h2>
+        <h2 className="text-xl font-bold text-(--encre) mb-4">Équipe ({staffList.length})</h2>
         <div className="space-y-3">
           {staffList.map((s) => (
-            <div key={s.id} className="bg-white p-4 rounded-lg border border-mil/30 flex justify-between items-center">
+            <div key={s.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center">
               <div>
-                <p className="font-medium text-nuit-diourbel">{s.email}</p>
-                <p className="text-sm text-terre">{ROLE_LABELS[s.role]}</p>
+                <p className="font-bold text-(--encre) text-lg">{s.email}</p>
+                <p className="text-sm text-(--gris-texte) font-medium mt-1">{ROLE_LABELS[s.role]}</p>
               </div>
               {s.role !== 'super_admin' && s.id !== currentUserId && (s.role !== 'admin' || currentRole === 'super_admin') && (
-                <button onClick={() => removeStaff(s.id)} className="text-sm text-red-600 border border-red-300 rounded px-2 py-1">
+                <button onClick={() => removeStaff(s.id)} className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2 hover:bg-red-100 transition-colors">
                   Retirer
                 </button>
               )}

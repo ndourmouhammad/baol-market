@@ -19,11 +19,11 @@ export default function OrderTimeline({ status }: { status: string }) {
     <div className="w-full mt-6 mb-2">
       <div className="relative">
         {/* Ligne de fond */}
-        <div className="absolute top-1/2 left-0 w-full h-1 bg-terre/10 -translate-y-1/2 rounded-full"></div>
+        <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 rounded-full"></div>
 
         {/* Ligne de progression */}
         <div
-          className="absolute top-1/2 left-0 h-1 bg-terre -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"
+          className="absolute top-1/2 left-0 h-1 bg-(--vert-baol) -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"
           style={{ width: progressWidth }}
         ></div>
 
@@ -34,14 +34,14 @@ export default function OrderTimeline({ status }: { status: string }) {
             const isCurrent = index === currentIndex
 
             const circleClass = isCompleted
-              ? 'bg-terre text-sable'
-              : 'bg-sable border-2 border-terre/20 text-transparent'
+              ? 'bg-(--vert-baol) text-white'
+              : 'bg-white border-2 border-gray-200 text-transparent'
 
             const labelClass = isCurrent
-              ? 'text-terre'
+              ? 'text-(--vert-baol)'
               : isCompleted
-                ? 'text-baobab'
-                : 'text-baobab/40'
+                ? 'text-(--encre)'
+                : 'text-gray-400'
 
             return (
               <div key={step.key} className="flex flex-col items-center">
@@ -52,7 +52,7 @@ export default function OrderTimeline({ status }: { status: string }) {
                     </svg>
                   )}
                 </div>
-                <span className={`mt-2 text-xs font-semibold uppercase tracking-wider text-center max-w-[80px] ${labelClass}`}>
+                <span className={`mt-2 text-xs font-bold uppercase tracking-wider text-center max-w-20 ${labelClass}`}>
                   {step.label}
                 </span>
               </div>
