@@ -47,6 +47,7 @@ export default function AdminStaffPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadData() }, [])
 
   async function handleSubmit(e: React.FormEvent) {

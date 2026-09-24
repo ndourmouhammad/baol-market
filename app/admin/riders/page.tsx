@@ -47,6 +47,7 @@ export default function AdminRidersPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadRiders() }, [])
 
   const canWrite = role === 'admin' || role === 'super_admin'

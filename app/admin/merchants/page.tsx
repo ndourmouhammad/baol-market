@@ -49,6 +49,7 @@ export default function AdminMerchantsPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadMerchants() }, [])
 
   const canWrite = role === 'admin' || role === 'super_admin'

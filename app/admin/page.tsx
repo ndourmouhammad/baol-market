@@ -16,6 +16,7 @@ import {
 import { StatusBadge } from '@/components/StatusBadge'
 
 export default function AdminDashboard() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,14 +54,14 @@ export default function AdminDashboard() {
 
         const data = await response.json()
         setStats(data)
-      } catch (err: any) {
-        setError(err.message)
+      } catch (err) {
+        setError((err as Error).message)
       } finally {
         setLoading(false)
       }
     }
     fetchStats()
-  }, [])
+  }, [router])
 
   if (loading) {
     return (
@@ -142,7 +143,7 @@ export default function AdminDashboard() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-bold text-(--encre)">Tableau de Bord</h1>
-        <p className="text-(--gris-texte) mt-2">Bienvenue sur votre espace d'administration. Voici un résumé de votre activité.</p>
+        <p className="text-(--gris-texte) mt-2">Bienvenue sur votre espace d&apos;administration. Voici un résumé de votre activité.</p>
       </div>
 
       {/* KPI Cards */}
@@ -182,6 +183,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody className="divide-y divide-gray-100 text-(--encre)">
               {recentOrders?.length > 0 ? (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 recentOrders.map((order: any) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-(--encre)">

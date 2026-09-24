@@ -42,6 +42,7 @@ export default function AdminCategoriesPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadCategories() }, [])
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
