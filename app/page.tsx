@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/Button'
 import { CheckCircle, ShieldCheck, Truck, ShoppingBag, ArrowRight, MapPin, Wallet } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { HeroCarousel } from '@/components/HeroCarousel'
 
 export const metadata: Metadata = {
   title: 'Baol Market — Achetez des produits vérifiés au Sénégal',
@@ -71,8 +72,10 @@ export default async function Home() {
 
             {/* Zone visuelle décorative */}
             <div className="hidden lg:flex flex-1 justify-end animate-slide-in-right">
-              <div className="relative w-full max-w-md aspect-square rounded-[2rem] bg-gradient-to-br from-(--vert-baol)/10 to-(--or-senegal)/10 border border-(--vert-baol)/20 flex items-center justify-center shadow-xl p-8">
-                <div className="absolute top-10 right-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
+              <div className="relative w-full max-w-md aspect-square rounded-[2rem] border border-(--vert-baol)/20 shadow-xl overflow-hidden">
+                <HeroCarousel />
+                
+                <div className="absolute top-10 right-10 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
                   <div className="bg-green-100 p-2 rounded-full text-green-600">
                     <CheckCircle className="w-5 h-5" />
                   </div>
@@ -81,7 +84,7 @@ export default async function Home() {
                     <p className="text-xs text-(--gris-texte)">Qualité garantie</p>
                   </div>
                 </div>
-                <div className="absolute bottom-20 left-4 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
+                <div className="absolute bottom-20 left-4 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
                   <div className="bg-blue-100 p-2 rounded-full text-blue-600">
                     <Truck className="w-5 h-5" />
                   </div>
@@ -90,15 +93,6 @@ export default async function Home() {
                     <p className="text-xs text-(--gris-texte)">100% sécurisé</p>
                   </div>
                 </div>
-                {/* Centre logo mark */}
-                <Image 
-                  src="/logo-bm.png" 
-                  alt="Sceau Baol Market" 
-                  width={200} 
-                  height={200} 
-                  className="w-32 h-32 object-contain opacity-80 drop-shadow-xl"
-                  priority
-                />
               </div>
             </div>
           </div>
