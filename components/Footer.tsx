@@ -7,7 +7,6 @@ import Image from 'next/image'
 export default function Footer() {
   const pathname = usePathname()
 
-  // Masquer sur les pages d'auth
   if (pathname === '/login' || pathname === '/signup') {
     return null
   }
@@ -17,7 +16,6 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
           
-          {/* Logo et description */}
           <div className="flex flex-col gap-5 lg:col-span-2 pr-0 lg:pr-12">
             <Link 
               href="/" 
@@ -37,7 +35,6 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Navigation */}
           <div>
             <h3 className="font-bold text-lg text-white mb-5">Explorer</h3>
             <ul className="space-y-4">
@@ -68,7 +65,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
             <h3 className="font-bold text-lg text-white mb-5">Support</h3>
             <ul className="space-y-4">
@@ -88,7 +84,7 @@ export default function Footer() {
               </li>
               <li>
                 <span className="text-sm text-gray-400">
-                  Dakar, Sénégal
+                  Diourbel, Sénégal
                 </span>
               </li>
             </ul>
@@ -96,15 +92,24 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Barre de copyright */}
       <div className="border-t border-white/10 bg-black/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-gray-500 font-medium">
             &copy; {new Date().getFullYear()} Baol Market. Tous droits réservés.
           </p>
           <div className="flex gap-4">
-            <span className="text-xs text-gray-500 font-medium cursor-default">Mentions légales</span>
-            <span className="text-xs text-gray-500 font-medium cursor-default">CGV</span>
+            <Link 
+              href="/mentions-legales" 
+              className="text-xs text-gray-500 hover:text-white font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-sm"
+            >
+              Mentions légales
+            </Link>
+            <Link 
+              href="/cgv" 
+              className="text-xs text-gray-500 hover:text-white font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-sm"
+            >
+              CGV
+            </Link>
           </div>
         </div>
       </div>
