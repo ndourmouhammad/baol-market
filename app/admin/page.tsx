@@ -80,6 +80,10 @@ export default function AdminDashboard() {
     )
   }
 
+  if (!stats) {
+    return null
+  }
+
   const { stats: kpis, recentOrders } = stats
 
   const formatCurrency = (amount: number) => {

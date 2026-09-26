@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, MapPin } from 'lucide-react'
+import { useCart } from '@/components/CartContext'
+import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, MapPin, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
 
@@ -12,22 +13,35 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export default function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [staffRole, setStaffRole] = useState<string | null>(null)
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
-
-  const isAdmin = user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
+  const { totalItems } = useCart()
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      if (user) {
+        const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
+        setStaffRole(staffRow?.role ?? null)
+      } else {
+        setStaffRole(null)
+      }
     }
     checkUser()
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      if (session?.user) {
+        supabase.from('staff').select('role').eq('id', session.user.id).maybeSingle().then(({ data }) => {
+          setStaffRole(data?.role ?? null)
+        })
+      } else {
+        setStaffRole(null)
+      }
     })
 
     const handleScroll = () => {
@@ -64,7 +78,6 @@ export default function Header() {
     router.push('/login')
   }
 
-  // Masquer sur les pages d'auth
   if (pathname === '/login' || pathname === '/signup') {
     return null
   }
@@ -80,7 +93,6 @@ export default function Header() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 md:h-20">
-            {/* Logo */}
             <Link 
               href="/" 
               className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
@@ -96,7 +108,6 @@ export default function Header() {
               />
             </Link>
 
-            {/* Navigation Desktop */}
             <nav className="hidden md:flex items-center gap-6 lg:gap-8">
               <Link
                 href="/produits"
@@ -129,15 +140,28 @@ export default function Header() {
                 </Link>
               )}
 
-              {isAdmin && (
+              {staffRole && (
                 <Link
                   href="/admin"
                   className="flex items-center gap-2 text-sm font-bold text-(--or-senegal) hover:text-yellow-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--or-senegal) rounded-md px-2 py-1"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  Admin
+                  {staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Admin' : 'Modération'}
                 </Link>
               )}
+
+              <Link
+                href="/panier"
+                className="relative flex items-center gap-2 text-sm font-medium text-(--gris-texte) hover:text-(--encre) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1"
+                aria-label={`Panier${totalItems > 0 ? ` (${totalItems} article${totalItems > 1 ? 's' : ''})` : ''}`}
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-(--vert-baol) text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
 
               <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
                 {user ? (
@@ -165,20 +189,32 @@ export default function Header() {
               </div>
             </nav>
 
-            {/* Bouton Menu Mobile */}
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 -mr-2 text-(--encre) hover:text-(--vert-baol) hover:bg-gray-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
-              aria-label="Ouvrir le menu principal"
-              aria-expanded={mobileMenuOpen}
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-1 md:hidden">
+              <Link
+                href="/panier"
+                className="relative p-2 text-(--encre)"
+                aria-label={`Panier${totalItems > 0 ? ` (${totalItems} article${totalItems > 1 ? 's' : ''})` : ''}`}
+              >
+                <ShoppingCart className="w-6 h-6" />
+                {totalItems > 0 && (
+                  <span className="absolute top-0.5 right-0.5 bg-(--vert-baol) text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 -mr-2 text-(--encre) hover:text-(--vert-baol) hover:bg-gray-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
+                aria-label="Ouvrir le menu principal"
+                aria-expanded={mobileMenuOpen}
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Overlay Mobile */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] animate-fade-in md:hidden"
@@ -187,7 +223,6 @@ export default function Header() {
         />
       )}
 
-      {/* Drawer Mobile */}
       {mobileMenuOpen && (
         <div 
           className="fixed inset-y-0 right-0 w-4/5 max-w-sm bg-white z-[70] shadow-2xl animate-slide-in-right md:hidden flex flex-col text-(--encre)"
@@ -195,7 +230,6 @@ export default function Header() {
           aria-modal="true"
           aria-label="Menu principal"
         >
-          {/* Drawer Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white">
             <Image 
               src="/logo-bm.png" 
@@ -213,7 +247,6 @@ export default function Header() {
             </button>
           </div>
 
-          {/* User info mobile */}
           {user && (
             <div className="px-4 py-5 bg-gray-50/50 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -228,7 +261,6 @@ export default function Header() {
             </div>
           )}
 
-          {/* Navigation Links Mobile */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <Link
               href="/produits"
@@ -239,6 +271,17 @@ export default function Header() {
             >
               <Store className={`w-5 h-5 ${pathname === '/produits' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
               Catalogue
+            </Link>
+
+            <Link
+              href="/panier"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3.5 text-base font-medium rounded-xl transition-colors ${
+                pathname === '/panier' ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'text-(--encre) hover:bg-gray-50'
+              }`}
+            >
+              <ShoppingCart className={`w-5 h-5 ${pathname === '/panier' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
+              Panier {totalItems > 0 ? `(${totalItems})` : ''}
             </Link>
 
             <Link
@@ -265,7 +308,7 @@ export default function Header() {
               </Link>
             )}
 
-            {isAdmin && (
+            {staffRole && (
               <>
                 <div className="h-px bg-gray-100 my-4" />
                 <Link
@@ -274,13 +317,12 @@ export default function Header() {
                   className="flex items-center gap-3 px-4 py-3.5 text-base font-bold text-(--or-senegal) bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-colors"
                 >
                   <LayoutDashboard className="w-5 h-5" />
-                  Espace Administrateur
+                  {staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Espace Admin' : 'Espace Modération'}
                 </Link>
               </>
             )}
           </nav>
 
-          {/* Bottom actions mobile */}
           <div className="p-4 border-t border-gray-100 bg-gray-50">
             {user ? (
               <Button

@@ -3,6 +3,7 @@ import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { CartProvider } from "@/components/CartContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,11 +32,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-(--fond) text-(--encre)" suppressHydrationWarning>
-        <Header />
-        <main className="grow">{children}</main>
-        <Footer />
+        <CartProvider>
+          <Header />
+          <main className="grow">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );
 }
-
