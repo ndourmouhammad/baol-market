@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Mentions légales — Baol Market',
+  title: 'Mentions légales - Baol Market',
 }
 
 export default function MentionsLegalesPage() {

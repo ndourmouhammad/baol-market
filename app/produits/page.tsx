@@ -6,7 +6,7 @@ import CatalogClient from '@/components/CatalogClient'
 import { EmptyState } from '@/components/EmptyState'
 
 export const metadata: Metadata = {
-  title: 'Tous les produits — Baol Market',
+  title: 'Tous les produits - Baol Market',
   description: 'Parcourez l\'ensemble de notre catalogue de produits locaux vérifiés.',
 }
 

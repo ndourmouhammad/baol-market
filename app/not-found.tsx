@@ -4,7 +4,7 @@ import { FileQuestion } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Page introuvable — Baol Market',
+  title: 'Page introuvable - Baol Market',
 }
 
 export default function NotFound() {

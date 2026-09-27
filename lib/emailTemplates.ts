@@ -37,7 +37,7 @@ const wrapper = (title: string, body: string) => `
     ${body}
   </div>
   <div style="padding: 16px; text-align: center; color: #8B5E3C; font-size: 12px;">
-    Baol Market — des produits vérifiés, livrés en confiance.
+    Baol Market - des produits vérifiés, livrés en confiance.
   </div>
 </div>
 `

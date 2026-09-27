@@ -58,7 +58,7 @@ body {
   @apply antialiased;
 }
 
-/* Motif géométrique subtil pour le hero — vannerie / tissage */
+/* Motif géométrique subtil pour le hero - vannerie / tissage */
 .hero-pattern {
   background-image:
     repeating-linear-gradient(

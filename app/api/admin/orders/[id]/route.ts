@@ -50,8 +50,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       if (email) {
         const subject = body.status !== undefined
-          ? `Commande #${order.id.slice(0, 8).toUpperCase()} — ${STATUS_LABELS[order.status] ?? order.status}`
-          : `Commande #${order.id.slice(0, 8).toUpperCase()} — Frais de livraison confirmés`
+          ? `Commande #${order.id.slice(0, 8).toUpperCase()} - ${STATUS_LABELS[order.status] ?? order.status}`
+          : `Commande #${order.id.slice(0, 8).toUpperCase()} - Frais de livraison confirmés`
 
         await resend.emails.send({
           from: 'Baol Market <onboarding@resend.dev>',

@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Conditions générales de vente — Baol Market',
+  title: 'Conditions générales de vente - Baol Market',
 }
 
 export default function CGVPage() {

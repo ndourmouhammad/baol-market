@@ -243,7 +243,7 @@ export default function AdminOrdersPage() {
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-(--gris-texte) mt-0.5 shrink-0" />
                       <span className="text-(--encre) font-medium">
-                        {order.delivery_zones?.name ? `${order.delivery_zones.name} — ` : ''}{order.delivery_address}
+                        {order.delivery_zones?.name ? `${order.delivery_zones.name} - ` : ''}{order.delivery_address}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">

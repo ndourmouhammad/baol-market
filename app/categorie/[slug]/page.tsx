@@ -14,9 +14,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .eq('slug', slug)
     .single()
 
-  if (!category) return { title: 'Catégorie introuvable — Baol Market' }
+  if (!category) return { title: 'Catégorie introuvable - Baol Market' }
   return {
-    title: `${category.name} — Baol Market`,
+    title: `${category.name} - Baol Market`,
     description: category.description || `Découvrez nos produits locaux vérifiés dans la catégorie ${category.name}.`,
   }
 }

@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { HeroCarousel } from '@/components/HeroCarousel'
 
 export const metadata: Metadata = {
-  title: 'Baol Market — Achetez des produits vérifiés au Sénégal',
+  title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
   description: 'Découvrez des produits locaux vérifiés, commandez simplement et suivez votre livraison avec paiement à la réception sur Baol Market.',
 }
 

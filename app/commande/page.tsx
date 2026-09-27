@@ -171,7 +171,7 @@ export default function CheckoutPage() {
             </select>
             {selectedZone?.is_variable && (
               <p className="text-xs text-(--or-senegal) bg-yellow-50 border-l-4 border-(--or-senegal) p-3 mt-2">
-                Frais de livraison à partir de {selectedZone.fee.toLocaleString('fr-SN')} FCFA — montant confirmé par téléphone.
+                Frais de livraison à partir de {selectedZone.fee.toLocaleString('fr-SN')} FCFA - montant confirmé par téléphone.
               </p>
             )}
           </div>
@@ -184,7 +184,7 @@ export default function CheckoutPage() {
               onChange={(e) => setAddress(e.target.value)}
               required
               className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-(--vert-baol)"
-              placeholder="Rue, repère — ex. Rue 15 près du marché"
+              placeholder="Rue, repère - ex. Rue 15 près du marché"
             />
           </div>
 
@@ -229,7 +229,7 @@ export default function CheckoutPage() {
           )}
 
           <Button type="submit" fullWidth size="lg" disabled={loading || !isFormValid}>
-            {loading ? 'Enregistrement...' : `Confirmer — ${total.toLocaleString('fr-SN')} FCFA`}
+            {loading ? 'Enregistrement...' : `Confirmer - ${total.toLocaleString('fr-SN')} FCFA`}
           </Button>
         </form>
 
@@ -250,7 +250,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between text-(--gris-texte)">
               <span>Livraison</span>
-              <span>{zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'}</span>
+              <span>{zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '-'}</span>
             </div>
             <div className="flex justify-between font-bold text-(--encre) pt-2 border-t border-gray-100">
               <span>Total</span>

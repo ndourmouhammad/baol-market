@@ -229,7 +229,7 @@ export default function AdminProductsPage() {
                 <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
                   <ImagePlus className="w-8 h-8 text-gray-400 mb-2" />
                   <span className="text-(--gris-texte) text-sm font-medium">Choisir une photo</span>
-                  <span className="text-gray-400 text-xs mt-1">JPEG, PNG, WEBP ou GIF — 5 Mo max</span>
+                  <span className="text-gray-400 text-xs mt-1">JPEG, PNG, WEBP ou GIF - 5 Mo max</span>
                   <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
                 </label>
               )}
