@@ -4,29 +4,31 @@ interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement | HT
   label: string;
   isTextarea?: boolean;
   error?: string;
+  helperText?: string;
 }
 
 let fieldCounter = 0;
 
-export function FormField({ label, isTextarea, error, className = '', id: externalId, ...props }: FormFieldProps) {
+export function FormField({ label, isTextarea, error, helperText, className = '', id: externalId, type, ...props }: FormFieldProps) {
   const [showPassword, setShowPassword] = React.useState(false);
-  const isPassword = props.type === 'password';
+  const isPassword = type === 'password';
 
   const generatedId = React.useMemo(() => externalId || `form-field-${++fieldCounter}`, [externalId]);
   const errorId = error ? `${generatedId}-error` : undefined;
 
   const togglePassword = () => setShowPassword(!showPassword);
-  const inputType = isPassword ? (showPassword ? 'text' : 'password') : props.type;
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   const baseClass = [
     "w-full px-4 py-3 rounded-xl border bg-white text-(--encre)",
     "placeholder-gray-400",
     "transition-all duration-200",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-1 focus-visible:border-transparent",
+    isPassword ? "pr-12" : "",
     error
       ? "border-(--rouge-erreur)"
       : "border-gray-200",
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
@@ -45,11 +47,11 @@ export function FormField({ label, isTextarea, error, className = '', id: extern
         ) : (
           <input 
             id={generatedId}
+            {...(props as React.InputHTMLAttributes<HTMLInputElement>)} 
             type={inputType} 
             className={baseClass} 
             aria-invalid={error ? true : undefined}
             aria-describedby={errorId}
-            {...(props as React.InputHTMLAttributes<HTMLInputElement>)} 
           />
         )}
         {isPassword && (
@@ -72,6 +74,9 @@ export function FormField({ label, isTextarea, error, className = '', id: extern
           </button>
         )}
       </div>
+      {helperText && !error && (
+        <p className="text-xs text-(--gris-texte) mt-0.5">{helperText}</p>
+      )}
       {error && (
         <p id={errorId} className="text-sm text-(--rouge-erreur) mt-0.5" role="alert">
           {error}
