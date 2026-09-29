@@ -19,40 +19,48 @@ export default function LoginPage() {
   const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  e.preventDefault()
+  setLoading(true)
+  setError('')
 
+  const isEmailLogin = phone.includes('@')
+  let emailToUse: string
+
+  if (isEmailLogin) {
+    // Connexion staff (admin/super admin/modérateur), comptes créés avec un vrai email
+    emailToUse = phone.trim()
+  } else {
     const canonicalPhone = normalizePhone(phone)
     if (!canonicalPhone) {
       setError("Numéro invalide. Utilisez 9 chiffres après l'indicatif (ex. 78 150 75 05).")
       setLoading(false)
       return
     }
-
-    const syntheticEmail = phoneToSyntheticEmail(canonicalPhone)
-    const { data, error } = await supabase.auth.signInWithPassword({ email: syntheticEmail, password })
-
-    setLoading(false)
-
-    if (error) {
-      setError('Numéro ou mot de passe incorrect.')
-      return
-    }
-
-    if (data?.user) {
-      const { data: staffRow } = await supabase.from('staff').select('role').eq('id', data.user.id).maybeSingle()
-      if (!staffRow) {
-        router.push('/')
-      } else if (staffRow.role === 'moderator') {
-        router.push('/admin/orders')
-      } else {
-        router.push('/admin')
-      }
-    } else {
-      router.push('/')
-    }
+    emailToUse = phoneToSyntheticEmail(canonicalPhone)
   }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email: emailToUse, password })
+
+  setLoading(false)
+
+  if (error) {
+    setError(isEmailLogin ? 'Email ou mot de passe incorrect.' : 'Numéro ou mot de passe incorrect.')
+    return
+  }
+
+  if (data?.user) {
+    const { data: staffRow } = await supabase.from('staff').select('role').eq('id', data.user.id).maybeSingle()
+    if (!staffRow) {
+      router.push('/')
+    } else if (staffRow.role === 'moderator') {
+      router.push('/admin/orders')
+    } else {
+      router.push('/admin')
+    }
+  } else {
+    router.push('/')
+  }
+}
 
   return (
     <div className="flex min-h-screen">
@@ -110,13 +118,13 @@ export default function LoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-5">
               <FormField
-                label="Numéro de téléphone"
-                type="tel"
+                label="Téléphone (ou email pour l'équipe)"
+                type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
                 placeholder="78 150 75 05"
-                autoComplete="tel"
+                autoComplete="username"
               />
 
               <div className="space-y-1.5">
