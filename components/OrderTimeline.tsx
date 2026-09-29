@@ -1,19 +1,34 @@
-export default function OrderTimeline({ status }: { status: string }) {
-  const STEPS = [
-    { key: 'confirmed', label: 'Confirmée' },
-    { key: 'preparing', label: 'En préparation' },
-    { key: 'delivering', label: 'En livraison' },
-    { key: 'delivered', label: 'Livrée' },
-  ]
+import { STATUS_LABELS, type OrderStatus } from '@/lib/orderStatus'
+import { XCircle } from 'lucide-react'
 
-  const getStatusIndex = () => {
-    if (status === 'created' || status === 'payment_pending') return 0
-    const index = STEPS.findIndex(s => s.key === status)
-    return index === -1 ? 0 : index
+/** Étapes visibles dans la timeline de progression client */
+const STEPS: { key: OrderStatus; label: string }[] = [
+  { key: 'created', label: 'Créée' },
+  { key: 'paid', label: 'Payée' },
+  { key: 'preparing', label: 'En préparation' },
+  { key: 'confirmed', label: 'Confirmée' },
+  { key: 'delivering', label: 'En livraison' },
+  { key: 'delivered', label: 'Livrée' },
+]
+
+export default function OrderTimeline({ status }: { status: string }) {
+  // ── Commandes annulées / remboursées : affichage spécial ──
+  if (status === 'cancelled' || status === 'refunded') {
+    const label = STATUS_LABELS[status as OrderStatus] ?? status
+    return (
+      <div className="flex items-center gap-3 mt-6 mb-2 py-3 px-4 rounded-xl bg-red-50 border border-red-200">
+        <XCircle className="w-5 h-5 text-(--rouge-erreur) shrink-0" />
+        <span className="text-sm font-bold text-(--rouge-erreur)">
+          Commande {label.toLowerCase()}
+        </span>
+      </div>
+    )
   }
 
-  const currentIndex = getStatusIndex()
-  const progressWidth = `${(currentIndex / (STEPS.length - 1)) * 100}%`
+  // ── Timeline de progression normale ──
+  const currentIndex = STEPS.findIndex((s) => s.key === status)
+  const safeIndex = currentIndex === -1 ? 0 : currentIndex
+  const progressWidth = `${(safeIndex / (STEPS.length - 1)) * 100}%`
 
   return (
     <div className="w-full mt-6 mb-2">
@@ -30,8 +45,8 @@ export default function OrderTimeline({ status }: { status: string }) {
         {/* Étapes */}
         <div className="relative flex justify-between w-full">
           {STEPS.map((step, index) => {
-            const isCompleted = index <= currentIndex
-            const isCurrent = index === currentIndex
+            const isCompleted = index <= safeIndex
+            const isCurrent = index === safeIndex
 
             const circleClass = isCompleted
               ? 'bg-(--vert-baol) text-white'

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, User, Phone, AlertCircle, Check } from 'lucide-react'
+import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, type OrderStatus } from '@/lib/orderStatus'
 
 type OrderItem = {
   quantity: number
@@ -33,31 +34,7 @@ type Order = {
   delivery_zones: DeliveryZoneInfo
 }
 
-const STATUS_OPTIONS = [
-  'created',
-  'confirmed',
-  'payment_pending',
-  'paid',
-  'preparing',
-  'delivering',
-  'delivered',
-  'cancelled',
-  'refunded',
-]
-
-const STATUS_COLORS: Record<string, string> = {
-  created: 'bg-gray-100 text-(--gris-texte) border-gray-200',
-  confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-  payment_pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  preparing: 'bg-orange-100 text-orange-800 border-orange-200',
-  delivering: 'bg-(--or-senegal) text-(--encre) border-(--or-senegal)',
-  delivered: 'bg-(--vert-baol) text-white border-(--vert-baol-fonce)',
-  cancelled: 'bg-red-100 text-red-800 border-red-200',
-  refunded: 'bg-gray-200 text-gray-800 border-gray-300',
-}
-
-const getStatusColor = (status: string) => STATUS_COLORS[status] || 'bg-gray-100 text-gray-800 border-gray-200'
+const getStatusColor = (status: string) => STATUS_COLORS[status as OrderStatus] || 'bg-gray-100 text-gray-800 border-gray-200'
 const ITEMS_PER_PAGE = 10
 
 async function authFetch(url: string, options: RequestInit = {}) {
@@ -76,6 +53,7 @@ export default function AdminOrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [feeEdits, setFeeEdits] = useState<Record<string, string>>({})
   const [savingFeeFor, setSavingFeeFor] = useState<string | null>(null)
+  const [statusErrorFor, setStatusErrorFor] = useState<string | null>(null)
 
   async function loadOrders() {
     const res = await authFetch('/api/admin/orders')
@@ -95,17 +73,22 @@ export default function AdminOrdersPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
     loadRiders()
   }, [])
 
   async function updateStatus(orderId: string, status: string) {
-    await authFetch(`/api/admin/orders/${orderId}`, {
+    setStatusErrorFor(null)
+    const res = await authFetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
+    if (!res.ok) {
+      const json = await res.json()
+      setStatusErrorFor(orderId)
+      alert(json.error || "Impossible de changer le statut.")
+    }
     loadOrders()
   }
 
@@ -139,11 +122,9 @@ export default function AdminOrdersPage() {
   const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE)
   const paginatedOrders = orders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
-  const ACTIVE_STATUSES = ['created', 'confirmed', 'payment_pending', 'paid', 'preparing', 'delivering']
-
   const busyRiderIds = new Set(
     orders
-      .filter((o) => o.rider_id && ACTIVE_STATUSES.includes(o.status))
+      .filter((o) => o.rider_id && isActiveStatus(o.status))
       .map((o) => o.rider_id)
   )
 
@@ -176,6 +157,7 @@ export default function AdminOrdersPage() {
             const deliveryFee = order.delivery_fee ?? 0
             const feeNeedsConfirmation = order.delivery_fee_confirmed === false
             const editingValue = feeEdits[order.id]
+            const orderCancellable = canCancelOrder(order.status)
 
             return (
               <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -193,6 +175,11 @@ export default function AdminOrdersPage() {
                       {feeNeedsConfirmation && (
                         <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
                           <AlertCircle className="w-3 h-3" /> Frais à confirmer
+                        </span>
+                      )}
+                      {!orderCancellable && isActiveStatus(order.status) && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                          Non annulable
                         </span>
                       )}
                     </div>
@@ -225,9 +212,16 @@ export default function AdminOrdersPage() {
                         onChange={(e) => updateStatus(order.id, e.target.value)}
                         className={`appearance-none font-bold text-sm px-4 py-2 pr-8 rounded-xl border outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${getStatusColor(order.status)}`}
                       >
-                        {STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</option>
-                        ))}
+                        {ORDER_STATUSES.map((s) => {
+                          // On désactive "cancelled" dans le menu si la commande n'est plus annulable,
+                          // sauf si c'est déjà son statut actuel (pour ne pas casser l'affichage).
+                          const disabled = s === 'cancelled' && !orderCancellable && order.status !== 'cancelled'
+                          return (
+                            <option key={s} value={s} disabled={disabled}>
+                              {STATUS_LABELS[s].toUpperCase()}
+                            </option>
+                          )
+                        })}
                       </select>
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-70">
                         <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">

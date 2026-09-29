@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import OrderTimeline from '@/components/OrderTimeline'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
+import { isActiveStatus, canCancelOrder } from '@/lib/orderStatus'
 
 type Order = {
   id: string
@@ -16,11 +17,8 @@ type Order = {
   created_at: string
 }
 
-const ACTIVE_STATUSES = ['created', 'confirmed', 'payment_pending', 'paid', 'preparing', 'delivering']
-
 const formatPaymentMethod = (method: string) => {
-  if (method === 'a_la_livraison') return 'À la livraison'
-  if (method === 'en_ligne') return 'En ligne'
+  if (method === 'en_ligne') return 'Paiement en ligne (PayTech)'
   return method
 }
 
@@ -36,29 +34,55 @@ const formatDate = (isoString: string) => {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    async function loadOrders() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      const { data } = await supabase
-        .from('orders')
-        .select('id, status, payment_method, total_amount, delivery_address, created_at')
-        .order('created_at', { ascending: false })
-
-      setOrders(data || [])
-      setLoading(false)
+  async function loadOrders() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
     }
-    loadOrders()
-  }, [router])
 
-  const activeOrders = orders.filter(o => ACTIVE_STATUSES.includes(o.status))
-  const pastOrders = orders.filter(o => !ACTIVE_STATUSES.includes(o.status))
+    const { data } = await supabase
+      .from('orders')
+      .select('id, status, payment_method, total_amount, delivery_address, created_at')
+      .order('created_at', { ascending: false })
+
+    setOrders(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadOrders()
+  }, [])
+
+  async function handleCancel(orderId: string) {
+    if (!confirm('Voulez-vous vraiment annuler cette commande ?')) return
+    setCancellingId(orderId)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/orders/cancel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ orderId }),
+    })
+
+    setCancellingId(null)
+
+    if (res.ok) {
+      loadOrders()
+    } else {
+      const json = await res.json()
+      alert(json.error || "Impossible d'annuler cette commande.")
+    }
+  }
+
+  const activeOrders = orders.filter((o) => isActiveStatus(o.status))
+  const pastOrders = orders.filter((o) => !isActiveStatus(o.status))
 
   return (
     <div className="bg-(--fond) py-12 px-4 sm:px-6 min-h-screen">
@@ -90,7 +114,6 @@ export default function OrdersPage() {
           />
         ) : (
           <div className="space-y-10">
-            {/* Commandes Actives */}
             {activeOrders.length > 0 && (
               <section>
                 <h2 className="text-xl font-bold text-(--encre) mb-4 flex items-center gap-2">
@@ -110,7 +133,6 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      {/* Timeline de progression */}
                       <div className="mb-4">
                         <OrderTimeline status={order.status} />
                       </div>
@@ -126,10 +148,14 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      {order.status === 'payment_pending' && order.payment_method === 'a_la_livraison' && (
-                        <div className="mt-4 bg-(--vert-baol)/10 border border-(--vert-baol)/20 p-3 rounded-xl text-sm text-(--vert-baol-fonce)">
-                          Préparez le montant exact en espèces pour le livreur.
-                        </div>
+                      {canCancelOrder(order.status) && (
+                        <button
+                          onClick={() => handleCancel(order.id)}
+                          disabled={cancellingId === order.id}
+                          className="mt-4 text-sm font-medium text-(--rouge-erreur) hover:underline disabled:opacity-50"
+                        >
+                          {cancellingId === order.id ? 'Annulation...' : 'Annuler ma commande'}
+                        </button>
                       )}
                     </div>
                   ))}
@@ -137,7 +163,6 @@ export default function OrdersPage() {
               </section>
             )}
 
-            {/* Commandes Passées */}
             {pastOrders.length > 0 && (
               <section>
                 <h2 className="text-xl font-bold text-(--encre) mb-4">Historique</h2>
