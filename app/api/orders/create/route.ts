@@ -8,9 +8,10 @@ type CartItemInput = { productId: string; quantity: number }
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { items, address, paymentMethod, deliveryZoneId, phone, email, customerId } = body as {
+  
+
+    const { items, paymentMethod, deliveryZoneId, phone, email, customerId } = body as {
     items: CartItemInput[]
-    address: string
     paymentMethod: string
     deliveryZoneId: string
     phone?: string
@@ -18,9 +19,10 @@ export async function POST(request: Request) {
     customerId?: string
   }
 
-  if (!items || items.length === 0 || !address || !paymentMethod || !deliveryZoneId) {
+  if (!items || items.length === 0 || !paymentMethod || !deliveryZoneId) {
     return NextResponse.json({ error: 'Informations de commande incomplètes.' }, { status: 400 })
   }
+
   if (!customerId && (!phone || phone.trim().length < 8)) {
     return NextResponse.json({ error: 'Un numéro de téléphone valide est requis.' }, { status: 400 })
   }
@@ -79,7 +81,6 @@ export async function POST(request: Request) {
       delivery_fee: zone.fee,
       delivery_fee_confirmed: !zone.is_variable,
       total_amount: totalAmount,
-      delivery_address: address,
       delivery_zone_id: zone.id,
       tracking_code: trackingCode,
     })

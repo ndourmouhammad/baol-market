@@ -23,7 +23,6 @@ export default function CheckoutPage() {
 
   const [user, setUser] = useState<User | null>(null)
   const [zones, setZones] = useState<DeliveryZone[]>([])
-  const [address, setAddress] = useState('')
   const [zoneId, setZoneId] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -48,7 +47,6 @@ export default function CheckoutPage() {
         const draft = localStorage.getItem(DRAFT_KEY)
         if (draft) {
           const parsed = JSON.parse(draft)
-          setAddress(parsed.address ?? '')
           setZoneId(parsed.zoneId ?? '')
           setPhone(parsed.phone ?? '')
           setEmail(parsed.email ?? '')
@@ -67,11 +65,11 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (initLoading) return
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ address, zoneId, phone, email, paymentMethod }))
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ zoneId, phone, email, paymentMethod }))
     } catch (e) {
       console.error('Erreur sauvegarde brouillon:', e)
     }
-  }, [address, zoneId, phone, email, paymentMethod, initLoading])
+  }, [zoneId, phone, email, paymentMethod, initLoading])
 
   const selectedZone = zones.find((z) => z.id === zoneId)
   const deliveryFee = selectedZone?.fee ?? 0
@@ -79,7 +77,6 @@ export default function CheckoutPage() {
 
   const isFormValid =
     items.length > 0 &&
-    address.trim().length > 0 &&
     !!zoneId &&
     (!!user || phone.trim().length >= 8)
 
@@ -94,7 +91,6 @@ export default function CheckoutPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        address,
         paymentMethod,
         deliveryZoneId: zoneId,
         phone: user ? undefined : phone,
@@ -169,24 +165,14 @@ export default function CheckoutPage() {
                 </optgroup>
               ))}
             </select>
-            {selectedZone?.is_variable && (
-              <p className="text-xs text-(--or-senegal) bg-yellow-50 border-l-4 border-(--or-senegal) p-3 mt-2">
-                Frais de livraison à partir de {selectedZone.fee.toLocaleString('fr-SN')} FCFA - montant confirmé par téléphone.
+            {selectedZone && selectedZone.fee === 0 && (
+              <p className="text-xs text-(--vert-baol-fonce) bg-(--vert-baol)/10 border-l-4 border-(--vert-baol) p-3 mt-2">
+                Pour les zones hors Diourbel, vous gérez vous-même la livraison. Aucun frais n&#39;est appliqué.
               </p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-(--encre) mb-2">Adresse précise</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-(--vert-baol)"
-              placeholder="Rue, repère - ex. Rue 15 près du marché"
-            />
-          </div>
+
 
           {!user && (
             <div className="space-y-3">

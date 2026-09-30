@@ -34,7 +34,6 @@ export default function OrderPage() {
   const [zones, setZones] = useState<DeliveryZone[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const [address, setAddress] = useState('')
   const [zoneId, setZoneId] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -74,7 +73,7 @@ export default function OrderPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!product || !address.trim() || !paymentMethod || !zoneId) return
+    if (!product || !paymentMethod || !zoneId) return
     if (!user && phone.trim().length < 8) {
       setError('Un numéro de téléphone valide est requis.')
       return
@@ -98,7 +97,6 @@ export default function OrderPage() {
           delivery_fee: deliveryFee,
           delivery_fee_confirmed: !selectedZone?.is_variable,
           total_amount: totalAmount,
-          delivery_address: address,
           delivery_zone_id: zoneId,
         })
         .select()
@@ -146,7 +144,6 @@ export default function OrderPage() {
         body: JSON.stringify({
           productId: product.id,
           quantity,
-          address,
           paymentMethod,
           phone,
           email: email.trim() || undefined,
@@ -168,7 +165,6 @@ export default function OrderPage() {
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
   const isFormValid =
-    address.trim().length > 0 &&
     paymentMethod === 'a_la_livraison' &&
     !!zoneId &&
     (!!user || phone.trim().length >= 8)
@@ -284,23 +280,14 @@ export default function OrderPage() {
                     </select>
                   </div>
 
-                  {selectedZone?.is_variable && (
+                  {selectedZone && selectedZone.fee === 0 && (
                     <div className="flex gap-3 text-sm text-(--vert-baol-fonce) bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-xl p-4">
                       <MapPin className="w-5 h-5 shrink-0" />
                       <p>
-                        Frais de livraison à partir de <strong>{selectedZone.fee.toLocaleString('fr-SN')} FCFA</strong>. Le montant exact vous sera confirmé par téléphone selon l&apos;adresse précise.
+                        Pour les zones hors Diourbel, vous gérez vous-même la livraison. Aucun frais n&#39;est appliqué.
                       </p>
                     </div>
                   )}
-
-                  <FormField
-                    label="Adresse détaillée"
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    placeholder="Ex: Rue 15x18, porte bleue à côté de la pharmacie..."
-                  />
                 </div>
               </section>
 
