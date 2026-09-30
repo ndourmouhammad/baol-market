@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import { Button } from '@/components/Button'
 import type { User } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 type DeliveryZone = {
   id: string
@@ -19,19 +20,15 @@ const DRAFT_KEY = 'baol-market-checkout-draft'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, subtotal, clearCart } = useCart()
+  const { items, subtotal } = useCart()
 
   const [user, setUser] = useState<User | null>(null)
   const [zones, setZones] = useState<DeliveryZone[]>([])
   const [zoneId, setZoneId] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('a_la_livraison')
   const [loading, setLoading] = useState(false)
   const [initLoading, setInitLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Charger l'utilisateur + les zones + restaurer un brouillon éventuel
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -48,9 +45,6 @@ export default function CheckoutPage() {
         if (draft) {
           const parsed = JSON.parse(draft)
           setZoneId(parsed.zoneId ?? '')
-          setPhone(parsed.phone ?? '')
-          setEmail(parsed.email ?? '')
-          setPaymentMethod(parsed.paymentMethod ?? 'a_la_livraison')
         }
       } catch (e) {
         console.error('Erreur lecture brouillon:', e)
@@ -61,28 +55,28 @@ export default function CheckoutPage() {
     init()
   }, [])
 
-  // Sauvegarder le brouillon à chaque changement (protège contre une fermeture accidentelle)
   useEffect(() => {
     if (initLoading) return
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ zoneId, phone, email, paymentMethod }))
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ zoneId }))
     } catch (e) {
       console.error('Erreur sauvegarde brouillon:', e)
     }
-  }, [zoneId, phone, email, paymentMethod, initLoading])
+  }, [zoneId, initLoading])
 
   const selectedZone = zones.find((z) => z.id === zoneId)
   const deliveryFee = selectedZone?.fee ?? 0
   const total = subtotal + deliveryFee
-
-  const isFormValid =
-    items.length > 0 &&
-    !!zoneId &&
-    (!!user || phone.trim().length >= 8)
+  const isFormValid = items.length > 0 && !!zoneId && !!user
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!user) {
+      router.push('/login?next=/commande')
+      return
+    }
     if (!isFormValid) return
+
     setLoading(true)
     setError('')
 
@@ -91,30 +85,20 @@ export default function CheckoutPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        paymentMethod,
         deliveryZoneId: zoneId,
-        phone: user ? undefined : phone,
-        email: user ? undefined : (email.trim() || undefined),
-        customerId: user?.id,
+        customerId: user.id,
       }),
     })
     const json = await res.json()
-    setLoading(false)
 
     if (!res.ok) {
+      setLoading(false)
       setError(json.error)
       return
     }
 
-    // Commande réussie : on peut nettoyer panier + brouillon
-    clearCart()
-    localStorage.removeItem(DRAFT_KEY)
-
-    if (user) {
-      router.push('/orders')
-    } else {
-      router.push(`/commande-confirmee?code=${encodeURIComponent(json.trackingCode)}`)
-    }
+    // Redirection vers la page de paiement hébergée par PayTech
+    window.location.href = json.redirectUrl
   }
 
   const zoneGroups = zones.reduce<Record<string, DeliveryZone[]>>((acc, zone) => {
@@ -146,6 +130,20 @@ export default function CheckoutPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="text-2xl md:text-3xl font-bold text-(--encre) mb-8">Finaliser la commande</h1>
 
+      {!user && (
+        <div className="bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-xl p-4 mb-6">
+          <p className="text-(--encre) font-medium mb-2">Un compte est nécessaire pour passer commande.</p>
+          <div className="flex gap-3">
+            <Link href="/login?next=/commande">
+              <Button size="sm">Se connecter</Button>
+            </Link>
+            <Link href="/signup?next=/commande">
+              <Button variant="secondary" size="sm">Créer un compte</Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-[1fr_320px] gap-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -172,39 +170,11 @@ export default function CheckoutPage() {
             )}
           </div>
 
-
-
-          {!user && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-semibold text-(--encre) mb-2">Téléphone</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-(--vert-baol)"
-                  placeholder="Numéro de téléphone (obligatoire)"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-(--encre) mb-2">Email (optionnel)</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-(--vert-baol)"
-                  placeholder="Pour recevoir un suivi par email"
-                />
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-semibold text-(--encre) mb-2">Mode de paiement</label>
             <div className="border border-(--vert-baol) bg-(--vert-baol)/5 rounded-xl p-4">
-              <p className="font-semibold text-(--encre)">Paiement à la livraison</p>
-              <p className="text-sm text-(--gris-texte)">Paiement en espèces à la réception.</p>
+              <p className="font-semibold text-(--encre)">Paiement en ligne sécurisé</p>
+              <p className="text-sm text-(--gris-texte)">Orange Money, Wave, Free Money ou carte bancaire, via PayTech.</p>
             </div>
           </div>
 
@@ -215,7 +185,7 @@ export default function CheckoutPage() {
           )}
 
           <Button type="submit" fullWidth size="lg" disabled={loading || !isFormValid}>
-            {loading ? 'Enregistrement...' : `Confirmer - ${total.toLocaleString('fr-SN')} FCFA`}
+            {loading ? 'Redirection vers le paiement...' : `Payer — ${total.toLocaleString('fr-SN')} FCFA`}
           </Button>
         </form>
 
@@ -236,7 +206,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between text-(--gris-texte)">
               <span>Livraison</span>
-              <span>{zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '-'}</span>
+              <span>{zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'}</span>
             </div>
             <div className="flex justify-between font-bold text-(--encre) pt-2 border-t border-gray-100">
               <span>Total</span>

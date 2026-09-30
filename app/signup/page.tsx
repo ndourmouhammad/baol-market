@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { phoneToSyntheticEmail, normalizePhone } from '@/lib/phoneAuth'
 import Link from 'next/link'
@@ -11,7 +11,7 @@ import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
 import { ErrorMessage } from '@/components/ErrorMessage'
 
-export default function SignupPage() {
+function SignupContent() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
@@ -45,10 +46,11 @@ export default function SignupPage() {
 
     setLoading(false)
 
+    const next = searchParams.get('next')
     if (signInError) {
-      router.push('/login')
+      router.push(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`)
     } else {
-      router.push('/')
+      router.push(next || '/')
     }
   }
 
@@ -191,5 +193,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupContent />
+    </Suspense>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { phoneToSyntheticEmail, normalizePhone } from '@/lib/phoneAuth'
 import Link from 'next/link'
@@ -11,12 +11,13 @@ import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
 import { ErrorMessage } from '@/components/ErrorMessage'
 
-export default function LoginPage() {
+function LoginContent() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   async function handleLogin(e: React.FormEvent) {
   e.preventDefault()
@@ -48,17 +49,17 @@ export default function LoginPage() {
     return
   }
 
+  const next = searchParams.get('next')
+
   if (data?.user) {
     const { data: staffRow } = await supabase.from('staff').select('role').eq('id', data.user.id).maybeSingle()
-    if (!staffRow) {
-      router.push('/')
-    } else if (staffRow.role === 'moderator') {
-      router.push('/admin/orders')
+    if (staffRow) {
+      router.push(staffRow.role === 'moderator' ? '/admin/orders' : '/admin')
     } else {
-      router.push('/admin')
+      router.push(next || '/')
     }
   } else {
-    router.push('/')
+    router.push(next || '/')
   }
 }
 
@@ -179,5 +180,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   )
 }
