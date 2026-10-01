@@ -32,6 +32,7 @@ type Order = {
   order_items: OrderItem[]
   riders: Rider | null
   delivery_zones: DeliveryZoneInfo
+  profiles: { phone: string; first_name: string; last_name: string; email: string | null } | null
 }
 
 const getStatusColor = (status: string) => STATUS_COLORS[status as OrderStatus] || 'bg-gray-100 text-gray-800 border-gray-200'
@@ -251,6 +252,15 @@ export default function AdminOrdersPage() {
                       <div className="flex items-center gap-2 text-sm">
                         <Truck className="w-4 h-4 text-(--gris-texte) shrink-0" />
                         <span className="text-(--encre) font-medium">{order.riders.name}</span>
+                      </div>
+                    )}
+                    {order.customer_id && order.profiles?.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                        <span className="text-(--encre) font-medium">
+                          {order.profiles.phone}
+                          {order.profiles.first_name ? ` · ${order.profiles.first_name} ${order.profiles.last_name}` : ''}
+                        </span>
                       </div>
                     )}
                     {!order.customer_id && order.guest_phone && (

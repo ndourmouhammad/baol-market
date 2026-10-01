@@ -13,7 +13,16 @@ type Order = {
   status: string
   payment_method: string
   total_amount: number
-  delivery_address: string
+  delivery_address: string | null
+  created_at: string
+}
+
+type NotificationRow = {
+  id: string
+  order_id: string
+  status: string
+  message: string
+  is_read: boolean
   created_at: string
 }
 
@@ -31,8 +40,19 @@ const formatDate = (isoString: string) => {
   }).format(date)
 }
 
+const formatDateTime = (isoString: string) => {
+  const date = new Date(isoString)
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [notifications, setNotifications] = useState<NotificationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const router = useRouter()
@@ -50,7 +70,20 @@ export default function OrdersPage() {
       .order('created_at', { ascending: false })
 
     setOrders(data || [])
+
+    const { data: notifData } = await supabase
+      .from('order_notifications')
+      .select('id, order_id, status, message, is_read, created_at')
+      .order('created_at', { ascending: true })
+
+    setNotifications(notifData || [])
     setLoading(false)
+
+    // Le client voit les nouveautés à sa visite : on marque tout comme lu
+    const unreadIds = (notifData || []).filter((n) => !n.is_read).map((n) => n.id)
+    if (unreadIds.length > 0) {
+      await supabase.from('order_notifications').update({ is_read: true }).in('id', unreadIds)
+    }
   }
 
   useEffect(() => {
@@ -83,6 +116,16 @@ export default function OrdersPage() {
 
   const activeOrders = orders.filter((o) => isActiveStatus(o.status))
   const pastOrders = orders.filter((o) => !isActiveStatus(o.status))
+
+  function hadUnreadNotification(orderId: string) {
+    // "unreadAtLoad" : avant qu'on ne les marque comme lues plus haut —
+    // on se base sur l'état en mémoire capturé juste après le chargement initial.
+    return notifications.some((n) => n.order_id === orderId)
+  }
+
+  function historyFor(orderId: string) {
+    return notifications.filter((n) => n.order_id === orderId)
+  }
 
   return (
     <div className="bg-(--fond) py-12 px-4 sm:px-6 min-h-screen">
@@ -126,7 +169,14 @@ export default function OrdersPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                         <div className="mb-3 sm:mb-0">
                           <p className="text-sm text-(--gris-texte) mb-2">Commande du {formatDate(order.created_at)}</p>
-                          <StatusBadge status={order.status} />
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={order.status} />
+                            {hadUnreadNotification(order.id) && (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--rouge-erreur)/10 text-(--rouge-erreur)">
+                                Nouveau
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="sm:text-right">
                           <p className="text-2xl font-bold text-(--encre)">{order.total_amount.toLocaleString('fr-SN')} FCFA</p>
@@ -139,14 +189,24 @@ export default function OrdersPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-(--gris-texte) mt-4 pt-4 border-t border-gray-100">
                         <div>
-                          <span className="block font-bold text-(--encre) mb-1">Adresse de livraison</span>
-                          <p>{order.delivery_address}</p>
-                        </div>
-                        <div>
                           <span className="block font-bold text-(--encre) mb-1">Mode de paiement</span>
                           <p>{formatPaymentMethod(order.payment_method)}</p>
                         </div>
                       </div>
+
+                      {historyFor(order.id).length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-2">Historique</p>
+                          <ul className="space-y-1.5">
+                            {historyFor(order.id).map((n) => (
+                              <li key={n.id} className="text-xs text-(--gris-texte) flex justify-between">
+                                <span>{n.message}</span>
+                                <span className="shrink-0 ml-3">{formatDateTime(n.created_at)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {canCancelOrder(order.status) && (
                         <button

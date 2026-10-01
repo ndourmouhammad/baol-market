@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { canCancelOrder } from '@/lib/orderStatus'
+import { createOrderNotification } from '@/lib/orderNotifications'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
+
+  await createOrderNotification(orderId, 'cancelled')
 
   return NextResponse.json({ success: true })
 }

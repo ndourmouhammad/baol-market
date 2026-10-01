@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
+import { NotificationBell } from '@/components/NotificationBell'
 import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, MapPin, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
@@ -13,7 +14,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export default function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [staffRole, setStaffRole] = useState<string | null>(null)
+  const [isStaff, setIsStaff] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
@@ -25,10 +26,10 @@ export default function Header() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       if (user) {
-        const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
-        setStaffRole(staffRow?.role ?? null)
+        const { data: staffRow } = await supabase.from('staff').select('id').eq('id', user.id).maybeSingle()
+        setIsStaff(!!staffRow)
       } else {
-        setStaffRole(null)
+        setIsStaff(false)
       }
     }
     checkUser()
@@ -36,11 +37,11 @@ export default function Header() {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        supabase.from('staff').select('role').eq('id', session.user.id).maybeSingle().then(({ data }) => {
-          setStaffRole(data?.role ?? null)
+        supabase.from('staff').select('id').eq('id', session.user.id).maybeSingle().then(({ data }) => {
+          setIsStaff(!!data)
         })
       } else {
-        setStaffRole(null)
+        setIsStaff(false)
       }
     })
 
@@ -120,8 +121,7 @@ export default function Header() {
                 Catalogue
               </Link>
 
-
-              {user && (
+              {user && !isStaff && (
                 <Link
                   href="/orders"
                   className={`flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1 ${
@@ -133,15 +133,17 @@ export default function Header() {
                 </Link>
               )}
 
-              {staffRole && (
+              {isStaff && (
                 <Link
                   href="/admin"
                   className="flex items-center gap-2 text-sm font-bold text-(--or-senegal) hover:text-yellow-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--or-senegal) rounded-md px-2 py-1"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  {staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Admin' : 'Modération'}
+                  Admin
                 </Link>
               )}
+
+              {user && !isStaff && <NotificationBell userId={user.id} />}
 
               <Link
                 href="/panier"
@@ -172,24 +174,18 @@ export default function Header() {
                     </button>
                   </div>
                 ) : (
-                  <>
-                    <Link href="/login" tabIndex={-1}>
-                      <Button variant="ghost" size="sm" className="text-(--gris-texte) hover:text-(--encre)">
-                        <User className="w-4 h-4 mr-2" />
-                        Se connecter
-                      </Button>
-                    </Link>
-                    <Link href="/signup" tabIndex={-1}>
-                      <Button variant="primary" size="sm" className="shadow-sm">
-                        S'inscrire
-                      </Button>
-                    </Link>
-                  </>
+                  <Link href="/login" tabIndex={-1}>
+                    <Button variant="primary" size="sm" className="shadow-sm">
+                      <User className="w-4 h-4 mr-2" />
+                      Se connecter
+                    </Button>
+                  </Link>
                 )}
               </div>
             </nav>
 
             <div className="flex items-center gap-1 md:hidden">
+              {user && !isStaff && <NotificationBell userId={user.id} />}
               <Link
                 href="/panier"
                 className="relative p-2 text-(--encre)"
@@ -287,9 +283,7 @@ export default function Header() {
               Panier {totalItems > 0 ? `(${totalItems})` : ''}
             </Link>
 
-
-
-            {user && (
+            {user && !isStaff && (
               <Link
                 href="/orders"
                 onClick={() => setMobileMenuOpen(false)}
@@ -302,7 +296,7 @@ export default function Header() {
               </Link>
             )}
 
-            {staffRole && (
+            {isStaff && (
               <>
                 <div className="h-px bg-gray-100 my-4" />
                 <Link
@@ -311,7 +305,7 @@ export default function Header() {
                   className="flex items-center gap-3 px-4 py-3.5 text-base font-bold text-(--or-senegal) bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-colors"
                 >
                   <LayoutDashboard className="w-5 h-5" />
-                  {staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Espace Admin' : 'Espace Modération'}
+                  Espace Administrateur
                 </Link>
               </>
             )}
@@ -329,19 +323,12 @@ export default function Header() {
                 Se déconnecter
               </Button>
             ) : (
-              <div className="flex flex-col gap-2">
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
-                  <Button variant="ghost" fullWidth className="bg-white border border-gray-200">
-                    <User className="w-5 h-5 mr-2" />
-                    Se connecter
-                  </Button>
-                </Link>
-                <Link href="/signup" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
-                  <Button variant="primary" fullWidth>
-                    S'inscrire
-                  </Button>
-                </Link>
-              </div>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
+                <Button variant="primary" fullWidth>
+                  <User className="w-5 h-5 mr-2" />
+                  Se connecter
+                </Button>
+              </Link>
             )}
           </div>
         </div>

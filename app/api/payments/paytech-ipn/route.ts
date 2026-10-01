@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyPaytechIpn } from '@/lib/paytech'
+import { createOrderNotification } from '@/lib/orderNotifications'
 
 export async function POST(request: Request) {
   const formData = await request.formData()
@@ -31,19 +32,19 @@ export async function POST(request: Request) {
   }
 
   if (typeEvent === 'sale_complete') {
-    // On ne fait passer en "paid" que si la commande est encore en "created",
-    // pour ne jamais écraser un statut déjà avancé (double IPN, etc.)
     await supabaseAdmin
       .from('orders')
       .update({ status: 'paid', updated_at: new Date().toISOString() })
       .eq('id', orderId)
       .eq('status', 'created')
+    await createOrderNotification(orderId, 'paid')
   } else if (typeEvent === 'sale_canceled') {
     await supabaseAdmin
       .from('orders')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', orderId)
       .eq('status', 'created')
+    await createOrderNotification(orderId, 'cancelled')
   }
 
   return new NextResponse('OK', { status: 200 })

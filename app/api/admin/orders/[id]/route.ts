@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff } from '@/lib/verifyStaff'
 import { canCancelOrder, ORDER_STATUSES } from '@/lib/orderStatus'
+import { createOrderNotification } from '@/lib/orderNotifications'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const staff = await verifyStaff(request)
@@ -55,6 +56,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (body.status !== undefined) {
+    await createOrderNotification(id, body.status)
   }
 
   return NextResponse.json({ success: true })
