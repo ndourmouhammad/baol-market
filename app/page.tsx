@@ -9,7 +9,7 @@ import { HeroCarousel } from '@/components/HeroCarousel'
 
 export const metadata: Metadata = {
   title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
-  description: 'Découvrez des produits locaux vérifiés, commandez simplement et suivez votre livraison avec paiement à la réception sur Baol Market.',
+  description: 'Découvrez des produits locaux vérifiés, commandez simplement et payez en ligne en toute sécurité avec Baol Market.',
 }
 
 export default async function Home() {
@@ -36,7 +36,7 @@ export default async function Home() {
     <main className="bg-(--fond) pb-20">
       {/* Hero Section */}
       <section className="bg-(--fond) text-(--encre) overflow-hidden border-b border-gray-100 relative hero-pattern">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 md:pt-10 md:pb-16 relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
             <div className="max-w-2xl flex-1 animate-fade-in-up">
               <div className="inline-flex items-center gap-2 bg-(--vert-baol)/10 rounded-full px-4 py-1.5 text-xs font-bold text-(--vert-baol-fonce) mb-6 shadow-sm border border-(--vert-baol)/20">
@@ -51,8 +51,8 @@ export default async function Home() {
               </h1>
 
               <p className="text-base md:text-lg text-(--gris-texte) max-w-xl mb-10 leading-relaxed">
-                Chaque article est inspecté physiquement par notre équipe avant mise en vente. 
-                Achetez local, commandez simplement et payez à la livraison en toute sérénité.
+                Chaque article est inspecté physiquement par notre équipe avant mise en vente.
+                Achetez local, commandez simplement et payez en ligne en toute sérénité.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -61,10 +61,9 @@ export default async function Home() {
                     Découvrir les produits
                   </Button>
                 </Link>
-                <Link href="/suivi" className="w-full sm:w-auto">
+                <Link href="/signup" className="w-full sm:w-auto">
                   <Button variant="ghost" className="w-full sm:w-auto text-base border border-gray-200 hover:border-gray-300">
-                    <Truck className="w-4 h-4 mr-2" />
-                    Suivre ma commande
+                    Créer un compte
                   </Button>
                 </Link>
               </div>
@@ -74,7 +73,7 @@ export default async function Home() {
             <div className="hidden lg:flex flex-1 justify-end animate-slide-in-right">
               <div className="relative w-full max-w-md aspect-square rounded-[2rem] border border-(--vert-baol)/20 shadow-xl overflow-hidden">
                 <HeroCarousel />
-                
+
                 <div className="absolute top-10 right-10 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
                   <div className="bg-green-100 p-2 rounded-full text-green-600">
                     <CheckCircle className="w-5 h-5" />
@@ -86,10 +85,10 @@ export default async function Home() {
                 </div>
                 <div className="absolute bottom-20 left-4 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
                   <div className="bg-blue-100 p-2 rounded-full text-blue-600">
-                    <Truck className="w-5 h-5" />
+                    <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-(--encre)">Paiement à la livraison</p>
+                    <p className="text-sm font-bold text-(--encre)">Paiement en ligne</p>
                     <p className="text-xs text-(--gris-texte)">100% sécurisé</p>
                   </div>
                 </div>
@@ -99,56 +98,15 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Réassurance */}
-      <section className="bg-white border-b border-gray-100 relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
-              <div className="bg-(--vert-baol)/10 p-3 rounded-xl text-(--vert-baol) shrink-0">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-(--encre) text-base mb-1">Produits vérifiés</h3>
-                <p className="text-sm text-(--gris-texte) leading-relaxed">
-                  Chaque produit est contrôlé physiquement par notre équipe avant expédition.
-                </p>
-              </div>
-            </article>
-            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
-              <div className="bg-(--or-senegal)/10 p-3 rounded-xl text-yellow-600 shrink-0">
-                <Wallet className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-(--encre) text-base mb-1">Paiement à la livraison</h3>
-                <p className="text-sm text-(--gris-texte) leading-relaxed">
-                  Pas de carte requise, réglez vos achats en espèces lors de la réception.
-                </p>
-              </div>
-            </article>
-            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
-              <div className="bg-blue-50 p-3 rounded-xl text-blue-600 shrink-0">
-                <Truck className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-(--encre) text-base mb-1">Suivi de commande</h3>
-                <p className="text-sm text-(--gris-texte) leading-relaxed">
-                  Un code unique pour suivre l&apos;évolution de votre livraison en temps réel.
-                </p>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
       {/* Catégories */}
-      <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+      <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-2">Nos catégories</h2>
             <p className="text-base text-(--gris-texte)">Explorez nos produits locaux et vérifiés</p>
           </div>
-          <Link 
-            href="/produits" 
+          <Link
+            href="/produits"
             className="text-sm font-bold text-(--vert-baol) hover:text-(--vert-baol-fonce) transition-colors flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1"
           >
             Tous les produits
@@ -197,41 +155,82 @@ export default async function Home() {
         )}
       </section>
 
+      {/* Réassurance */}
+      <section className="bg-white border-b border-gray-100 relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
+              <div className="bg-(--vert-baol)/10 p-3 rounded-xl text-(--vert-baol) shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-(--encre) text-base mb-1">Produits vérifiés</h3>
+                <p className="text-sm text-(--gris-texte) leading-relaxed">
+                  Chaque produit est contrôlé physiquement par notre équipe avant expédition.
+                </p>
+              </div>
+            </article>
+            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
+              <div className="bg-(--or-senegal)/10 p-3 rounded-xl text-yellow-600 shrink-0">
+                <Wallet className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-(--encre) text-base mb-1">Paiement en ligne sécurisé</h3>
+                <p className="text-sm text-(--gris-texte) leading-relaxed">
+                  Réglez simplement en ligne (Orange Money, Wave, carte...) au moment de la commande.
+                </p>
+              </div>
+            </article>
+            <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">
+              <div className="bg-blue-50 p-3 rounded-xl text-blue-600 shrink-0">
+                <Truck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-(--encre) text-base mb-1">Suivez vos commandes</h3>
+                <p className="text-sm text-(--gris-texte) leading-relaxed">
+                  Retrouvez le statut et l&apos;historique de toutes vos commandes dans votre espace client.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       {/* Comment ça marche */}
       <section className="bg-gray-50 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="text-center mb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          <div className="text-center mb-10 md:mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-3">Comment ça marche ?</h2>
             <p className="text-base text-(--gris-texte) max-w-2xl mx-auto">
               Une expérience d&apos;achat simple, transparente et sécurisée en 4 étapes.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
             {[
               {
                 step: '1',
                 title: 'Choisissez',
-                desc: 'Parcourez nos catégories et trouvez le produit qu&apos;il vous faut.',
+                desc: 'Parcourez nos catégories et trouvez le produit qu\u2019il vous faut.',
                 icon: <ShoppingBag className="w-7 h-7" />,
               },
               {
                 step: '2',
                 title: 'Commandez',
-                desc: 'Passez commande avec ou sans compte en quelques secondes.',
+                desc: 'Créez votre compte et passez commande en quelques secondes.',
                 icon: <CheckCircle className="w-7 h-7" />,
               },
               {
                 step: '3',
-                title: 'Suivez',
-                desc: 'Utilisez votre code pour suivre l&apos;évolution de la livraison.',
-                icon: <MapPin className="w-7 h-7" />,
+                title: 'Payez',
+                desc: 'Réglez votre achat en ligne, en toute sécurité, au moment de la commande.',
+                icon: <Wallet className="w-7 h-7" />,
               },
               {
                 step: '4',
-                title: 'Payez',
-                desc: 'Réglez votre achat en espèces une fois le produit livré chez vous.',
-                icon: <Wallet className="w-7 h-7" />,
+                title: 'Suivez',
+                desc: 'Suivez l\u2019évolution de votre livraison depuis votre espace client.',
+                icon: <MapPin className="w-7 h-7" />,
               },
             ].map((item, index) => (
               <div key={item.step} className="relative flex flex-col items-center text-center group">
@@ -243,8 +242,7 @@ export default async function Home() {
                 </div>
                 <h3 className="text-lg font-bold text-(--encre) mb-2">{item.title}</h3>
                 <p className="text-sm text-(--gris-texte) leading-relaxed px-4">{item.desc}</p>
-                
-                {/* Connecteur visuel desktop uniquement */}
+
                 {index < 3 && (
                   <div className="hidden lg:block absolute top-10 left-[65%] w-[70%] h-[2px] bg-gray-200 border-t-2 border-dashed border-gray-300 -z-0"></div>
                 )}

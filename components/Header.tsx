@@ -95,17 +95,18 @@ export default function Header() {
           <div className="flex justify-between items-center h-16 md:h-20">
             <Link 
               href="/" 
-              className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+              className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
               aria-label="Baol Market - Retour à l'accueil"
             >
               <Image 
                 src="/logo-bm.png" 
                 alt="Baol Market Logo" 
-                width={140} 
-                height={40} 
-                className="h-8 md:h-10 w-auto object-contain"
+                width={180} 
+                height={52} 
+                className="h-11 md:h-14 w-auto object-contain"
                 priority
               />
+              <span className="text-lg md:text-xl font-bold text-(--encre) hidden sm:inline">Baol Market</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6 lg:gap-8">
@@ -118,15 +119,7 @@ export default function Header() {
                 <Store className="w-4 h-4" />
                 Catalogue
               </Link>
-              <Link
-                href="/suivi"
-                className={`flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1 ${
-                  pathname === '/suivi' ? 'text-(--vert-baol)' : 'text-(--gris-texte) hover:text-(--encre)'
-                }`}
-              >
-                <MapPin className="w-4 h-4" />
-                Suivi
-              </Link>
+
 
               {user && (
                 <Link
@@ -179,12 +172,19 @@ export default function Header() {
                     </button>
                   </div>
                 ) : (
-                  <Link href="/login" tabIndex={-1}>
-                    <Button variant="primary" size="sm" className="shadow-sm">
-                      <User className="w-4 h-4 mr-2" />
-                      Se connecter
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/login" tabIndex={-1}>
+                      <Button variant="ghost" size="sm" className="text-(--gris-texte) hover:text-(--encre)">
+                        <User className="w-4 h-4 mr-2" />
+                        Se connecter
+                      </Button>
+                    </Link>
+                    <Link href="/signup" tabIndex={-1}>
+                      <Button variant="primary" size="sm" className="shadow-sm">
+                        S'inscrire
+                      </Button>
+                    </Link>
+                  </>
                 )}
               </div>
             </nav>
@@ -231,13 +231,16 @@ export default function Header() {
           aria-label="Menu principal"
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white">
-            <Image 
-              src="/logo-bm.png" 
-              alt="Baol Market" 
-              width={120} 
-              height={32} 
-              className="h-7 w-auto object-contain" 
-            />
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/logo-bm.png" 
+                alt="Baol Market" 
+                width={140} 
+                height={38} 
+                className="h-9 w-auto object-contain" 
+              />
+              <span className="text-base font-bold text-(--encre)">Baol Market</span>
+            </div>
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 text-gray-500 hover:text-(--encre) hover:bg-gray-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
@@ -284,16 +287,7 @@ export default function Header() {
               Panier {totalItems > 0 ? `(${totalItems})` : ''}
             </Link>
 
-            <Link
-              href="/suivi"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3.5 text-base font-medium rounded-xl transition-colors ${
-                pathname === '/suivi' ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'text-(--encre) hover:bg-gray-50'
-              }`}
-            >
-              <MapPin className={`w-5 h-5 ${pathname === '/suivi' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
-              Suivre ma commande
-            </Link>
+
 
             {user && (
               <Link
@@ -335,12 +329,19 @@ export default function Header() {
                 Se déconnecter
               </Button>
             ) : (
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
-                <Button variant="primary" fullWidth>
-                  <User className="w-5 h-5 mr-2" />
-                  Se connecter
-                </Button>
-              </Link>
+              <div className="flex flex-col gap-2">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
+                  <Button variant="ghost" fullWidth className="bg-white border border-gray-200">
+                    <User className="w-5 h-5 mr-2" />
+                    Se connecter
+                  </Button>
+                </Link>
+                <Link href="/signup" onClick={() => setMobileMenuOpen(false)} tabIndex={-1} className="block w-full">
+                  <Button variant="primary" fullWidth>
+                    S'inscrire
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>
