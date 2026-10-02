@@ -2,14 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Store, MapPin, Phone, Edit, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
-import { Button } from '@/components/Button'
-import { FormField } from '@/components/FormField'
+import { Loader2, Store, MapPin, Phone, Edit, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Lock, Tag } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 8
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
-type Merchant = { id: string; name: string; phone: string; address: string; notes: string | null }
+type Category = { id: string; name: string }
+type Merchant = {
+  id: string
+  name: string
+  phone: string
+  address: string
+  notes: string | null
+  category_id: string | null
+  categories: { name: string } | null
+}
 
 async function authFetch(url: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -21,6 +28,7 @@ async function authFetch(url: string, options: RequestInit = {}) {
 
 export default function AdminMerchantsPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [role, setRole] = useState<StaffRole | null>(null)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -28,6 +36,9 @@ export default function AdminMerchantsPage() {
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+
+  const [filterCategoryId, setFilterCategoryId] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -43,13 +54,16 @@ export default function AdminMerchantsPage() {
       const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
       setRole((staffRow?.role as StaffRole) ?? null)
     }
+
+    const { data: cats } = await supabase.from('categories').select('id, name').order('name')
+    setCategories(cats || [])
+
     const res = await authFetch('/api/admin/merchants')
     const json = await res.json()
     if (res.ok) setMerchants(json.merchants)
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadMerchants() }, [])
 
   const canWrite = role === 'admin' || role === 'super_admin'
@@ -65,7 +79,7 @@ export default function AdminMerchantsPage() {
     const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, address, notes }),
+      body: JSON.stringify({ name, phone, address, notes, category_id: categoryId || null }),
     })
 
     const json = await res.json()
@@ -85,6 +99,7 @@ export default function AdminMerchantsPage() {
     setPhone(merchant.phone)
     setAddress(merchant.address)
     setNotes(merchant.notes || '')
+    setCategoryId(merchant.category_id || '')
     setError('')
   }
 
@@ -94,6 +109,7 @@ export default function AdminMerchantsPage() {
     setPhone('')
     setAddress('')
     setNotes('')
+    setCategoryId('')
     setError('')
   }
 
@@ -112,97 +128,134 @@ export default function AdminMerchantsPage() {
     )
   }
 
-  const totalPages = Math.ceil(merchants.length / ITEMS_PER_PAGE)
-  const paginatedMerchants = merchants.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const filteredMerchants = filterCategoryId
+    ? merchants.filter((m) => m.category_id === filterCategoryId)
+    : merchants
+
+  const totalPages = Math.ceil(filteredMerchants.length / ITEMS_PER_PAGE)
+  const paginatedMerchants = filteredMerchants.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className={`grid gap-8 items-start ${canWrite ? 'lg:grid-cols-[350px_1fr]' : ''}`}>
         {canWrite ? (
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-24">
-            <h2 className="text-xl font-bold text-(--encre) mb-6">
+          <div className="bg-white p-5 rounded-xl border border-mil/30 shadow-sm lg:sticky lg:top-24">
+            <h2 className="text-lg font-bold text-(--encre) mb-4">
               {editingId ? 'Modifier le commerçant' : 'Ajouter un commerçant'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-              <FormField
-                label="Nom de la boutique"
-                type="text"
-                placeholder="Ex: Boutique Diallo"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <FormField
-                label="Téléphone"
-                type="tel"
-                placeholder="Ex: 77 123 45 67"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-              <FormField
-                label="Adresse"
-                type="text"
-                placeholder="Quartier, rue..."
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
-              <div className="space-y-1.5">
+            <form onSubmit={handleSubmit} className="space-y-3 text-sm">
+              <div className="space-y-1">
+                <label className="font-bold text-(--encre) block">Nom de la boutique</label>
+                <input type="text" placeholder="Ex: Boutique Diallo" value={name}
+                  onChange={(e) => setName(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-(--encre) block">Téléphone</label>
+                <input type="tel" placeholder="Ex: 77 123 45 67" value={phone}
+                  onChange={(e) => setPhone(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-(--encre) block">Adresse</label>
+                <input type="text" placeholder="Quartier, rue..." value={address}
+                  onChange={(e) => setAddress(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-(--encre) block">Catégorie</label>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all bg-white">
+                  <option value="">Aucune catégorie</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
                 <label className="font-bold text-(--encre) block">Notes internes <span className="text-(--gris-texte) font-medium">(Optionnel)</span></label>
                 <textarea placeholder="Informations utiles sur ce commerçant..." value={notes}
-                  onChange={(e) => setNotes(e.target.value)} rows={3}
-                  className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all resize-none" />
+                  onChange={(e) => setNotes(e.target.value)} rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all resize-none" />
               </div>
               {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded-lg font-medium">{error}</p>}
-              <div className="flex gap-2 mt-4">
-                <Button type="submit" disabled={saving} className="flex-1">
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-(--vert-baol) text-white rounded-xl px-4 py-2.5 font-bold hover:bg-(--vert-baol-fonce) transition-colors flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   {saving ? 'En cours...' : editingId ? 'Enregistrer' : 'Ajouter'}
-                </Button>
+                </button>
                 {editingId && (
-                  <Button type="button" variant="secondary" onClick={cancelEdit} className="flex-1">
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="flex-1 bg-white text-(--gris-texte) border border-gray-200 rounded-xl px-4 py-2.5 font-bold hover:bg-gray-50 transition-colors"
+                  >
                     Annuler
-                  </Button>
+                  </button>
                 )}
               </div>
             </form>
           </div>
         ) : (
-          <div className="hidden lg:flex flex-col items-center justify-center bg-white p-8 rounded-2xl border border-gray-100 text-(--gris-texte) text-center">
-            <Lock className="w-10 h-10 mb-4 text-gray-300" />
-            <p className="font-medium">Accès en lecture seule.<br />Contacte un admin pour modifier cette liste.</p>
+          <div className="hidden lg:flex flex-col items-center justify-center bg-white p-6 rounded-2xl border border-gray-100 text-(--gris-texte) text-center">
+            <Lock className="w-8 h-8 mb-3 text-gray-300" />
+            <p className="text-sm font-medium">Accès en lecture seule.<br />Contacte un admin pour modifier cette liste.</p>
           </div>
         )}
 
         <div>
-          <h2 className="text-2xl font-bold text-(--encre) mb-6 flex items-center gap-3">
-            Commerçants <span className="text-(--gris-texte) text-lg font-normal">({merchants.length})</span>
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <h2 className="text-2xl font-bold text-(--encre) flex items-center gap-3">
+              Commerçants <span className="text-(--gris-texte) text-lg font-normal">({filteredMerchants.length})</span>
+            </h2>
+            <div className="relative">
+              <select
+                value={filterCategoryId}
+                onChange={(e) => { setFilterCategoryId(e.target.value); setCurrentPage(1) }}
+                className="appearance-none text-sm font-bold pl-8 pr-8 py-2 rounded-xl border border-gray-200 bg-gray-50 text-(--encre) outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors"
+              >
+                <option value="">Toutes les catégories</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <Tag className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-(--gris-texte) pointer-events-none" />
+            </div>
+          </div>
 
-          {merchants.length === 0 ? (
+          {filteredMerchants.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-(--gris-texte)">
               <Store className="w-12 h-12 mb-4 text-gray-300" />
-              <p className="text-lg">Aucun commerçant pour le moment.</p>
+              <p className="text-lg">
+                {filterCategoryId ? 'Aucun commerçant dans cette catégorie.' : 'Aucun commerçant pour le moment.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {paginatedMerchants.map((m) => (
-                  <div key={m.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-sm transition-shadow flex flex-col justify-between">
+                  <div key={m.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow flex flex-col justify-between">
                     <div>
-                      <h3 className="font-bold text-(--encre) text-lg mb-4">{m.name}</h3>
-                      <div className="space-y-3 text-sm text-(--encre) mb-5">
-                        <p className="flex items-center gap-3">
-                          <Phone className="w-5 h-5 text-(--gris-texte) shrink-0" />
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <h3 className="font-bold text-(--encre) text-lg">{m.name}</h3>
+                        {m.categories?.name && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) shrink-0">
+                            {m.categories.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2 text-sm text-(--encre) mb-4">
+                        <p className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-(--gris-texte) shrink-0" />
                           <span className="font-medium">{m.phone}</span>
                         </p>
-                        <p className="flex items-start gap-3">
-                          <MapPin className="w-5 h-5 text-(--gris-texte) shrink-0 mt-0.5" />
+                        <p className="flex items-start gap-2">
+                          <MapPin className="w-4 h-4 text-(--gris-texte) shrink-0 mt-0.5" />
                           <span className="leading-tight font-medium">{m.address}</span>
                         </p>
                       </div>
                       {m.notes && (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-5">
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 mb-4">
                           <p className="text-xs font-bold text-(--gris-texte) mb-1 uppercase tracking-wider">Notes</p>
                           <p className="text-sm text-(--encre) italic">{m.notes}</p>
                         </div>

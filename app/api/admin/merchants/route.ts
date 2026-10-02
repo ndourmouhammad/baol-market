@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('merchants')
-    .select('id, name, phone, address, notes')
+    .select('id, name, phone, address, notes, category_id, categories(name)')
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     phone: body.phone,
     address: body.address,
     notes: body.notes || null,
+    category_id: body.category_id || null,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
