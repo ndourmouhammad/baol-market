@@ -80,13 +80,18 @@ export default function CheckoutPage() {
     setLoading(true)
     setError('')
 
+    // Le serveur identifie le client grâce au jeton de session
+    const { data: { session } } = await supabase.auth.getSession()
+
     const res = await fetch('/api/orders/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
       body: JSON.stringify({
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         deliveryZoneId: zoneId,
-        customerId: user.id,
       }),
     })
     const json = await res.json()

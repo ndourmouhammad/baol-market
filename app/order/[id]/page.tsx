@@ -84,14 +84,19 @@ export default function OrderPage() {
     setLoading(true)
     setError('')
 
+    // Le serveur identifie le client grâce au jeton de session
+    const { data: { session } } = await supabase.auth.getSession()
+
     // Même route que le panier : les prix sont recalculés côté serveur
     const res = await fetch('/api/orders/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
       body: JSON.stringify({
         items: [{ productId: product.id, quantity }],
         deliveryZoneId: zoneId,
-        customerId: user.id,
       }),
     })
     const json = await res.json()
