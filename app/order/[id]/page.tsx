@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/Button'
-import { FormField } from '@/components/FormField'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Breadcrumb } from '@/components/Breadcrumb'
-import { ShieldCheck, Truck, ShoppingBag, MapPin, CheckCircle } from 'lucide-react'
+import { ShieldCheck, Truck, ShoppingBag, MapPin } from 'lucide-react'
 import Image from 'next/image'
 
 type Product = {
@@ -35,22 +35,24 @@ export default function OrderPage() {
   const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [zoneId, setZoneId] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('a_la_livraison')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [initLoading, setInitLoading] = useState(true)
+
+  // Après connexion ou création de compte, le client revient sur ce produit
+  const nextParam = encodeURIComponent(`/order/${id}`)
 
   useEffect(() => {
     async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
 
+      // Seuls les produits disponibles peuvent être commandés
       const { data: productData, error: productError } = await supabase
         .from('products')
         .select('id, name, price, image_url')
         .eq('id', id)
+        .eq('is_available', true)
         .single()
 
       const { data: zonesData } = await supabase
@@ -58,7 +60,7 @@ export default function OrderPage() {
         .select('id, name, fee, is_variable, display_group')
         .order('sort_order')
 
-      if (productError) {
+      if (productError || !productData) {
         setError('Ce produit est introuvable ou indisponible.')
       } else {
         setProduct(productData)
@@ -71,103 +73,43 @@ export default function OrderPage() {
 
   const selectedZone = zones.find((z) => z.id === zoneId)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
-    if (!product || !paymentMethod || !zoneId) return
-    if (!user && phone.trim().length < 8) {
-      setError('Un numéro de téléphone valide est requis.')
+    if (!user) {
+      router.push(`/login?next=${nextParam}`)
       return
     }
+    if (!product || !zoneId) return
 
     setLoading(true)
     setError('')
 
-    const subtotalAmount = product.price * quantity
-    const deliveryFee = selectedZone?.fee ?? 0
-    const totalAmount = subtotalAmount + deliveryFee
+    // Même route que le panier : les prix sont recalculés côté serveur
+    const res = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: [{ productId: product.id, quantity }],
+        deliveryZoneId: zoneId,
+        customerId: user.id,
+      }),
+    })
+    const json = await res.json()
 
-    if (user) {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: user.id,
-          status: 'created',
-          payment_method: paymentMethod,
-          subtotal_amount: subtotalAmount,
-          delivery_fee: deliveryFee,
-          delivery_fee_confirmed: !selectedZone?.is_variable,
-          total_amount: totalAmount,
-          delivery_zone_id: zoneId,
-        })
-        .select()
-        .single()
-
-      if (orderError) {
-        setError("Une erreur est survenue lors de la création de votre commande. Veuillez réessayer.")
-        setLoading(false)
-        return
-      }
-
-      const { error: itemError } = await supabase.from('order_items').insert({
-        order_id: order.id,
-        product_id: product.id,
-        quantity,
-        unit_price: product.price,
-      })
-
-      if (itemError) {
-        setLoading(false)
-        setError("Votre commande a été créée, mais un souci est survenu avec les articles. Contactez le support.")
-        return
-      }
-
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch('/api/notifications/order-confirmation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ orderId: order.id }),
-        })
-      } catch (e) {
-        console.error("L'email de confirmation n'a pas pu être envoyé:", e)
-      }
-
+    if (!res.ok) {
       setLoading(false)
-      router.push('/orders')
-    } else {
-      const res = await fetch('/api/orders/guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity,
-          paymentMethod,
-          phone,
-          email: email.trim() || undefined,
-          deliveryZoneId: zoneId,
-        }),
-      })
-      const json = await res.json()
-      setLoading(false)
-
-      if (!res.ok) {
-        setError(json.error)
-      } else {
-        router.push(`/commande-confirmee?code=${encodeURIComponent(json.trackingCode)}`)
-      }
+      setError(json.error)
+      return
     }
+
+    // Redirection vers la page de paiement hébergée par PayTech
+    window.location.href = json.redirectUrl
   }
 
   const increaseQty = () => setQuantity(q => q + 1)
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
-  const isFormValid =
-    paymentMethod === 'a_la_livraison' &&
-    !!zoneId &&
-    (!!user || phone.trim().length >= 8)
+  const isFormValid = !!zoneId && !!user
 
   if (initLoading) {
     return (
@@ -194,9 +136,6 @@ export default function OrderPage() {
 
   if (!product) return null
 
-  const paymentActiveClass = 'border-(--vert-baol) bg-(--vert-baol)/5 ring-1 ring-(--vert-baol)'
-  const paymentInactiveClass = 'border-gray-200 hover:border-gray-300'
-
   const subtotal = product.price * quantity
   const deliveryFee = selectedZone?.fee ?? 0
   const total = subtotal + deliveryFee
@@ -219,20 +158,34 @@ export default function OrderPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-          
+
           {/* Formulaire de commande (Gauche) */}
           <div className="w-full lg:w-3/5">
             <div className="mb-10">
               <h1 className="text-3xl md:text-4xl font-bold text-(--encre) mb-3">Finaliser votre commande</h1>
               <p className="text-(--gris-texte) text-base">
-                {!user 
-                  ? 'Pas besoin de compte. Indiquez vos coordonnées pour la livraison.'
-                  : 'Vérifiez vos informations et confirmez votre commande.'}
+                {!user
+                  ? 'Connectez-vous pour commander et payer en ligne.'
+                  : 'Vérifiez vos informations et passez au paiement.'}
               </p>
             </div>
 
+            {!user && (
+              <div className="bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-xl p-4 mb-6">
+                <p className="text-(--encre) font-medium mb-3">Un compte est nécessaire pour passer commande.</p>
+                <div className="flex gap-3">
+                  <Link href={`/login?next=${nextParam}`}>
+                    <Button size="sm">Se connecter</Button>
+                  </Link>
+                  <Link href={`/signup?next=${nextParam}`}>
+                    <Button variant="secondary" size="sm">Créer un compte</Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-10 bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
-              
+
               {/* Section 1: Quantité */}
               <section>
                 <div className="flex items-center gap-3 mb-5">
@@ -256,9 +209,9 @@ export default function OrderPage() {
               <section>
                 <div className="flex items-center gap-3 mb-5">
                   <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">2</span>
-                  <h2 className="text-lg font-bold text-(--encre)">Zone et adresse de livraison</h2>
+                  <h2 className="text-lg font-bold text-(--encre)">Zone de livraison</h2>
                 </div>
-                
+
                 <div className="space-y-5">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="zone-select" className="text-sm font-bold text-(--encre)">Quartier / Zone</label>
@@ -291,64 +244,15 @@ export default function OrderPage() {
                 </div>
               </section>
 
-              {/* Section 3: Coordonnées (Invité) */}
-              {!user && (
-                <section>
-                  <div className="flex items-center gap-3 mb-5">
-                    <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">3</span>
-                    <h2 className="text-lg font-bold text-(--encre)">Vos coordonnées</h2>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <FormField
-                      label="Téléphone *"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required
-                      placeholder="Ex: 77 123 45 67"
-                    />
-                    <FormField
-                      label="Email (Optionnel)"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Pour le suivi par email"
-                    />
-                  </div>
-                </section>
-              )}
-
-              {/* Section 4: Paiement */}
+              {/* Section 3: Paiement */}
               <section>
                 <div className="flex items-center gap-3 mb-5">
-                  <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">{user ? 3 : 4}</span>
+                  <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">3</span>
                   <h2 className="text-lg font-bold text-(--encre)">Mode de paiement</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className={`cursor-pointer rounded-xl border p-4 flex flex-col relative transition-all ${paymentMethod === 'a_la_livraison' ? paymentActiveClass : paymentInactiveClass}`}>
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      value="a_la_livraison"
-                      checked={paymentMethod === 'a_la_livraison'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="sr-only"
-                    />
-                    <span className="font-bold text-(--encre) text-base mb-1">À la livraison</span>
-                    <span className="text-sm text-(--gris-texte)">En espèces lors de la réception.</span>
-                    {paymentMethod === 'a_la_livraison' && (
-                      <div className="absolute top-4 right-4 text-(--vert-baol)">
-                        <CheckCircle className="w-6 h-6" />
-                      </div>
-                    )}
-                  </label>
-
-                  <label className="cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 p-4 flex flex-col relative opacity-60">
-                    <input type="radio" name="payment_method" value="en_ligne" disabled className="sr-only" />
-                    <span className="font-bold text-(--encre) text-base mb-1">En ligne</span>
-                    <span className="text-sm text-(--gris-texte)">Wave, Orange Money ou Carte.</span>
-                    <span className="mt-3 text-xs font-bold uppercase tracking-wider text-(--vert-baol-fonce) bg-(--vert-baol)/10 rounded-full px-3 py-1 w-max">Bientôt disponible</span>
-                  </label>
+                <div className="border border-(--vert-baol) bg-(--vert-baol)/5 rounded-xl p-4">
+                  <p className="font-semibold text-(--encre)">Paiement en ligne sécurisé</p>
+                  <p className="text-sm text-(--gris-texte)">Orange Money, Wave, Free Money ou carte bancaire, via PayTech.</p>
                 </div>
               </section>
 
@@ -365,15 +269,15 @@ export default function OrderPage() {
                   fullWidth
                   className="py-4 text-lg"
                 >
-                  {loading ? 'Création de la commande...' : 'Confirmer la commande'}
+                  {loading ? 'Redirection vers le paiement...' : `Payer — ${total.toLocaleString('fr-SN')} FCFA`}
                 </Button>
                 <p className="text-center text-xs text-(--gris-texte) mt-4 flex items-center justify-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4" /> Commande 100% sécurisée
+                  <ShieldCheck className="w-4 h-4" /> Paiement 100% sécurisé
                 </p>
               </div>
             </form>
           </div>
-          
+
           {/* Récapitulatif (Droite / Sticky) */}
           <div className="w-full lg:w-2/5">
             <div className="bg-white border border-gray-100 rounded-2xl p-6 lg:p-8 sticky top-24 shadow-sm">
@@ -407,7 +311,7 @@ export default function OrderPage() {
                   <span>Frais de livraison</span>
                   <span className="font-medium text-(--encre)">
                     {zoneId
-                      ? `${deliveryFee.toLocaleString('fr-SN')} FCFA${selectedZone?.is_variable ? '*' : ''}`
+                      ? `${deliveryFee.toLocaleString('fr-SN')} FCFA`
                       : 'Calculés après sélection'}
                   </span>
                 </div>
@@ -418,22 +322,19 @@ export default function OrderPage() {
                   <span className="text-base font-bold text-(--encre)">Total à régler</span>
                   <div className="text-right">
                     <span className="text-3xl font-bold text-(--vert-baol) block">{total.toLocaleString('fr-SN')} <span className="text-xl">FCFA</span></span>
-                    {selectedZone?.is_variable && (
-                      <span className="text-xs text-(--gris-texte) block mt-1">* Montant final sujet à confirmation</span>
-                    )}
                   </div>
                 </div>
 
-                {/* Bouton dupliqué sur mobile (car caché dans le form sur grand écran ou en bas) */}
+                {/* Bouton dupliqué sur mobile (le bouton du formulaire est caché sur petit écran) */}
                 <div className="lg:hidden">
                   <Button
-                    type="submit"
+                    type="button"
                     onClick={handleSubmit}
                     disabled={loading || !isFormValid}
                     fullWidth
                     className="py-4 text-lg"
                   >
-                    {loading ? 'Création de la commande...' : 'Confirmer la commande'}
+                    {loading ? 'Redirection vers le paiement...' : `Payer — ${total.toLocaleString('fr-SN')} FCFA`}
                   </Button>
                 </div>
               </div>
