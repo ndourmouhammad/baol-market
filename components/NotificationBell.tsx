@@ -30,40 +30,6 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     loadNotifications()
-
-    const channel = supabase
-      .channel(`notifications-${userId}-${Math.random()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'order_notifications',
-          filter: `customer_id=eq.${userId}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev].slice(0, 20))
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'order_notifications',
-          filter: `customer_id=eq.${userId}`,
-        },
-        (payload) => {
-          setNotifications((prev) =>
-            prev.map((n) => (n.id === payload.new.id ? (payload.new as Notification) : n))
-          )
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
   }, [userId])
 
   useEffect(() => {
@@ -108,34 +74,49 @@ export function NotificationBell({ userId }: { userId: string }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <span className="font-bold text-sm text-(--encre)">Notifications</span>
-            {unreadCount > 0 && (
-              <button onClick={markAllAsRead} className="text-xs text-(--vert-baol) font-medium hover:underline">
-                Tout marquer comme lu
-              </button>
-            )}
-          </div>
-          <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <p className="text-sm text-(--gris-texte) text-center py-8">Aucune notification pour le moment.</p>
-            ) : (
-              notifications.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => handleOpenNotification(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-(--vert-baol)/5' : ''}`}
-                >
-                  <p className={`text-sm ${!n.is_read ? 'font-bold text-(--encre)' : 'text-(--gris-texte)'}`}>{n.message}</p>
-                  <p className="text-xs text-(--gris-texte) mt-1">
-                    {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                  </p>
+        <>
+          {/* Overlay mobile : ferme le menu au clic en dehors, cohérent avec le drawer du Header */}
+          <div
+            className="fixed inset-0 z-40 sm:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div
+            className={`
+              fixed left-4 right-4 top-16 z-50
+              sm:absolute sm:left-auto sm:right-0 sm:top-full sm:inset-x-auto sm:mt-2 sm:w-80
+              bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden
+            `}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <span className="font-bold text-sm text-(--encre)">Notifications</span>
+              {unreadCount > 0 && (
+                <button onClick={markAllAsRead} className="text-xs text-(--vert-baol) font-medium hover:underline">
+                  Tout marquer comme lu
                 </button>
-              ))
-            )}
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <p className="text-sm text-(--gris-texte) text-center py-8">Aucune notification pour le moment.</p>
+              ) : (
+                notifications.map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => handleOpenNotification(n)}
+                    className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-(--vert-baol)/5' : ''}`}
+                  >
+                    <p className={`text-sm ${!n.is_read ? 'font-bold text-(--encre)' : 'text-(--gris-texte)'}`}>{n.message}</p>
+                    <p className="text-xs text-(--gris-texte) mt-1">
+                      {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
