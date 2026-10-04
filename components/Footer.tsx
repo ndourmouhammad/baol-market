@@ -49,14 +49,6 @@ export default function Footer() {
               </li>
               <li>
                 <Link 
-                  href="/suivi" 
-                  className="text-sm text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-sm px-1 -ml-1"
-                >
-                  Suivre ma commande
-                </Link>
-              </li>
-              <li>
-                <Link 
                   href="/orders" 
                   className="text-sm text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-sm px-1 -ml-1"
                 >
