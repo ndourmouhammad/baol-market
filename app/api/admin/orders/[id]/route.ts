@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: current, error: currentError } = await supabaseAdmin
     .from('orders')
-    .select('status, subtotal_amount')
+    .select('status')
     .eq('id', id)
     .single()
 
@@ -42,12 +42,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     updateData.rider_id = body.rider_id || null
   }
 
-  if (body.delivery_fee !== undefined) {
-    const subtotal = current.subtotal_amount ?? 0
-    updateData.delivery_fee = body.delivery_fee
-    updateData.delivery_fee_confirmed = true
-    updateData.total_amount = subtotal + Number(body.delivery_fee)
-  }
+  // Les frais de livraison ne sont plus modifiables après coup : le montant payé
+  // par le client sur PayTech est définitif.
 
   const { error } = await supabaseAdmin
     .from('orders')

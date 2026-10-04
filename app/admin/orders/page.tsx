@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, User, Phone, AlertCircle, Check } from 'lucide-react'
+import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, Phone } from 'lucide-react'
 import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, type OrderStatus } from '@/lib/orderStatus'
 
 type OrderItem = {
@@ -21,14 +21,10 @@ type Order = {
   total_amount: number
   subtotal_amount: number | null
   delivery_fee: number | null
-  delivery_fee_confirmed: boolean | null
   delivery_address: string
   created_at: string
   rider_id: string | null
   customer_id: string | null
-  guest_phone: string | null
-  guest_email: string | null
-  tracking_code: string | null
   order_items: OrderItem[]
   riders: Rider | null
   delivery_zones: DeliveryZoneInfo
@@ -52,9 +48,6 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [feeEdits, setFeeEdits] = useState<Record<string, string>>({})
-  const [savingFeeFor, setSavingFeeFor] = useState<string | null>(null)
-  const [statusErrorFor, setStatusErrorFor] = useState<string | null>(null)
 
   async function loadOrders() {
     const res = await authFetch('/api/admin/orders')
@@ -79,7 +72,6 @@ export default function AdminOrdersPage() {
   }, [])
 
   async function updateStatus(orderId: string, status: string) {
-    setStatusErrorFor(null)
     const res = await authFetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -87,7 +79,6 @@ export default function AdminOrdersPage() {
     })
     if (!res.ok) {
       const json = await res.json()
-      setStatusErrorFor(orderId)
       alert(json.error || "Impossible de changer le statut.")
     }
     loadOrders()
@@ -98,24 +89,6 @@ export default function AdminOrdersPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rider_id: riderId }),
-    })
-    loadOrders()
-  }
-
-  async function saveDeliveryFee(orderId: string) {
-    const value = feeEdits[orderId]
-    if (value === undefined || value === '') return
-    setSavingFeeFor(orderId)
-    await authFetch(`/api/admin/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ delivery_fee: Number(value) }),
-    })
-    setSavingFeeFor(null)
-    setFeeEdits((prev) => {
-      const next = { ...prev }
-      delete next[orderId]
-      return next
     })
     loadOrders()
   }
@@ -156,8 +129,6 @@ export default function AdminOrdersPage() {
           {paginatedOrders.map((order) => {
             const subtotal = order.subtotal_amount ?? order.total_amount
             const deliveryFee = order.delivery_fee ?? 0
-            const feeNeedsConfirmation = order.delivery_fee_confirmed === false
-            const editingValue = feeEdits[order.id]
             const orderCancellable = canCancelOrder(order.status)
 
             return (
@@ -168,16 +139,6 @@ export default function AdminOrdersPage() {
                       <p className="text-xs text-(--gris-texte)">
                         Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                       </p>
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        order.customer_id ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'bg-gray-100 text-(--gris-texte)'
-                      }`}>
-                        {order.customer_id ? 'Compte' : 'Invité'}
-                      </span>
-                      {feeNeedsConfirmation && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
-                          <AlertCircle className="w-3 h-3" /> Frais à confirmer
-                        </span>
-                      )}
                       {!orderCancellable && isActiveStatus(order.status) && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                           Non annulable
@@ -263,21 +224,6 @@ export default function AdminOrdersPage() {
                         </span>
                       </div>
                     )}
-                    {!order.customer_id && order.guest_phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-(--gris-texte) shrink-0" />
-                        <span className="text-(--encre) font-medium">
-                          {order.guest_phone}
-                          {order.guest_email ? ` · ${order.guest_email}` : ''}
-                        </span>
-                      </div>
-                    )}
-                    {!order.customer_id && order.tracking_code && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <User className="w-4 h-4 text-(--gris-texte) shrink-0" />
-                        <span className="text-(--encre) font-medium font-mono">{order.tracking_code}</span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="space-y-3">
@@ -304,24 +250,6 @@ export default function AdminOrdersPage() {
                           <span>{order.total_amount.toLocaleString('fr-FR')} FCFA</span>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        placeholder={`Corriger : ${deliveryFee}`}
-                        value={editingValue ?? ''}
-                        onChange={(e) => setFeeEdits((prev) => ({ ...prev, [order.id]: e.target.value }))}
-                        className="w-full text-sm font-medium border border-gray-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none"
-                      />
-                      <button
-                        onClick={() => saveDeliveryFee(order.id)}
-                        disabled={editingValue === undefined || editingValue === '' || savingFeeFor === order.id}
-                        className="shrink-0 flex items-center gap-1 text-sm bg-(--vert-baol) text-white rounded-xl px-4 py-2.5 disabled:opacity-40 hover:bg-(--vert-baol-fonce) transition-colors font-medium"
-                      >
-                        {savingFeeFor === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        Valider
-                      </button>
                     </div>
                   </div>
                 </div>
