@@ -13,8 +13,12 @@ import { Button } from '@/components/Button'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export default function Header() {
+  type StaffRole = 'super_admin' | 'admin' | 'moderator'
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [isStaff, setIsStaff] = useState(false)
+  const [staffRole, setStaffRole] = useState<StaffRole | null>(null)
+
+  const staffLabel = staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Admin' : 'Modération'
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
@@ -26,10 +30,12 @@ export default function Header() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       if (user) {
-        const { data: staffRow } = await supabase.from('staff').select('id').eq('id', user.id).maybeSingle()
+        const { data: staffRow } = await supabase.from('staff').select('id, role').eq('id', user.id).maybeSingle()
         setIsStaff(!!staffRow)
+        setStaffRole((staffRow?.role as StaffRole) ?? null)
       } else {
         setIsStaff(false)
+        setStaffRole(null)
       }
     }
     checkUser()
@@ -37,11 +43,13 @@ export default function Header() {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        supabase.from('staff').select('id').eq('id', session.user.id).maybeSingle().then(({ data }) => {
+        supabase.from('staff').select('id, role').eq('id', session.user.id).maybeSingle().then(({ data }) => {
           setIsStaff(!!data)
+          setStaffRole((data?.role as StaffRole) ?? null)
         })
       } else {
         setIsStaff(false)
+        setStaffRole(null)
       }
     })
 
@@ -139,7 +147,7 @@ export default function Header() {
                   className="flex items-center gap-2 text-sm font-bold text-(--or-senegal) hover:text-yellow-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--or-senegal) rounded-md px-2 py-1"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  Admin
+                  {staffLabel}
                 </Link>
               )}
 
@@ -305,7 +313,7 @@ export default function Header() {
                   className="flex items-center gap-3 px-4 py-3.5 text-base font-bold text-(--or-senegal) bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-colors"
                 >
                   <LayoutDashboard className="w-5 h-5" />
-                  Espace Administrateur
+                  {staffRole === 'moderator' ? 'Espace Modération' : 'Espace Administrateur'}
                 </Link>
               </>
             )}

@@ -8,6 +8,7 @@ import { FormField } from '@/components/FormField'
 
 const ITEMS_PER_PAGE = 8
 
+type StaffRole = 'super_admin' | 'admin' | 'moderator'
 type Category = { id: string; name: string; slug: string; description: string | null; image_url: string | null }
 
 async function authFetch(url: string, options: RequestInit = {}) {
@@ -28,6 +29,7 @@ export default function AdminCategoriesPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
+  const [role, setRole] = useState<StaffRole | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -36,6 +38,11 @@ export default function AdminCategoriesPage() {
 
   async function loadCategories() {
     setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
+      setRole((staffRow?.role as StaffRole) ?? null)
+    }
     const res = await authFetch('/api/admin/categories')
     const json = await res.json()
     if (res.ok) setCategories(json.categories)
@@ -130,8 +137,12 @@ export default function AdminCategoriesPage() {
   }
 
   async function deleteCategory(id: string) {
-    await authFetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+    const res = await authFetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
     setCategoryToDelete(null)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      alert(json.error || 'Impossible de supprimer cette catégorie.')
+    }
     loadCategories()
   }
 
@@ -143,6 +154,9 @@ export default function AdminCategoriesPage() {
       </div>
     )
   }
+
+  // Seuls les admins et le super admin peuvent supprimer
+  const canDelete = role === 'admin' || role === 'super_admin'
 
   const totalPages = Math.ceil(categories.length / ITEMS_PER_PAGE)
   const paginatedCategories = categories.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
@@ -250,13 +264,15 @@ export default function AdminCategoriesPage() {
                       >
                         <Edit className="w-4 h-4" /> Modifier
                       </button>
-                      <button
-                        onClick={() => setCategoryToDelete(c.id)}
-                        className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors border border-red-100"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => setCategoryToDelete(c.id)}
+                          className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors border border-red-100"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -289,7 +305,7 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* Modal de suppression */}
-      {categoryToDelete && (
+      {canDelete && categoryToDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-4 mb-4 text-red-600">

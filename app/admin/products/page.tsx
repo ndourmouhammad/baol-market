@@ -8,6 +8,8 @@ import { FormField } from '@/components/FormField'
 
 const ITEMS_PER_PAGE = 4
 
+type StaffRole = 'super_admin' | 'admin' | 'moderator'
+
 type Category = { id: string; name: string }
 type Merchant = { id: string; name: string }
 type Product = {
@@ -56,9 +58,15 @@ export default function AdminProductsPage() {
   const [uploading, setUploading] = useState(false)
 
   const [productToDelete, setProductToDelete] = useState<string | null>(null)
+  const [role, setRole] = useState<StaffRole | null>(null)
 
   async function loadData() {
     setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
+      setRole((staffRow?.role as StaffRole) ?? null)
+    }
     const { data: cats } = await supabase.from('categories').select('id, name')
     setCategories(cats || [])
 
@@ -185,8 +193,12 @@ export default function AdminProductsPage() {
   }
 
   async function deleteProduct(id: string) {
-    await authFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+    const res = await authFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
     setProductToDelete(null)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      alert(json.error || 'Impossible de supprimer ce produit.')
+    }
     loadData()
   }
 
@@ -198,6 +210,9 @@ export default function AdminProductsPage() {
       </div>
     )
   }
+
+  // Seuls les admins et le super admin peuvent supprimer
+  const canDelete = role === 'admin' || role === 'super_admin'
 
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE)
   const paginatedProducts = products.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
@@ -352,7 +367,7 @@ export default function AdminProductsPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-2 mt-2">
+                    <div className={`grid ${canDelete ? 'grid-cols-[1fr_auto_auto]' : 'grid-cols-[1fr_auto]'} gap-2 mt-2`}>
                       <button
                         onClick={() => toggleAvailability(p)}
                         className={`flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl px-2 py-2 transition-colors border ${
@@ -372,13 +387,15 @@ export default function AdminProductsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => setProductToDelete(p.id)}
-                        className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors flex items-center justify-center border border-red-100"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => setProductToDelete(p.id)}
+                          className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors flex items-center justify-center border border-red-100"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -411,7 +428,7 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Modal de suppression */}
-      {productToDelete && (
+      {canDelete && productToDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-4 mb-4 text-red-600">
