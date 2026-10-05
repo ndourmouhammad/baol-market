@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyStaff, hasRole } from "@/lib/verifyStaff";
 import { setMatricule, getStaffIdsWithMatricule } from "@/lib/matricule";
+import { logActivity } from "@/lib/activityLog";
 
 function generateTempPassword() {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#";
@@ -107,6 +108,14 @@ export async function POST(request: Request) {
     }
     matricule = result.matricule;
   }
+
+  await logActivity(staff, {
+    action: "staff_created",
+    entityType: "staff",
+    entityId: created.user.id,
+    // Ni le mot de passe temporaire ni le matricule ne sont jamais écrits dans le journal
+    details: { email, role, matricule_generated: role === "moderator" },
+  });
 
   return NextResponse.json({ success: true, tempPassword, matricule });
 }

@@ -12,6 +12,10 @@ export const ACTION_LABELS: Record<string, string> = {
   category_created: 'Création de catégorie',
   category_updated: 'Modification de catégorie',
   category_deleted: 'Suppression de catégorie',
+  staff_created: 'Création de membre',
+  staff_removed: 'Retrait de membre',
+  staff_matricule_generated: 'Génération de matricule',
+  staff_matricule_reset: 'Réinitialisation de matricule',
 }
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -46,6 +50,10 @@ export function entityLabel(entityType: string | null, entityId: string | null, 
   if (entityType === 'order' && entityId) return `Commande #${entityId.split('-')[0].toUpperCase()}`
   if (entityType === 'product') return name ? `Produit « ${name} »` : 'Produit'
   if (entityType === 'category') return name ? `Catégorie « ${name} »` : 'Catégorie'
+  if (entityType === 'staff') {
+    const email = details && typeof details.email === 'string' ? details.email : null
+    return email ? `Membre « ${email} »` : 'Membre'
+  }
 
   return entityId ? `${entityType} ${entityId}` : '—'
 }
@@ -91,6 +99,14 @@ export function detailsLabel(action: string, details: Details): string {
     case 'product_updated':
     case 'category_updated':
       return changesText(details.changes)
+    case 'staff_created': {
+      const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
+      return details.matricule_generated === true ? `Rôle : ${role} · matricule généré` : `Rôle : ${role}`
+    }
+    case 'staff_removed': {
+      const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
+      return `Rôle : ${role}`
+    }
     case 'product_availability_changed':
       return details.to === true ? 'Activé' : details.to === false ? 'Désactivé' : '—'
     default:
