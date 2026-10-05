@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
+import { logActivity } from '@/lib/activityLog'
 
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
@@ -22,14 +23,28 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { error } = await supabaseAdmin.from('merchants').insert({
-    name: body.name,
-    phone: body.phone,
-    address: body.address,
-    notes: body.notes || null,
-    category_id: body.category_id || null,
+  const { data: created, error } = await supabaseAdmin
+    .from('merchants')
+    .insert({
+      name: body.name,
+      phone: body.phone,
+      address: body.address,
+      notes: body.notes || null,
+      category_id: body.category_id || null,
+    })
+    .select('id')
+    .single()
+
+  if (error || !created) {
+    return NextResponse.json({ error: error?.message || 'Impossible de créer le commerçant.' }, { status: 500 })
+  }
+
+  await logActivity(staff, {
+    action: 'merchant_created',
+    entityType: 'merchant',
+    entityId: created.id,
+    details: { name: body.name },
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

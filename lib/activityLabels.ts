@@ -16,6 +16,13 @@ export const ACTION_LABELS: Record<string, string> = {
   staff_removed: 'Retrait de membre',
   staff_matricule_generated: 'Génération de matricule',
   staff_matricule_reset: 'Réinitialisation de matricule',
+  merchant_created: 'Création de commerçant',
+  merchant_updated: 'Modification de commerçant',
+  merchant_deleted: 'Suppression de commerçant',
+  rider_created: 'Création de livreur',
+  rider_updated: 'Modification de livreur',
+  rider_availability_changed: "Activité d'un livreur",
+  rider_deleted: 'Suppression de livreur',
 }
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -36,6 +43,9 @@ const FLAG_LABELS: Record<string, string> = {
   image_url: 'Image modifiée',
   category_id: 'Catégorie modifiée',
   merchant_id: 'Commerçant modifié',
+  phone: 'Téléphone modifié',
+  address: 'Adresse modifiée',
+  notes: 'Notes modifiées',
 }
 
 export function actionLabel(action: string): string {
@@ -54,6 +64,9 @@ export function entityLabel(entityType: string | null, entityId: string | null, 
     const email = details && typeof details.email === 'string' ? details.email : null
     return email ? `Membre « ${email} »` : 'Membre'
   }
+
+  if (entityType === 'merchant') return name ? `Commerçant « ${name} »` : 'Commerçant'
+  if (entityType === 'rider') return name ? `Livreur « ${name} »` : 'Livreur'
 
   return entityId ? `${entityType} ${entityId}` : '—'
 }
@@ -98,6 +111,8 @@ export function detailsLabel(action: string, details: Details): string {
       return typeof details.price === 'number' ? `Prix : ${valueText('price', details.price)}` : '—'
     case 'product_updated':
     case 'category_updated':
+    case 'merchant_updated':
+    case 'rider_updated':
       return changesText(details.changes)
     case 'staff_created': {
       const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
@@ -108,6 +123,7 @@ export function detailsLabel(action: string, details: Details): string {
       return `Rôle : ${role}`
     }
     case 'product_availability_changed':
+    case 'rider_availability_changed':
       return details.to === true ? 'Activé' : details.to === false ? 'Désactivé' : '—'
     default:
       return '—'
