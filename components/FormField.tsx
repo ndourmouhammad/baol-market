@@ -7,13 +7,12 @@ interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement | HT
   helperText?: string;
 }
 
-let fieldCounter = 0;
-
 export function FormField({ label, isTextarea, error, helperText, className = '', id: externalId, type, ...props }: FormFieldProps) {
   const [showPassword, setShowPassword] = React.useState(false);
   const isPassword = type === 'password';
 
-  const generatedId = React.useMemo(() => externalId || `form-field-${++fieldCounter}`, [externalId]);
+  const uniqueId = React.useId();
+  const generatedId = externalId || `form-field-${uniqueId}`;
   const errorId = error ? `${generatedId}-error` : undefined;
 
   const togglePassword = () => setShowPassword(!showPassword);

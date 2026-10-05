@@ -11,6 +11,21 @@ import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
 import { ErrorMessage } from '@/components/ErrorMessage'
 
+// Signale au serveur qu'un modérateur vient de se connecter (pour le journal d'activité).
+// Si l'envoi échoue ou tarde trop, la connexion n'est jamais bloquée.
+async function reportModeratorLogin(accessToken: string | undefined) {
+  if (!accessToken) return
+  try {
+    await fetch('/api/admin/log-login', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(3000),
+    })
+  } catch {
+    // Volontairement ignoré
+  }
+}
+
 function LoginContent() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -54,6 +69,9 @@ function LoginContent() {
   if (data?.user) {
     const { data: staffRow } = await supabase.from('staff').select('role').eq('id', data.user.id).maybeSingle()
     if (staffRow) {
+      if (staffRow.role === 'moderator') {
+        await reportModeratorLogin(data.session?.access_token)
+      }
       router.push(staffRow.role === 'moderator' ? '/admin/orders' : '/admin')
     } else {
       router.push(next || '/')

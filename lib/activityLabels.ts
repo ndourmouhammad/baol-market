@@ -16,6 +16,7 @@ export const ACTION_LABELS: Record<string, string> = {
   staff_removed: 'Retrait de membre',
   staff_matricule_generated: 'Génération de matricule',
   staff_matricule_reset: 'Réinitialisation de matricule',
+  staff_login: 'Connexion',
   merchant_created: 'Création de commerçant',
   merchant_updated: 'Modification de commerçant',
   merchant_deleted: 'Suppression de commerçant',
