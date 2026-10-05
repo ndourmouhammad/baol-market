@@ -244,7 +244,7 @@ export default function AdminJournalPage() {
                       <p className="text-xs text-(--gris-texte)">{ROLE_LABELS[entry.actor_role] ?? entry.actor_role}</p>
                     </td>
                     <td className="px-5 py-3 font-medium">{actionLabel(entry.action)}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{entityLabel(entry.entity_type, entry.entity_id)}</td>
+                    <td className="px-5 py-3 whitespace-nowrap">{entityLabel(entry.entity_type, entry.entity_id, entry.details)}</td>
                     <td className="px-5 py-3">{detailsLabel(entry.action, entry.details)}</td>
                   </tr>
                 ))}

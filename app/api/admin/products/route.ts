@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff } from '@/lib/verifyStaff'
+import { logActivity } from '@/lib/activityLog'
 
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
@@ -21,16 +22,30 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
-  const { error } = await supabaseAdmin.from('products').insert({
-    name: body.name,
-    description: body.description,
-    price: body.price,
-    category_id: body.category_id || null,
-    merchant_id: body.merchant_id || null,
-    image_url: body.image_url || null,
-    is_available: true,
+  const { data: created, error } = await supabaseAdmin
+    .from('products')
+    .insert({
+      name: body.name,
+      description: body.description,
+      price: body.price,
+      category_id: body.category_id || null,
+      merchant_id: body.merchant_id || null,
+      image_url: body.image_url || null,
+      is_available: true,
+    })
+    .select('id')
+    .single()
+
+  if (error || !created) {
+    return NextResponse.json({ error: error?.message || 'Impossible de créer le produit.' }, { status: 500 })
+  }
+
+  await logActivity(staff, {
+    action: 'product_created',
+    entityType: 'product',
+    entityId: created.id,
+    details: { name: body.name, price: body.price },
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

@@ -82,7 +82,7 @@ export async function GET(request: Request) {
           entry.actor_email,
           ROLE_LABELS[entry.actor_role] ?? entry.actor_role,
           actionLabel(entry.action),
-          entityLabel(entry.entity_type, entry.entity_id),
+          entityLabel(entry.entity_type, entry.entity_id, entry.details),
           detailsLabel(entry.action, entry.details),
         ]
           .map(csvCell)

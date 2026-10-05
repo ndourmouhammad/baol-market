@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff } from '@/lib/verifyStaff'
+import { logActivity } from '@/lib/activityLog'
 
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
@@ -22,12 +23,27 @@ export async function POST(request: Request) {
   const body = await request.json()
   const slug = body.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-  const { error } = await supabaseAdmin.from('categories').insert({
-    name: body.name,
-    slug,
-    description: body.description || null,
-    image_url: body.image_url || null,
+  const { data: created, error } = await supabaseAdmin
+    .from('categories')
+    .insert({
+      name: body.name,
+      slug,
+      description: body.description || null,
+      image_url: body.image_url || null,
+    })
+    .select('id')
+    .single()
+
+  if (error || !created) {
+    return NextResponse.json({ error: error?.message || 'Impossible de créer la catégorie.' }, { status: 500 })
+  }
+
+  await logActivity(staff, {
+    action: 'category_created',
+    entityType: 'category',
+    entityId: created.id,
+    details: { name: body.name },
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
   return NextResponse.json({ success: true })
 }
