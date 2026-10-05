@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, Phone } from 'lucide-react'
+import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, Phone, ShieldCheck } from 'lucide-react'
 import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, type OrderStatus } from '@/lib/orderStatus'
 
 type OrderItem = {
@@ -49,6 +49,12 @@ export default function AdminOrdersPage() {
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
+  // Fenêtre de confirmation par matricule (demandée par le serveur aux modérateurs)
+  const [pendingChange, setPendingChange] = useState<{ orderId: string; status: string } | null>(null)
+  const [matriculeInput, setMatriculeInput] = useState('')
+  const [matriculeError, setMatriculeError] = useState('')
+  const [confirming, setConfirming] = useState(false)
+
   async function loadOrders() {
     const res = await authFetch('/api/admin/orders')
     const json = await res.json()
@@ -71,16 +77,67 @@ export default function AdminOrdersPage() {
     loadRiders()
   }, [])
 
-  async function updateStatus(orderId: string, status: string) {
+  async function sendStatusUpdate(orderId: string, status: string, matricule?: string) {
     const res = await authFetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(matricule ? { status, matricule } : { status }),
     })
-    if (!res.ok) {
-      const json = await res.json()
-      alert(json.error || "Impossible de changer le statut.")
+    const json = await res.json().catch(() => ({}))
+    return { ok: res.ok, json }
+  }
+
+  async function updateStatus(orderId: string, status: string) {
+    const result = await sendStatusUpdate(orderId, status)
+    if (result.ok) {
+      loadOrders()
+      return
     }
+
+    // Le serveur demande le matricule aux modérateurs : on ouvre la fenêtre de confirmation
+    if (result.json.code === 'MATRICULE_REQUIRED') {
+      setPendingChange({ orderId, status })
+      setMatriculeInput('')
+      setMatriculeError('')
+      return
+    }
+
+    alert(result.json.error || "Impossible de changer le statut.")
+    loadOrders()
+  }
+
+  function closeMatriculeModal() {
+    setPendingChange(null)
+    setMatriculeInput('')
+    setMatriculeError('')
+  }
+
+  async function confirmWithMatricule(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pendingChange) return
+
+    setConfirming(true)
+    setMatriculeError('')
+    const result = await sendStatusUpdate(pendingChange.orderId, pendingChange.status, matriculeInput)
+    setConfirming(false)
+
+    if (result.ok) {
+      closeMatriculeModal()
+      loadOrders()
+      return
+    }
+
+    const code = result.json.code
+    if (code === 'MATRICULE_INVALID' || code === 'MATRICULE_LOCKED' || code === 'MATRICULE_NOT_SET') {
+      // On garde la fenêtre ouverte pour afficher le message (essais restants, blocage...)
+      setMatriculeError(result.json.error)
+      setMatriculeInput('')
+      return
+    }
+
+    // Autre erreur (ex. annulation impossible) : on ferme et on l'affiche
+    closeMatriculeModal()
+    alert(result.json.error || "Impossible de changer le statut.")
     loadOrders()
   }
 
@@ -278,6 +335,56 @@ export default function AdminOrdersPage() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirmation par matricule (modérateurs) */}
+      {pendingChange && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={confirmWithMatricule}
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="bg-(--vert-baol)/10 text-(--vert-baol) p-3 rounded-full">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-(--encre)">Confirmez avec votre matricule</h3>
+            </div>
+            <p className="text-(--gris-texte) mb-4 text-sm font-medium">
+              Commande #{pendingChange.orderId.split('-')[0].toUpperCase()} :{' '}
+              passer au statut <span className="font-bold text-(--encre)">{STATUS_LABELS[pendingChange.status as OrderStatus]?.toUpperCase() ?? pendingChange.status}</span>.
+            </p>
+            <input
+              type="text"
+              value={matriculeInput}
+              onChange={(e) => setMatriculeInput(e.target.value)}
+              placeholder="MOD-123456"
+              autoFocus
+              autoComplete="off"
+              required
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-(--encre) font-mono text-lg tracking-wider focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none"
+            />
+            {matriculeError && (
+              <p className="text-red-600 text-sm bg-red-50 p-2 rounded-lg font-medium mt-3">{matriculeError}</p>
+            )}
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                type="button"
+                onClick={closeMatriculeModal}
+                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={confirming || !matriculeInput.trim()}
+                className="px-4 py-2.5 bg-(--vert-baol) text-white hover:bg-(--vert-baol-fonce) rounded-xl font-bold transition-colors disabled:opacity-50"
+              >
+                {confirming ? 'Vérification...' : 'Confirmer'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
