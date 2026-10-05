@@ -15,7 +15,8 @@ import {
   X,
   Loader2,
   Tags,
-  Users
+  Users,
+  ScrollText
 } from 'lucide-react'
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
@@ -66,6 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const canManageStaff = role === 'admin' || role === 'super_admin'
+  const isSuperAdmin = role === 'super_admin'
 
   const navItems = [
     ...(canManageStaff ? [{ href: '/admin', label: 'Tableau de Bord', icon: LayoutDashboard }] : []),
@@ -75,6 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/merchants', label: 'Commerçants', icon: Store },
     { href: '/admin/riders', label: 'Livreurs', icon: Bike },
     ...(canManageStaff ? [{ href: '/admin/equipe', label: 'Équipe', icon: Users }] : []),
+    ...(isSuperAdmin ? [{ href: '/admin/journal', label: 'Journal', icon: ScrollText }] : []),
   ]
 
   return (
