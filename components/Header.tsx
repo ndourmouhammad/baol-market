@@ -9,6 +9,7 @@ import { NotificationBell } from '@/components/NotificationBell'
 import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, MapPin, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
+import { formatPhoneDisplay } from '@/lib/phoneAuth'
 
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -91,6 +92,22 @@ export default function Header() {
     return null
   }
 
+  // Identité affichée : les comptes clients par téléphone ont une adresse technique
+  // (221…@phone.baolmarket.internal) qu'on ne montre jamais ; le prénom et le nom
+  // enregistrés à l'inscription sont utilisés à la place.
+  const meta = (user?.user_metadata ?? {}) as { first_name?: string; last_name?: string; phone?: string }
+  const isPhoneAccount = !!user?.email?.endsWith('@phone.baolmarket.internal')
+  const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(' ')
+  const initial = meta.first_name
+    ? meta.first_name.charAt(0).toUpperCase()
+    : !isPhoneAccount && user?.email
+      ? user.email.charAt(0).toUpperCase()
+      : null
+  const menuName = displayName || (isPhoneAccount ? 'Mon compte' : user?.email ?? '')
+  const menuContact = isPhoneAccount
+    ? (meta.phone && meta.phone.length === 12 ? formatPhoneDisplay(meta.phone) : '')
+    : displayName ? user?.email ?? '' : ''
+
   return (
     <>
       <header
@@ -169,8 +186,11 @@ export default function Header() {
               <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
                 {user ? (
                   <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) flex items-center justify-center font-serif font-bold text-sm border border-(--vert-baol)/20">
-                      {user.email?.charAt(0).toUpperCase()}
+                    <div
+                      className="w-9 h-9 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) flex items-center justify-center font-serif font-bold text-sm border border-(--vert-baol)/20"
+                      title={menuName}
+                    >
+                      {initial ?? <User className="w-4 h-4" />}
                     </div>
                     <button
                       onClick={handleLogout}
@@ -258,11 +278,12 @@ export default function Header() {
             <div className="px-4 py-5 bg-gray-50/50 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-(--vert-baol) text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {initial ?? <User className="w-6 h-6" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-(--encre) truncate">{user.email}</p>
-                  <p className="text-xs text-(--vert-baol) font-medium mt-0.5">Compte client</p>
+                  <p className="text-sm font-bold text-(--encre) truncate">{menuName}</p>
+                  {menuContact && <p className="text-xs text-(--gris-texte) truncate">{menuContact}</p>}
+                  <p className="text-xs text-(--vert-baol) font-medium mt-0.5">{isStaff ? staffLabel : 'Compte client'}</p>
                 </div>
               </div>
             </div>

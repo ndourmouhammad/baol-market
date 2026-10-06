@@ -17,6 +17,8 @@ type DeliveryZone = {
 }
 
 const DRAFT_KEY = 'baol-market-checkout-draft'
+// Doit rester identique à la clé utilisée dans app/paiement/succes/page.tsx
+const PENDING_CART_ORDER_KEY = 'baol-market-pending-cart-order'
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -100,6 +102,14 @@ export default function CheckoutPage() {
       setLoading(false)
       setError(json.error)
       return
+    }
+
+    // On retient la commande issue du panier : la page de succès videra le panier
+    // seulement quand le paiement de CETTE commande sera confirmé.
+    try {
+      localStorage.setItem(PENDING_CART_ORDER_KEY, json.orderId)
+    } catch (e) {
+      console.error('Erreur sauvegarde commande en cours:', e)
     }
 
     // Redirection vers la page de paiement hébergée par PayTech
