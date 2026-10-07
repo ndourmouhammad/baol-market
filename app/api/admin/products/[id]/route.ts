@@ -2,17 +2,33 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 import { logActivity } from '@/lib/activityLog'
+import { parseFlashInput } from '@/lib/flashSale'
 
 // Seuls ces champs peuvent être modifiés via l'API
 const EDITABLE_FIELDS = ['name', 'description', 'price', 'category_id', 'merchant_id', 'image_url', 'is_available'] as const
+// La vente flash est vérifiée à part (cohérence prix / dates)
+const FLASH_FIELDS = ['flash_price', 'flash_starts_at', 'flash_ends_at'] as const
+const ALL_FIELDS = [...EDITABLE_FIELDS, ...FLASH_FIELDS]
 
 // Pour ces champs, le journal garde l'ancienne et la nouvelle valeur.
-// Pour les autres (description, image, catégorie, commerçant), il note seulement « modifié ».
-const VALUE_FIELDS = ['name', 'price', 'is_available']
+// Pour les autres (description, image, catégorie, commerçant, dates), il note seulement « modifié ».
+const VALUE_FIELDS = ['name', 'price', 'is_available', 'flash_price']
 
 // "" et null sont considérés comme identiques (champ vide)
 function normalize(value: unknown) {
   return value === '' || value === undefined ? null : value
+}
+
+function sameValue(field: string, a: unknown, b: unknown): boolean {
+  if (field === 'price' || field === 'flash_price') {
+    return (a === null ? null : Number(a)) === (b === null ? null : Number(b))
+  }
+  if (field === 'flash_starts_at' || field === 'flash_ends_at') {
+    const timeA = a ? new Date(a as string).getTime() : null
+    const timeB = b ? new Date(b as string).getTime() : null
+    return timeA === timeB
+  }
+  return a === b
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,14 +42,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   for (const field of EDITABLE_FIELDS) {
     if (body[field] !== undefined) updates[field] = body[field]
   }
+  const hasFlashInput = FLASH_FIELDS.some((field) => body[field] !== undefined)
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && !hasFlashInput) {
     return NextResponse.json({ error: 'Aucune modification à appliquer.' }, { status: 400 })
   }
 
   const { data: existing } = await supabaseAdmin
     .from('products')
-    .select('name, description, price, category_id, merchant_id, image_url, is_available')
+    .select('name, description, price, category_id, merchant_id, image_url, is_available, flash_price, flash_starts_at, flash_ends_at')
     .eq('id', id)
     .maybeSingle()
 
@@ -42,14 +59,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   const before = existing as Record<string, unknown>
 
+  // Vente flash : cohérence avec le prix normal (nouveau ou actuel)
+  const newPrice = 'price' in updates ? Number(updates.price) : Number(before.price)
+  const flash = parseFlashInput(body, newPrice, {
+    flash_price: existing.flash_price,
+    flash_starts_at: existing.flash_starts_at,
+    flash_ends_at: existing.flash_ends_at,
+  })
+  if ('error' in flash) return NextResponse.json({ error: flash.error }, { status: 400 })
+  if (flash.values) Object.assign(updates, flash.values)
+
   // Ce qui change réellement (pour le journal)
   const changes: { field: string; from?: unknown; to?: unknown }[] = []
-  for (const field of EDITABLE_FIELDS) {
+  for (const field of ALL_FIELDS) {
     if (!(field in updates)) continue
     const oldValue = normalize(before[field])
     const newValue = normalize(updates[field])
-    const different = field === 'price' ? Number(oldValue) !== Number(newValue) : oldValue !== newValue
-    if (!different) continue
+    if (sameValue(field, oldValue, newValue)) continue
     changes.push(VALUE_FIELDS.includes(field) ? { field, from: oldValue, to: newValue } : { field })
   }
 

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Trash2, Power, PowerOff, PackageSearch, AlertTriangle, Edit, ChevronLeft, ChevronRight, ImagePlus, X } from 'lucide-react'
+import { Loader2, Trash2, Power, PowerOff, PackageSearch, AlertTriangle, Edit, ChevronLeft, ChevronRight, ImagePlus, X, Zap } from 'lucide-react'
 import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
+import { flashState } from '@/lib/flashSale'
 
 const ITEMS_PER_PAGE = 4
 
@@ -21,6 +22,9 @@ type Product = {
   category_id: string | null
   merchant_id: string | null
   image_url: string | null
+  flash_price: number | null
+  flash_starts_at: string | null
+  flash_ends_at: string | null
   categories: { name: string } | null
   merchants: { name: string } | null
 }
@@ -36,6 +40,34 @@ async function authFetch(url: string, options: RequestInit = {}) {
   })
 }
 
+// Valeur d'un champ <input type="datetime-local"> à partir d'une date enregistrée
+function toLocalInput(iso: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function percentOff(product: Product) {
+  return Math.round((1 - Number(product.flash_price) / product.price) * 100)
+}
+
+// Texte et couleur de l'état de la vente flash d'un produit
+function flashStatus(product: Product): { text: string; className: string } {
+  const state = flashState(product)
+  if (state === 'active') {
+    return { text: `En cours, jusqu'au ${formatDateTime(product.flash_ends_at!)}`, className: 'text-green-700' }
+  }
+  if (state === 'scheduled') {
+    return { text: `Programmée, du ${formatDateTime(product.flash_starts_at!)}`, className: 'text-blue-700' }
+  }
+  return { text: 'Terminée', className: 'text-orange-700' }
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -48,6 +80,9 @@ export default function AdminProductsPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
+  const [flashPrice, setFlashPrice] = useState('')
+  const [flashStartsAt, setFlashStartsAt] = useState('')
+  const [flashEndsAt, setFlashEndsAt] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [merchantId, setMerchantId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -103,8 +138,19 @@ export default function AdminProductsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
     setError('')
+
+    // Vente flash : une date de fin est obligatoire avec un prix réduit
+    if (flashPrice && !flashEndsAt) {
+      setError('Indiquez la date de fin de la vente flash.')
+      return
+    }
+    if (flashPrice && Number(flashPrice) >= Number(price)) {
+      setError('Le prix de la vente flash doit être inférieur au prix normal.')
+      return
+    }
+
+    setSaving(true)
 
     let imageUrl = existingImageUrl
 
@@ -143,6 +189,10 @@ export default function AdminProductsPage() {
         category_id: categoryId || null,
         merchant_id: merchantId || null,
         image_url: imageUrl,
+        // Prix vide = pas de vente flash (ou retrait de la vente flash existante)
+        flash_price: flashPrice ? Number(flashPrice) : null,
+        flash_starts_at: flashPrice && flashStartsAt ? new Date(flashStartsAt).toISOString() : null,
+        flash_ends_at: flashPrice && flashEndsAt ? new Date(flashEndsAt).toISOString() : null,
       }),
     })
 
@@ -162,6 +212,9 @@ export default function AdminProductsPage() {
     setName(product.name)
     setDescription(product.description || '')
     setPrice(product.price.toString())
+    setFlashPrice(product.flash_price !== null ? String(product.flash_price) : '')
+    setFlashStartsAt(toLocalInput(product.flash_starts_at))
+    setFlashEndsAt(toLocalInput(product.flash_ends_at))
     setCategoryId(product.category_id || '')
     setMerchantId(product.merchant_id || '')
     setExistingImageUrl(product.image_url)
@@ -175,6 +228,9 @@ export default function AdminProductsPage() {
     setName('')
     setDescription('')
     setPrice('')
+    setFlashPrice('')
+    setFlashStartsAt('')
+    setFlashEndsAt('')
     setCategoryId('')
     setMerchantId('')
     setImageFile(null)
@@ -278,6 +334,55 @@ export default function AdminProductsPage() {
               min="0"
             />
 
+            <div className="space-y-3 rounded-xl border border-(--or-senegal)/50 bg-yellow-50/50 p-4">
+              <p className="font-bold text-(--encre) flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-yellow-600" />
+                Vente flash <span className="font-normal text-(--gris-texte)">(facultative)</span>
+              </p>
+              <FormField
+                label="Prix réduit (FCFA)"
+                type="number"
+                value={flashPrice}
+                onChange={(e) => setFlashPrice(e.target.value)}
+                placeholder="Ex: 2000"
+                min="1"
+                error={
+                  flashPrice && price && Number(flashPrice) >= Number(price)
+                    ? 'Doit être inférieur au prix normal.'
+                    : undefined
+                }
+                helperText={
+                  flashPrice && price && Number(flashPrice) > 0 && Number(flashPrice) < Number(price)
+                    ? `Remise de ${Math.round((1 - Number(flashPrice) / Number(price)) * 100)} % pour le client.`
+                    : 'Le client paie ce prix tant que la vente flash est en cours.'
+                }
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-(--encre) block">Début (facultatif)</label>
+                  <input
+                    type="datetime-local"
+                    value={flashStartsAt}
+                    onChange={(e) => setFlashStartsAt(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2.5 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="font-bold text-(--encre) block">Fin (obligatoire)</label>
+                  <input
+                    type="datetime-local"
+                    value={flashEndsAt}
+                    onChange={(e) => setFlashEndsAt(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2.5 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-(--gris-texte)">
+                À la date de fin, le produit repasse tout seul à son prix normal. Pour retirer une vente flash,
+                videz le prix réduit puis enregistrez.
+              </p>
+            </div>
+
             <div className="space-y-1.5">
               <label className="font-bold text-(--encre) block">Catégorie</label>
               <select
@@ -356,6 +461,20 @@ export default function AdminProductsPage() {
                           <span className="text-(--gris-texte)">Prix</span>
                           <span className="font-bold text-(--vert-baol)">{p.price.toLocaleString('fr-FR')} FCFA</span>
                         </p>
+                        {flashState(p) !== 'none' && (
+                          <p className="flex justify-between items-start gap-3 border-b border-gray-100 pb-1.5 pt-1.5">
+                            <span className="text-(--gris-texte) flex items-center gap-1 shrink-0">
+                              <Zap className="w-3.5 h-3.5 text-yellow-600" /> Vente flash
+                            </span>
+                            <span className="text-right">
+                              <span className="font-bold text-yellow-700">{Number(p.flash_price).toLocaleString('fr-FR')} FCFA</span>
+                              <span className="text-xs text-(--gris-texte)"> · -{percentOff(p)} %</span>
+                              <span className={`block text-[10px] font-bold uppercase tracking-wider mt-0.5 ${flashStatus(p).className}`}>
+                                {flashStatus(p).text}
+                              </span>
+                            </span>
+                          </p>
+                        )}
                         <p className="flex justify-between border-b border-gray-100 pb-1.5 pt-1.5">
                           <span className="text-(--gris-texte)">Catégorie</span>
                           <span className="font-medium">{p.categories?.name}</span>

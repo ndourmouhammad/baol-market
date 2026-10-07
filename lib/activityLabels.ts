@@ -44,6 +44,7 @@ const FIELD_LABELS: Record<string, string> = {
   price: 'Prix',
   title: 'Titre',
   badge: 'Étiquette',
+  flash_price: 'Prix flash',
 }
 const FLAG_LABELS: Record<string, string> = {
   description: 'Description modifiée',
@@ -57,6 +58,8 @@ const FLAG_LABELS: Record<string, string> = {
   link_id: 'Lien modifié',
   starts_at: 'Dates modifiées',
   ends_at: 'Dates modifiées',
+  flash_starts_at: 'Dates de vente flash modifiées',
+  flash_ends_at: 'Dates de vente flash modifiées',
 }
 
 const PLACEMENT_TEXT: Record<string, string> = {
@@ -94,7 +97,7 @@ function statusText(value: unknown): string {
 
 function valueText(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (field === 'price' && typeof value === 'number') return `${value.toLocaleString('fr-FR')} FCFA`
+  if ((field === 'price' || field === 'flash_price') && typeof value === 'number') return `${value.toLocaleString('fr-FR')} FCFA`
   return String(value)
 }
 

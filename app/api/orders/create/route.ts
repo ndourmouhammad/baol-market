@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { requestPaytechPayment } from '@/lib/paytech'
+import { effectivePrice } from '@/lib/flashSale'
 
 // Quantité maximale commandable par produit en une seule commande
 const MAX_QUANTITY_PER_PRODUCT = 20
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   const productIds = Array.from(quantities.keys())
   const { data: products, error: productsError } = await supabaseAdmin
     .from('products')
-    .select('id, name, price')
+    .select('id, name, price, flash_price, flash_starts_at, flash_ends_at')
     .eq('is_available', true)
     .in('id', productIds)
 
@@ -81,11 +82,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
   }
 
-  // Prix toujours relus depuis la base, jamais depuis le navigateur
+  // Prix toujours relus depuis la base, jamais depuis le navigateur.
+  // Si une vente flash est en cours à cet instant, c'est le prix flash qui est facturé.
+  const now = new Date()
   const orderItemsLines = products.map((product) => ({
     product_id: product.id,
     name: product.name,
-    unit_price: product.price,
+    unit_price: effectivePrice(product, now),
     quantity: quantities.get(product.id)!,
   }))
 
