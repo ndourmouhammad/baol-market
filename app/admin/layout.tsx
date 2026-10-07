@@ -16,7 +16,8 @@ import {
   Loader2,
   Tags,
   Users,
-  ScrollText
+  ScrollText,
+  Images
 } from 'lucide-react'
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
@@ -74,6 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
     { href: '/admin/categories', label: 'Catégories', icon: Tags },
     { href: '/admin/products', label: 'Produits', icon: Package },
+    { href: '/admin/bannieres', label: 'Bannières', icon: Images },
     { href: '/admin/merchants', label: 'Commerçants', icon: Store },
     { href: '/admin/riders', label: 'Livreurs', icon: Bike },
     ...(canManageStaff ? [{ href: '/admin/equipe', label: 'Équipe', icon: Users }] : []),

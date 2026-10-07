@@ -4,7 +4,7 @@ import { verifyStaff } from '@/lib/verifyStaff'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_BUCKETS = ['products', 'categories']
+const ALLOWED_BUCKETS = ['products', 'categories', 'banners']
 
 export async function POST(request: Request) {
   const staff = await verifyStaff(request)

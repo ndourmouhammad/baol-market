@@ -17,6 +17,10 @@ export const ACTION_LABELS: Record<string, string> = {
   staff_matricule_generated: 'Génération de matricule',
   staff_matricule_reset: 'Réinitialisation de matricule',
   staff_login: 'Connexion',
+  banner_created: 'Création de bannière',
+  banner_updated: 'Modification de bannière',
+  banner_availability_changed: "Activité d'une bannière",
+  banner_deleted: 'Suppression de bannière',
   merchant_created: 'Création de commerçant',
   merchant_updated: 'Modification de commerçant',
   merchant_deleted: 'Suppression de commerçant',
@@ -38,6 +42,8 @@ type Details = Record<string, unknown> | null | undefined
 const FIELD_LABELS: Record<string, string> = {
   name: 'Nom',
   price: 'Prix',
+  title: 'Titre',
+  badge: 'Étiquette',
 }
 const FLAG_LABELS: Record<string, string> = {
   description: 'Description modifiée',
@@ -47,6 +53,15 @@ const FLAG_LABELS: Record<string, string> = {
   phone: 'Téléphone modifié',
   address: 'Adresse modifiée',
   notes: 'Notes modifiées',
+  link_type: 'Lien modifié',
+  link_id: 'Lien modifié',
+  starts_at: 'Dates modifiées',
+  ends_at: 'Dates modifiées',
+}
+
+const PLACEMENT_TEXT: Record<string, string> = {
+  carousel: 'Carrousel',
+  promo: 'Cartes promo',
 }
 
 export function actionLabel(action: string): string {
@@ -68,6 +83,7 @@ export function entityLabel(entityType: string | null, entityId: string | null, 
 
   if (entityType === 'merchant') return name ? `Commerçant « ${name} »` : 'Commerçant'
   if (entityType === 'rider') return name ? `Livreur « ${name} »` : 'Livreur'
+  if (entityType === 'banner') return name ? `Bannière « ${name} »` : 'Bannière'
 
   return entityId ? `${entityType} ${entityId}` : '—'
 }
@@ -93,7 +109,7 @@ function changesText(changes: unknown): string {
       if (FIELD_LABELS[field]) return `${FIELD_LABELS[field]} : ${valueText(field, from)} → ${valueText(field, to)}`
       return FLAG_LABELS[field] ?? field
     })
-    .filter(Boolean)
+    .filter((text, index, all) => text && all.indexOf(text) === index)
     .join(' ; ')
 }
 
@@ -114,6 +130,7 @@ export function detailsLabel(action: string, details: Details): string {
     case 'category_updated':
     case 'merchant_updated':
     case 'rider_updated':
+    case 'banner_updated':
       return changesText(details.changes)
     case 'staff_created': {
       const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
@@ -123,6 +140,10 @@ export function detailsLabel(action: string, details: Details): string {
       const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
       return `Rôle : ${role}`
     }
+    case 'banner_created':
+      return typeof details.placement === 'string' ? (PLACEMENT_TEXT[details.placement] ?? details.placement) : '—'
+    case 'banner_availability_changed':
+      return details.to === true ? 'Activée' : details.to === false ? 'Désactivée' : '—'
     case 'product_availability_changed':
     case 'rider_availability_changed':
       return details.to === true ? 'Activé' : details.to === false ? 'Désactivé' : '—'
