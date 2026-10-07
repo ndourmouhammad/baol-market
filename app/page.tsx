@@ -1,22 +1,56 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/Button'
 import { CheckCircle, ShieldCheck, Truck, ShoppingBag, ArrowRight, MapPin, Wallet } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { HeroCarousel } from '@/components/HeroCarousel'
+import { CategoryBar } from '@/components/CategoryBar'
+import { BannerCarousel, type CarouselSlide } from '@/components/BannerCarousel'
+import { PromoBanner } from '@/components/PromoBanner'
+import { ProductCard } from '@/components/ProductCard'
 
 export const metadata: Metadata = {
   title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
   description: 'Découvrez des produits locaux vérifiés, commandez simplement et payez en ligne en toute sécurité avec Baol Market.',
 }
 
+// La page se met à jour toute seule au plus toutes les 60 secondes : les bannières modifiées
+// dans l'admin (et leurs dates de début et de fin) sont prises en compte sans redéploiement.
+export const revalidate = 60
+
+const MAX_CAROUSEL_SLIDES = 8
+const MAX_PROMO_CARDS = 4
+const NEW_PRODUCTS_COUNT = 8
+
+type BannerRow = {
+  id: string
+  placement: 'carousel' | 'promo'
+  image_url: string
+  title: string | null
+  description: string | null
+  badge: string | null
+  link_type: string
+  link_id: string | null
+}
+
 export default async function Home() {
-  const { data: categories, error } = await supabase
-    .from('categories')
-    .select('id, name, slug, description, image_url')
-    .order('name')
+  const [categoriesResponse, bannersResponse, productsResponse] = await Promise.all([
+    supabase.from('categories').select('id, name, slug, description, image_url').order('name'),
+    // La base ne renvoie que les bannières activées et dans leurs dates (règle côté base de données)
+    supabase
+      .from('banners')
+      .select('id, placement, image_url, title, description, badge, link_type, link_id')
+      .order('sort_order'),
+    supabase
+      .from('products')
+      .select('id, name, description, price, image_url')
+      .eq('is_available', true)
+      .order('created_at', { ascending: false })
+      .limit(NEW_PRODUCTS_COUNT),
+  ])
+
+  const { data: categories, error } = categoriesResponse
 
   if (error) {
     return (
@@ -32,78 +66,170 @@ export default async function Home() {
     )
   }
 
+  // Un souci sur les bannières ou les nouveautés ne doit jamais empêcher l'accueil de s'afficher
+  const bannerRows = (bannersResponse.error ? [] : bannersResponse.data ?? []) as BannerRow[]
+  const newProducts = productsResponse.error ? [] : productsResponse.data ?? []
+  const categoryList = (categories ?? []).map((c) => ({
+    id: String(c.id),
+    name: c.name as string,
+    slug: c.slug as string,
+    image_url: (c.image_url as string | null) ?? null,
+  }))
+
+  // Un lien vers un produit n'est conservé que si ce produit est toujours disponible
+  const productLinkIds = bannerRows
+    .filter((b) => b.link_type === 'product' && b.link_id)
+    .map((b) => b.link_id as string)
+  const linkableProductIds = new Set<string>()
+  if (productLinkIds.length > 0) {
+    const { data: linked } = await supabase
+      .from('products')
+      .select('id')
+      .eq('is_available', true)
+      .in('id', productLinkIds)
+    linked?.forEach((p) => linkableProductIds.add(String(p.id)))
+  }
+
+  function resolveHref(banner: BannerRow): string | null {
+    if (banner.link_type === 'category' && banner.link_id) {
+      const category = categoryList.find((c) => c.id === banner.link_id)
+      return category ? `/categorie/${category.slug}` : null
+    }
+    if (banner.link_type === 'product' && banner.link_id) {
+      return linkableProductIds.has(banner.link_id) ? `/order/${banner.link_id}` : null
+    }
+    return null
+  }
+
+  const carouselSlides: CarouselSlide[] = bannerRows
+    .filter((b) => b.placement === 'carousel')
+    .slice(0, MAX_CAROUSEL_SLIDES)
+    .map((b) => ({
+      id: b.id,
+      imageUrl: b.image_url,
+      title: b.title,
+      description: b.description,
+      badge: b.badge,
+      href: resolveHref(b),
+    }))
+
+  const promoCards = bannerRows
+    .filter((b) => b.placement === 'promo')
+    .slice(0, MAX_PROMO_CARDS)
+    .map((b) => ({ ...b, href: resolveHref(b) }))
+
   return (
     <main className="bg-(--fond) pb-20">
-      {/* Hero Section */}
-      <section className="bg-(--fond) text-(--encre) overflow-hidden border-b border-gray-100 relative hero-pattern">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 md:pt-10 md:pb-16 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
-            <div className="max-w-2xl flex-1 animate-fade-in-up">
-              <div className="inline-flex items-center gap-2 bg-(--vert-baol)/10 rounded-full px-4 py-1.5 text-xs font-bold text-(--vert-baol-fonce) mb-6 shadow-sm border border-(--vert-baol)/20">
-                <ShieldCheck className="w-4 h-4" />
-                Marketplace vérifiée au Sénégal
-              </div>
+      {/* Barre de catégories */}
+      <CategoryBar categories={categoryList} />
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-[1.15] text-(--encre)">
-                Des produits vérifiés,
-                <br />
-                <span className="text-(--vert-baol) inline-block mt-2">livrés en confiance.</span>
-              </h1>
-
-              <p className="text-base md:text-lg text-(--gris-texte) max-w-xl mb-10 leading-relaxed">
-                Chaque article est inspecté physiquement par notre équipe avant mise en vente.
-                Achetez local, commandez simplement et payez en ligne en toute sérénité.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <Link href="/produits" className="w-full sm:w-auto">
-                  <Button variant="primary" className="w-full sm:w-auto text-base shadow-md hover:shadow-lg transition-shadow">
-                    Découvrir les produits
-                  </Button>
-                </Link>
-                <Link href="/signup" className="w-full sm:w-auto">
-                  <Button variant="ghost" className="w-full sm:w-auto text-base border border-gray-200 hover:border-gray-300">
-                    Créer un compte
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Zone visuelle décorative */}
-            <div className="hidden lg:flex flex-1 justify-end animate-slide-in-right">
-              <div className="relative w-full max-w-md aspect-square rounded-[2rem] border border-(--vert-baol)/20 shadow-xl overflow-hidden">
-                <HeroCarousel />
-
-                <div className="absolute top-10 right-10 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
-                  <div className="bg-green-100 p-2 rounded-full text-green-600">
-                    <CheckCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-(--encre)">Produit vérifié</p>
-                    <p className="text-xs text-(--gris-texte)">Qualité garantie</p>
-                  </div>
+      {carouselSlides.length > 0 ? (
+        /* Carrousel de bannières (géré depuis l'admin) */
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">
+          <BannerCarousel slides={carouselSlides} />
+        </section>
+      ) : (
+        /* Aucune bannière visible : accueil d'origine, pour que le site ne soit jamais vide */
+        <section className="bg-(--fond) text-(--encre) overflow-hidden border-b border-gray-100 relative hero-pattern">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 md:pt-10 md:pb-16 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
+              <div className="max-w-2xl flex-1 animate-fade-in-up">
+                <div className="inline-flex items-center gap-2 bg-(--vert-baol)/10 rounded-full px-4 py-1.5 text-xs font-bold text-(--vert-baol-fonce) mb-6 shadow-sm border border-(--vert-baol)/20">
+                  <ShieldCheck className="w-4 h-4" />
+                  Marketplace vérifiée au Sénégal
                 </div>
-                <div className="absolute bottom-20 left-4 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
-                  <div className="bg-blue-100 p-2 rounded-full text-blue-600">
-                    <Wallet className="w-5 h-5" />
+
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-[1.15] text-(--encre)">
+                  Des produits vérifiés,
+                  <br />
+                  <span className="text-(--vert-baol) inline-block mt-2">livrés en confiance.</span>
+                </h1>
+
+                <p className="text-base md:text-lg text-(--gris-texte) max-w-xl mb-10 leading-relaxed">
+                  Chaque article est inspecté physiquement par notre équipe avant mise en vente.
+                  Achetez local, commandez simplement et payez en ligne en toute sérénité.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                  <Link href="/produits" className="w-full sm:w-auto">
+                    <Button variant="primary" className="w-full sm:w-auto text-base shadow-md hover:shadow-lg transition-shadow">
+                      Découvrir les produits
+                    </Button>
+                  </Link>
+                  <Link href="/signup" className="w-full sm:w-auto">
+                    <Button variant="ghost" className="w-full sm:w-auto text-base border border-gray-200 hover:border-gray-300">
+                      Créer un compte
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Zone visuelle décorative */}
+              <div className="hidden lg:flex flex-1 justify-end animate-slide-in-right">
+                <div className="relative w-full max-w-md aspect-square rounded-[2rem] border border-(--vert-baol)/20 shadow-xl overflow-hidden">
+                  <HeroCarousel />
+
+                  <div className="absolute top-10 right-10 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
+                    <div className="bg-green-100 p-2 rounded-full text-green-600">
+                      <CheckCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-(--encre)">Produit vérifié</p>
+                      <p className="text-xs text-(--gris-texte)">Qualité garantie</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-(--encre)">Paiement en ligne</p>
-                    <p className="text-xs text-(--gris-texte)">100% sécurisé</p>
+                  <div className="absolute bottom-20 left-4 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
+                    <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+                      <Wallet className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-(--encre)">Paiement en ligne</p>
+                      <p className="text-xs text-(--gris-texte)">100% sécurisé</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Catégories */}
-      <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10">
+      {/* Cartes promo (gérées depuis l'admin) */}
+      {promoCards.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8" aria-label="Offres">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {promoCards.map((card) => {
+              const content = (
+                <PromoBanner
+                  variant="promo"
+                  imageUrl={card.image_url}
+                  title={card.title}
+                  description={card.description}
+                  badge={card.badge}
+                />
+              )
+              return card.href ? (
+                <Link
+                  key={card.id}
+                  href={card.href}
+                  className="block rounded-2xl hover:-translate-y-1 hover:shadow-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div key={card.id}>{content}</div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Nouveautés */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-2">Nos catégories</h2>
-            <p className="text-base text-(--gris-texte)">Explorez nos produits locaux et vérifiés</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-(--encre) mb-2">Nouveautés</h2>
+            <p className="text-base text-(--gris-texte)">Les derniers produits vérifiés par notre équipe</p>
           </div>
           <Link
             href="/produits"
@@ -114,49 +240,23 @@ export default async function Home() {
           </Link>
         </div>
 
-        {!categories || categories.length === 0 ? (
+        {newProducts.length === 0 ? (
           <EmptyState
             title="Catalogue en préparation"
             description="Notre équipe vérifie actuellement de nouveaux produits. Revenez très vite !"
             icon={<ShoppingBag className="w-12 h-12" />}
           />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/categorie/${category.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
-              >
-                <div className="aspect-[4/3] w-full overflow-hidden bg-gray-50 flex items-center justify-center relative">
-                  {category.image_url ? (
-                    <Image
-                      src={category.image_url}
-                      alt={`Catégorie ${category.name}`}
-                      fill
-                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center">
-                      <ShoppingBag className="w-7 h-7" />
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 md:p-5 flex flex-col grow">
-                  <h3 className="text-base md:text-lg font-bold text-(--encre) mb-1">{category.name}</h3>
-                  {category.description && (
-                    <p className="text-sm text-(--gris-texte) line-clamp-2">{category.description}</p>
-                  )}
-                </div>
-              </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {newProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         )}
       </section>
 
       {/* Réassurance */}
-      <section className="bg-white border-b border-gray-100 relative z-20">
+      <section className="bg-white border-y border-gray-100 relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <article className="flex items-start gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors">

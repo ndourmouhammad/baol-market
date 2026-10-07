@@ -326,8 +326,7 @@ export default function AdminBannersPage() {
         dans ses dates.
       </p>
 
-      {/* Onglets */}
-      <div className="flex gap-2 mb-8">
+      <div className="flex flex-wrap gap-2 mb-8">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -506,16 +505,16 @@ export default function AdminBannersPage() {
               {tabBanners.map((b, index) => {
                 const status = bannerStatus(b)
                 return (
-                  <div key={b.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex gap-4 items-center">
+                  <div key={b.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={b.image_url}
                       alt={b.title || 'Bannière'}
                       className={`rounded-xl object-cover border border-gray-100 shrink-0 ${
-                        tab === 'carousel' ? 'w-36 aspect-[3/1]' : 'w-20 aspect-square'
+                        tab === 'carousel' ? 'w-full sm:w-36 aspect-[3/1]' : 'w-24 sm:w-20 aspect-square'
                       }`}
                     />
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 w-full">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <p className="font-bold text-(--encre) truncate">{b.title || 'Sans titre'}</p>
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${status.className}`}>
@@ -536,7 +535,7 @@ export default function AdminBannersPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-col sm:flex-row items-center gap-1.5 shrink-0">
+                    <div className="flex flex-row items-center justify-between sm:justify-start gap-1.5 shrink-0 w-full sm:w-auto pt-3 sm:pt-0 mt-1 sm:mt-0 border-t sm:border-t-0 border-gray-100">
                       <div className="flex gap-1">
                         <button
                           onClick={() => moveBanner(index, -1)}
