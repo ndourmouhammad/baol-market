@@ -6,9 +6,18 @@ import { ProductCard } from './ProductCard'
 import { EmptyState } from './EmptyState'
 import CategoryFilter from './CategoryFilter'
 import { Breadcrumb } from './Breadcrumb'
+import type { FlashDisplay } from '@/lib/flashSale'
 
 type Category = { id: string; name: string; slug: string }
-type Product = { id: string; name: string; description: string | null; price: number; image_url: string | null; category_id?: string }
+type Product = {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  image_url: string | null
+  category_id?: string
+  flash?: FlashDisplay | null
+}
 
 export default function CatalogClient({ products, categories }: { products: Product[], categories: Category[] }) {
   const [search, setSearch] = useState('')

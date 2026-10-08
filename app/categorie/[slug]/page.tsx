@@ -5,6 +5,10 @@ import { ProductCard } from '@/components/ProductCard'
 import { EmptyState } from '@/components/EmptyState'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { ShieldCheck } from 'lucide-react'
+import { flashDisplay } from '@/lib/flashSale'
+
+// Mise à jour automatique au plus toutes les 60 secondes (ventes flash comprises)
+export const revalidate = 60
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
@@ -40,7 +44,7 @@ export default async function CategoryPage({
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, name, description, price, image_url')
+    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
     .eq('category_id', category.id)
     .eq('is_available', true)
     .order('created_at', { ascending: false })
@@ -58,6 +62,15 @@ export default async function CategoryPage({
       </main>
     )
   }
+
+  // La vente flash est évaluée ici, côté serveur, une seule fois pour tous les produits
+  const now = new Date()
+  const productsWithFlash = (products ?? []).map(
+    ({ flash_price, flash_starts_at, flash_ends_at, ...product }) => ({
+      ...product,
+      flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+    })
+  )
 
   return (
     <main className="bg-(--fond) pb-20 min-h-screen">
@@ -79,11 +92,11 @@ export default async function CategoryPage({
             { label: category.name, href: `/categorie/${category.slug}` }
           ]} />
           <span className="text-sm font-medium text-(--gris-texte)">
-            {products?.length || 0} produit{(products?.length || 0) > 1 ? 's' : ''} trouvé{(products?.length || 0) > 1 ? 's' : ''}
+            {productsWithFlash.length} produit{productsWithFlash.length > 1 ? 's' : ''} trouvé{productsWithFlash.length > 1 ? 's' : ''}
           </span>
         </div>
 
-        {!products || products.length === 0 ? (
+        {productsWithFlash.length === 0 ? (
           <div className="py-10">
             <EmptyState 
               title="Aucun produit dans cette catégorie"
@@ -94,7 +107,7 @@ export default async function CategoryPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
+            {productsWithFlash.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

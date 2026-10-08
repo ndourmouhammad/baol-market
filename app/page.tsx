@@ -9,6 +9,8 @@ import { CategoryBar } from '@/components/CategoryBar'
 import { BannerCarousel, type CarouselSlide } from '@/components/BannerCarousel'
 import { PromoBanner } from '@/components/PromoBanner'
 import { ProductCard } from '@/components/ProductCard'
+import { FlashSaleSection } from '@/components/FlashSaleSection'
+import { flashDisplay } from '@/lib/flashSale'
 
 export const metadata: Metadata = {
   title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
@@ -22,6 +24,27 @@ export const revalidate = 60
 const MAX_CAROUSEL_SLIDES = 8
 const MAX_PROMO_CARDS = 4
 const NEW_PRODUCTS_COUNT = 8
+const MAX_FLASH_PRODUCTS = 8
+
+type ProductRow = {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  image_url: string | null
+  flash_price: number | null
+  flash_starts_at: string | null
+  flash_ends_at: string | null
+}
+
+// La vente flash est évaluée ici, côté serveur : l'écran affiche exactement ce calcul
+function withFlash(row: ProductRow, now: Date) {
+  const { flash_price, flash_starts_at, flash_ends_at, ...product } = row
+  return {
+    ...product,
+    flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+  }
+}
 
 type BannerRow = {
   id: string
@@ -35,7 +58,10 @@ type BannerRow = {
 }
 
 export default async function Home() {
-  const [categoriesResponse, bannersResponse, productsResponse] = await Promise.all([
+  const now = new Date()
+  const nowIso = now.toISOString()
+
+  const [categoriesResponse, bannersResponse, productsResponse, flashResponse] = await Promise.all([
     supabase.from('categories').select('id, name, slug, description, image_url').order('name'),
     // La base ne renvoie que les bannières activées et dans leurs dates (règle côté base de données)
     supabase
@@ -44,10 +70,20 @@ export default async function Home() {
       .order('sort_order'),
     supabase
       .from('products')
-      .select('id, name, description, price, image_url')
+      .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
       .eq('is_available', true)
       .order('created_at', { ascending: false })
       .limit(NEW_PRODUCTS_COUNT),
+    // Ventes flash en cours : prix réduit, déjà commencées et pas encore terminées, fin la plus proche en premier
+    supabase
+      .from('products')
+      .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
+      .eq('is_available', true)
+      .not('flash_price', 'is', null)
+      .gt('flash_ends_at', nowIso)
+      .or(`flash_starts_at.is.null,flash_starts_at.lte.${nowIso}`)
+      .order('flash_ends_at', { ascending: true })
+      .limit(MAX_FLASH_PRODUCTS),
   ])
 
   const { data: categories, error } = categoriesResponse
@@ -68,7 +104,12 @@ export default async function Home() {
 
   // Un souci sur les bannières ou les nouveautés ne doit jamais empêcher l'accueil de s'afficher
   const bannerRows = (bannersResponse.error ? [] : bannersResponse.data ?? []) as BannerRow[]
-  const newProducts = productsResponse.error ? [] : productsResponse.data ?? []
+  const newProducts = (productsResponse.error ? [] : (productsResponse.data ?? []) as ProductRow[]).map((p) =>
+    withFlash(p, now)
+  )
+  const flashProducts = (flashResponse.error ? [] : (flashResponse.data ?? []) as ProductRow[])
+    .map((p) => withFlash(p, now))
+    .filter((p): p is typeof p & { flash: NonNullable<typeof p.flash> } => p.flash !== null)
   const categoryList = (categories ?? []).map((c) => ({
     id: String(c.id),
     name: c.name as string,
@@ -222,6 +263,11 @@ export default async function Home() {
             })}
           </div>
         </section>
+      )}
+
+      {/* Ventes flash */}
+      {flashProducts.length > 0 && (
+        <FlashSaleSection products={flashProducts} endsAt={flashProducts[0].flash.endsAt} />
       )}
 
       {/* Nouveautés */}

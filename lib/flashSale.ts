@@ -34,6 +34,27 @@ export function discountPercent(product: FlashFields, now: Date = new Date()): n
   return Math.round((1 - Number(product.flash_price) / normal) * 100)
 }
 
+/** Vente flash prête à afficher sur une carte produit (calculée côté serveur). */
+export type FlashDisplay = {
+  price: number
+  percent: number
+  endsAt: string
+}
+
+/**
+ * Données d'affichage de la vente flash d'un produit, ou null s'il n'y en a pas en ce moment.
+ * Les pages serveur l'appellent une fois et passent le résultat aux cartes : l'écran affiche
+ * toujours exactement ce que le serveur a calculé (pas de décalage entre serveur et navigateur).
+ */
+export function flashDisplay(product: FlashFields, now: Date = new Date()): FlashDisplay | null {
+  if (!isFlashActive(product, now)) return null
+  return {
+    price: Number(product.flash_price),
+    percent: discountPercent(product, now),
+    endsAt: product.flash_ends_at as string,
+  }
+}
+
 // --- Vérification des champs envoyés par l'admin (utilisée par les routes API) ---
 
 type FlashExisting = {

@@ -1,113 +1,105 @@
-// Règles des ventes flash, partagées entre l'affichage (navigateur) et la commande (serveur).
-// Ce fichier ne dépend de rien d'autre : il peut être importé partout.
+'use client'
 
-export type FlashFields = {
-  price: number | string
-  flash_price?: number | string | null
-  flash_starts_at?: string | null
-  flash_ends_at?: string | null
+import { useEffect, useState } from 'react'
+import { Zap } from 'lucide-react'
+import { ProductCard } from './ProductCard'
+import type { FlashDisplay } from '@/lib/flashSale'
+
+type FlashProduct = {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  image_url: string | null
+  flash: FlashDisplay
 }
 
-export type FlashState = 'none' | 'scheduled' | 'active' | 'ended'
+// Temps restant en millisecondes ; null tant que le navigateur n'a pas démarré le compte à rebours
+function useRemainingTime(endsAt: string) {
+  const [remaining, setRemaining] = useState<number | null>(null)
 
-/** État de la vente flash d'un produit à un instant donné. */
-export function flashState(product: FlashFields, now: Date = new Date()): FlashState {
-  if (product.flash_price === null || product.flash_price === undefined || !product.flash_ends_at) return 'none'
-  if (product.flash_starts_at && new Date(product.flash_starts_at) > now) return 'scheduled'
-  if (new Date(product.flash_ends_at) <= now) return 'ended'
-  return 'active'
+  useEffect(() => {
+    const target = new Date(endsAt).getTime()
+    const tick = () => setRemaining(Math.max(0, target - Date.now()))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [endsAt])
+
+  return remaining
 }
 
-export function isFlashActive(product: FlashFields, now: Date = new Date()): boolean {
-  return flashState(product, now) === 'active'
+function TimeBox({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="min-w-10 sm:min-w-12 text-center bg-(--encre) text-white font-bold text-base sm:text-xl rounded-lg px-2 py-1.5 tabular-nums">
+        {value}
+      </span>
+      <span className="text-[10px] uppercase tracking-wider text-(--gris-texte) mt-1">{label}</span>
+    </div>
+  )
 }
 
-/** Prix à facturer : le prix flash tant que la vente flash est en cours, sinon le prix normal. */
-export function effectivePrice(product: FlashFields, now: Date = new Date()): number {
-  return isFlashActive(product, now) ? Number(product.flash_price) : Number(product.price)
-}
+function Countdown({ endsAt }: { endsAt: string }) {
+  const remaining = useRemainingTime(endsAt)
 
-/** Pourcentage de remise (entier), 0 si pas de vente flash en cours. */
-export function discountPercent(product: FlashFields, now: Date = new Date()): number {
-  const normal = Number(product.price)
-  if (!isFlashActive(product, now) || normal <= 0) return 0
-  return Math.round((1 - Number(product.flash_price) / normal) * 100)
-}
+  if (remaining === null) {
+    // Avant le démarrage dans le navigateur : on réserve la place pour éviter un saut de mise en page
+    return <div className="h-14" aria-hidden="true" />
+  }
+  if (remaining === 0) {
+    return <p className="text-sm font-bold text-(--rouge-baol)">Vente flash terminée</p>
+  }
 
-// --- Vérification des champs envoyés par l'admin (utilisée par les routes API) ---
+  const totalSeconds = Math.floor(remaining / 1000)
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const pad = (n: number) => String(n).padStart(2, '0')
 
-type FlashExisting = {
-  flash_price: number | string | null
-  flash_starts_at: string | null
-  flash_ends_at: string | null
-}
-
-export type FlashValues = {
-  flash_price: number | null
-  flash_starts_at: string | null
-  flash_ends_at: string | null
-}
-
-// Retourne une date ISO, null si vide, undefined si invalide
-function toIso(raw: unknown): string | null | undefined {
-  if (raw === null || raw === '') return null
-  if (typeof raw !== 'string') return undefined
-  const date = new Date(raw)
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+  return (
+    <div className="flex items-end gap-2" role="timer" aria-label="Temps restant avant la fin des ventes flash">
+      {days > 0 && <TimeBox value={String(days)} label={days > 1 ? 'jours' : 'jour'} />}
+      <TimeBox value={pad(hours)} label="heures" />
+      <TimeBox value={pad(minutes)} label="min" />
+      <TimeBox value={pad(seconds)} label="sec" />
+    </div>
+  )
 }
 
 /**
- * Vérifie la vente flash d'un produit.
- * - `values: null` : rien à changer pour la vente flash.
- * - `values` rempli : les trois colonnes à enregistrer (toutes nulles pour retirer la vente flash).
- * `price` est le prix normal (nouveau ou actuel) du produit.
+ * Section « Ventes flash » de l'accueil.
+ * Le compte à rebours vise la fin de la vente flash qui se termine en premier.
  */
-export function parseFlashInput(
-  body: Record<string, unknown>,
-  price: number,
-  existing: FlashExisting | null
-): { error: string } | { values: FlashValues | null } {
-  const touched = ['flash_price', 'flash_starts_at', 'flash_ends_at'].some((key) => body[key] !== undefined)
-  const existingPrice =
-    existing && existing.flash_price !== null && existing.flash_price !== undefined
-      ? Number(existing.flash_price)
-      : null
+export function FlashSaleSection({ products, endsAt }: { products: FlashProduct[]; endsAt: string }) {
+  if (products.length === 0) return null
 
-  // Seul le prix normal change : il doit rester supérieur au prix de la vente flash en cours
-  if (!touched) {
-    if (existingPrice !== null && Number.isFinite(price) && existingPrice >= price) {
-      return {
-        error:
-          'Le prix normal doit rester supérieur au prix de la vente flash. Modifiez ou retirez d\'abord la vente flash.',
-      }
-    }
-    return { values: null }
-  }
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-10" aria-label="Ventes flash">
+      <div className="rounded-2xl border border-(--rouge-baol)/20 bg-(--rouge-baol)/5 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-(--rouge-baol) text-white p-2.5 rounded-xl">
+              <Zap className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-(--encre)">Ventes flash</h2>
+              <p className="text-sm text-(--gris-texte)">Des prix réduits, pour une durée limitée</p>
+            </div>
+          </div>
+          <div className="flex items-end gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-(--gris-texte) pb-2">Se termine dans</span>
+            <Countdown endsAt={endsAt} />
+          </div>
+        </div>
 
-  const rawPrice = body.flash_price !== undefined ? body.flash_price : existingPrice
-
-  // Prix vide : on retire la vente flash (prix et dates)
-  if (rawPrice === null || rawPrice === '' || rawPrice === undefined) {
-    return { values: { flash_price: null, flash_starts_at: null, flash_ends_at: null } }
-  }
-
-  if (!Number.isFinite(price) || price <= 0) return { error: 'Prix du produit invalide.' }
-
-  const flashPrice = typeof rawPrice === 'number' ? rawPrice : Number(rawPrice)
-  if (!Number.isInteger(flashPrice) || flashPrice <= 0) {
-    return { error: 'Le prix de la vente flash doit être un nombre entier de FCFA supérieur à 0.' }
-  }
-  if (flashPrice >= price) {
-    return { error: 'Le prix de la vente flash doit être inférieur au prix normal.' }
-  }
-
-  const ends = body.flash_ends_at !== undefined ? toIso(body.flash_ends_at) : existing?.flash_ends_at ?? null
-  const starts = body.flash_starts_at !== undefined ? toIso(body.flash_starts_at) : existing?.flash_starts_at ?? null
-  if (ends === undefined || starts === undefined) return { error: 'Date de vente flash invalide.' }
-  if (!ends) return { error: 'Indiquez la date de fin de la vente flash.' }
-  if (starts && new Date(ends) <= new Date(starts)) {
-    return { error: 'La date de fin de la vente flash doit être après sa date de début.' }
-  }
-
-  return { values: { flash_price: flashPrice, flash_starts_at: starts, flash_ends_at: ends } }
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }

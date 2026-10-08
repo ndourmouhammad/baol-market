@@ -4,17 +4,21 @@ import { supabase } from '@/lib/supabase'
 import { ShieldCheck } from 'lucide-react'
 import CatalogClient from '@/components/CatalogClient'
 import { EmptyState } from '@/components/EmptyState'
+import { flashDisplay } from '@/lib/flashSale'
 
 export const metadata: Metadata = {
   title: 'Tous les produits - Baol Market',
   description: 'Parcourez l\'ensemble de notre catalogue de produits locaux vérifiés.',
 }
 
+// Mise à jour automatique au plus toutes les 60 secondes (ventes flash comprises)
+export const revalidate = 60
+
 export default async function AllProductsPage() {
   const [productsResponse, categoriesResponse] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, category_id')
+      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at')
       .eq('is_available', true)
       .order('created_at', { ascending: false }),
     supabase
@@ -41,6 +45,15 @@ export default async function AllProductsPage() {
     )
   }
 
+  // La vente flash est évaluée ici, côté serveur, une seule fois pour tous les produits
+  const now = new Date()
+  const productsWithFlash = (products ?? []).map(
+    ({ flash_price, flash_starts_at, flash_ends_at, ...product }) => ({
+      ...product,
+      flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+    })
+  )
+
   return (
     <main className="bg-(--fond) pb-20 min-h-screen">
       <section className="bg-(--vert-baol-fonce) text-white border-b border-(--vert-baol)">
@@ -52,7 +65,7 @@ export default async function AllProductsPage() {
         </div>
       </section>
 
-      {(!products || products.length === 0) ? (
+      {productsWithFlash.length === 0 ? (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <EmptyState 
             title="Catalogue en préparation" 
@@ -61,7 +74,7 @@ export default async function AllProductsPage() {
         </section>
       ) : (
         <Suspense fallback={<div className="py-10 text-center"><div className="w-8 h-8 border-4 border-(--vert-baol)/30 border-t-(--vert-baol) rounded-full animate-spin mx-auto"></div></div>}>
-          <CatalogClient products={products} categories={categories || []} />
+          <CatalogClient products={productsWithFlash} categories={categories || []} />
         </Suspense>
       )}
     </main>
