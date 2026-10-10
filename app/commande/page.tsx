@@ -22,7 +22,7 @@ const PENDING_CART_ORDER_KEY = 'baol-market-pending-cart-order'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, subtotal } = useCart()
+  const { items, lines, subtotal, hasUnavailable, refreshPrices } = useCart()
 
   const [user, setUser] = useState<User | null>(null)
   const [zones, setZones] = useState<DeliveryZone[]>([])
@@ -69,7 +69,7 @@ export default function CheckoutPage() {
   const selectedZone = zones.find((z) => z.id === zoneId)
   const deliveryFee = selectedZone?.fee ?? 0
   const total = subtotal + deliveryFee
-  const isFormValid = items.length > 0 && !!zoneId && !!user
+  const isFormValid = items.length > 0 && !!zoneId && !!user && !hasUnavailable
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,6 +81,26 @@ export default function CheckoutPage() {
 
     setLoading(true)
     setError('')
+
+    // Dernière vérification des prix auprès du serveur, juste avant le paiement :
+    // le client ne découvre jamais un autre montant sur la page PayTech.
+    const freshPrices = await refreshPrices()
+    if (freshPrices) {
+      if (items.some((i) => freshPrices[i.productId]?.available === false)) {
+        setLoading(false)
+        setError("Un produit de votre panier n'est plus disponible. Retirez-le depuis le panier avant de payer.")
+        return
+      }
+      const freshSubtotal = items.reduce(
+        (sum, i) => sum + (freshPrices[i.productId]?.unitPrice ?? i.price) * i.quantity,
+        0
+      )
+      if (freshSubtotal !== subtotal) {
+        setLoading(false)
+        setError('Les prix ont changé. Vérifiez votre total mis à jour, puis validez à nouveau.')
+        return
+      }
+    }
 
     // Le serveur identifie le client grâce au jeton de session
     const { data: { session } } = await supabase.auth.getSession()
@@ -193,6 +213,15 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {hasUnavailable && (
+            <div className="bg-red-50 border-l-4 border-(--rouge-erreur) p-4">
+              <p className="text-(--rouge-erreur) text-sm font-medium">
+                Un produit de votre panier n&#39;est plus disponible.{' '}
+                <Link href="/panier" className="underline font-bold">Retirez-le depuis le panier</Link> pour continuer.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border-l-4 border-(--rouge-erreur) p-4">
               <p className="text-(--rouge-erreur) text-sm font-medium">{error}</p>
@@ -207,10 +236,14 @@ export default function CheckoutPage() {
         <div className="bg-white border border-gray-100 rounded-2xl p-5 h-fit">
           <h2 className="font-bold text-(--encre) mb-4">Récapitulatif</h2>
           <ul className="space-y-2 mb-4 text-sm">
-            {items.map((item) => (
+            {lines.map((item) => (
               <li key={item.productId} className="flex justify-between text-(--gris-texte)">
-                <span>{item.quantity}× {item.name}</span>
-                <span>{(item.price * item.quantity).toLocaleString('fr-SN')} FCFA</span>
+                <span className={item.available ? '' : 'line-through'}>{item.quantity}× {item.name}</span>
+                {item.available ? (
+                  <span>{(item.unitPrice * item.quantity).toLocaleString('fr-SN')} FCFA</span>
+                ) : (
+                  <span className="text-(--rouge-erreur) font-medium">Indisponible</span>
+                )}
               </li>
             ))}
           </ul>

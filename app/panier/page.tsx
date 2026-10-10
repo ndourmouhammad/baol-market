@@ -8,9 +8,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { ShoppingBag, Minus, Plus, Trash2 } from 'lucide-react'
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, subtotal } = useCart()
+  const { lines, updateQuantity, removeItem, subtotal, hasUnavailable } = useCart()
 
-  if (items.length === 0) {
+  if (lines.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16">
         <EmptyState
@@ -28,8 +28,11 @@ export default function CartPage() {
       <h1 className="text-2xl md:text-3xl font-bold text-(--encre) mb-8">Votre panier</h1>
 
       <div className="space-y-4 mb-8">
-        {items.map((item) => (
-          <div key={item.productId} className="bg-white border border-gray-100 rounded-2xl p-4 flex gap-4 items-center">
+        {lines.map((item) => (
+          <div
+            key={item.productId}
+            className={`bg-white border border-gray-100 rounded-2xl p-4 flex gap-4 items-center ${item.available ? '' : 'opacity-60'}`}
+          >
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 relative">
               {item.imageUrl ? (
                 <Image src={item.imageUrl} alt={item.name} fill sizes="80px" className="object-cover" />
@@ -42,10 +45,19 @@ export default function CartPage() {
 
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-(--encre) truncate">{item.name}</h3>
-              <p className="text-sm text-(--gris-texte)">{item.price.toLocaleString('fr-SN')} FCFA</p>
+              {!item.available ? (
+                <p className="text-sm font-bold text-(--rouge-erreur)">Plus disponible</p>
+              ) : item.onSale ? (
+                <p className="text-sm flex items-baseline gap-2 flex-wrap">
+                  <span className="font-bold text-(--rouge-baol)">{item.unitPrice.toLocaleString('fr-SN')} FCFA</span>
+                  <span className="text-gray-400 line-through">{item.regularPrice.toLocaleString('fr-SN')} FCFA</span>
+                </p>
+              ) : (
+                <p className="text-sm text-(--gris-texte)">{item.unitPrice.toLocaleString('fr-SN')} FCFA</p>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={`flex items-center gap-2 shrink-0 ${item.available ? '' : 'pointer-events-none'}`}>
               <button
                 onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                 className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50"
@@ -80,9 +92,18 @@ export default function CartPage() {
           <span className="text-2xl font-bold text-(--encre)">{subtotal.toLocaleString('fr-SN')} FCFA</span>
         </div>
         <p className="text-xs text-(--gris-texte) mb-4">Les frais de livraison seront ajoutés à l&#39;étape suivante.</p>
-        <Link href="/commande" className="block w-full">
-          <Button fullWidth size="lg">Passer la commande</Button>
-        </Link>
+        {hasUnavailable ? (
+          <>
+            <p className="text-sm font-medium text-(--rouge-erreur) bg-red-50 border-l-4 border-(--rouge-erreur) p-3 mb-4">
+              Un ou plusieurs produits ne sont plus disponibles. Retirez-les de votre panier pour continuer.
+            </p>
+            <Button fullWidth size="lg" disabled>Passer la commande</Button>
+          </>
+        ) : (
+          <Link href="/commande" className="block w-full">
+            <Button fullWidth size="lg">Passer la commande</Button>
+          </Link>
+        )}
       </div>
     </div>
   )

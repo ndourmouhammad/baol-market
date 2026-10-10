@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/Button'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Breadcrumb } from '@/components/Breadcrumb'
+import { fetchLivePrices, type LivePrice } from '@/lib/livePrices'
 import { ShieldCheck, Truck, ShoppingBag, MapPin } from 'lucide-react'
 import Image from 'next/image'
 
@@ -38,6 +39,7 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [initLoading, setInitLoading] = useState(true)
+  const [livePrice, setLivePrice] = useState<LivePrice | null>(null)
 
   // Après connexion ou création de compte, le client revient sur ce produit
   const nextParam = encodeURIComponent(`/order/${id}`)
@@ -71,6 +73,29 @@ export default function OrderPage() {
     loadData()
   }, [id])
 
+  // Prix actuel du produit (heure du serveur) : à l'arrivée, toutes les minutes et au retour sur l'onglet
+  useEffect(() => {
+    let cancelled = false
+
+    async function refresh() {
+      const prices = await fetchLivePrices([id])
+      if (!cancelled && prices && prices[id]) setLivePrice(prices[id])
+    }
+
+    refresh()
+    const timer = setInterval(refresh, 60_000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [id])
+
   const selectedZone = zones.find((z) => z.id === zoneId)
 
   async function handleSubmit(e: React.SyntheticEvent) {
@@ -83,6 +108,25 @@ export default function OrderPage() {
 
     setLoading(true)
     setError('')
+
+    // Dernière vérification du prix auprès du serveur, juste avant le paiement :
+    // le client ne découvre jamais un autre montant sur la page PayTech.
+    const displayedUnitPrice = livePrice ? livePrice.unitPrice : product.price
+    const freshPrices = await fetchLivePrices([product.id])
+    const fresh = freshPrices?.[product.id]
+    if (fresh) {
+      setLivePrice(fresh)
+      if (!fresh.available) {
+        setLoading(false)
+        setError("Ce produit n'est plus disponible.")
+        return
+      }
+      if (fresh.unitPrice !== displayedUnitPrice) {
+        setLoading(false)
+        setError('Le prix a changé. Vérifiez le total mis à jour, puis validez à nouveau.')
+        return
+      }
+    }
 
     // Le serveur identifie le client grâce au jeton de session
     const { data: { session } } = await supabase.auth.getSession()
@@ -114,7 +158,7 @@ export default function OrderPage() {
   const increaseQty = () => setQuantity(q => q + 1)
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
-  const isFormValid = !!zoneId && !!user
+  const isFormValid = !!zoneId && !!user && livePrice?.available !== false
 
   if (initLoading) {
     return (
@@ -141,7 +185,11 @@ export default function OrderPage() {
 
   if (!product) return null
 
-  const subtotal = product.price * quantity
+  // Prix actuel donné par le serveur ; avant sa réponse, le prix du catalogue
+  const unitPrice = livePrice ? livePrice.unitPrice : product.price
+  const regularPrice = livePrice ? livePrice.regularPrice : product.price
+  const onSale = unitPrice < regularPrice
+  const subtotal = unitPrice * quantity
   const deliveryFee = selectedZone?.fee ?? 0
   const total = subtotal + deliveryFee
 
@@ -261,6 +309,12 @@ export default function OrderPage() {
                 </div>
               </section>
 
+              {livePrice?.available === false && (
+                <div className="pt-2">
+                  <ErrorMessage message="Ce produit n'est plus disponible." />
+                </div>
+              )}
+
               {error && (
                 <div className="pt-2">
                   <ErrorMessage message={error} />
@@ -300,7 +354,14 @@ export default function OrderPage() {
                 </div>
                 <div className="flex flex-col justify-center">
                   <h3 className="font-bold text-(--encre) line-clamp-2 leading-snug mb-1">{product.name}</h3>
-                  <p className="text-(--gris-texte) text-sm font-medium">{product.price.toLocaleString('fr-SN')} FCFA</p>
+                  {onSale ? (
+                    <p className="text-sm flex items-baseline gap-2 flex-wrap">
+                      <span className="font-bold text-(--rouge-baol)">{unitPrice.toLocaleString('fr-SN')} FCFA</span>
+                      <span className="text-gray-400 line-through">{regularPrice.toLocaleString('fr-SN')} FCFA</span>
+                    </p>
+                  ) : (
+                    <p className="text-(--gris-texte) text-sm font-medium">{unitPrice.toLocaleString('fr-SN')} FCFA</p>
+                  )}
                   <div className="flex items-center gap-1 mt-2 text-xs font-bold text-(--vert-baol) bg-(--vert-baol)/10 px-2 py-1 rounded-md w-max">
                     <ShieldCheck className="w-3.5 h-3.5" /> Produit vérifié
                   </div>
