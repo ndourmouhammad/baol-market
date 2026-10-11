@@ -6,10 +6,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import { NotificationBell } from '@/components/NotificationBell'
-import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, MapPin, ShoppingCart } from 'lucide-react'
+import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
 import { formatPhoneDisplay } from '@/lib/phoneAuth'
+import { unsubscribeFromPush } from '@/lib/pushClient'
+import { PushToggle } from '@/components/PushToggle'
 
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -83,6 +85,7 @@ export default function Header() {
   }, [mobileMenuOpen])
 
   const handleLogout = async () => {
+    await unsubscribeFromPush()
     await supabase.auth.signOut()
     setMobileMenuOpen(false)
     router.push('/login')
@@ -275,7 +278,7 @@ export default function Header() {
           </div>
 
           {user && (
-            <div className="px-4 py-5 bg-gray-50/50 border-b border-gray-100">
+            <div className="px-4 py-4 bg-gray-50/50 border-b border-gray-100 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-(--vert-baol) text-white flex items-center justify-center font-bold text-lg shadow-sm">
                   {initial ?? <User className="w-6 h-6" />}
@@ -286,6 +289,7 @@ export default function Header() {
                   <p className="text-xs text-(--vert-baol) font-medium mt-0.5">{isStaff ? staffLabel : 'Compte client'}</p>
                 </div>
               </div>
+              <PushToggle />
             </div>
           )}
 

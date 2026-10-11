@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import OrderTimeline from '@/components/OrderTimeline'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
+import { PushToggle } from '@/components/PushToggle'
 import { isActiveStatus, canCancelOrder } from '@/lib/orderStatus'
 
 type Order = {
@@ -151,7 +152,12 @@ export default function OrdersPage() {
   return (
     <div className="bg-(--fond) py-12 px-4 sm:px-6 min-h-screen">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-(--encre) mb-8">Mes commandes</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-(--encre)">Mes commandes</h1>
+          <div className="sm:max-w-xs w-full">
+            <PushToggle />
+          </div>
+        </div>
 
         {loading ? (
           <div className="space-y-4">

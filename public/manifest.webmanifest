@@ -1,7 +1,7 @@
 {
   "name": "Baol Market",
   "short_name": "Baol Market",
-  "description": "Votre supermarché en ligne au Sénégal. Produits frais, épicerie et livraison rapide.",
+  "description": "Marketplace de produits vérifiés au Sénégal. Commandez et payez en ligne, livraison à Diourbel.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

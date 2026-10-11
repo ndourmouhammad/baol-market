@@ -68,3 +68,40 @@ export async function requestPushPermissionAndSubscribe(): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Supprime la souscription push côté serveur et côté navigateur.
+ * Ne lance jamais d'erreur pour ne pas bloquer l'appelant (déconnexion).
+ */
+export async function unsubscribeFromPush(): Promise<void> {
+  try {
+    if (typeof window === 'undefined') return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (!subscription) return
+
+    const subJson = subscription.toJSON()
+
+    // Supprimer côté serveur
+    if (subJson.endpoint) {
+      await fetch('/api/push/subscribe', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ endpoint: subJson.endpoint }),
+      })
+    }
+
+    // Supprimer côté navigateur
+    await subscription.unsubscribe()
+  } catch (err) {
+    console.error('Erreur désinscription push:', err)
+  }
+}

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { unsubscribeFromPush } from '@/lib/pushClient'
+import { PushToggle } from '@/components/PushToggle'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -55,6 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [router])
 
   async function handleLogout() {
+    await unsubscribeFromPush()
     await supabase.auth.signOut()
     router.push('/login')
   }
@@ -137,6 +140,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Connecté en tant que {role === 'super_admin' ? 'Super admin' : role === 'admin' ? 'Admin' : 'Modérateur'}
             </p>
           )}
+          <div className="py-1">
+            <PushToggle />
+          </div>
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
