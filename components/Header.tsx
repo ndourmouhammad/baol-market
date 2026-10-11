@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import { NotificationBell } from '@/components/NotificationBell'
-import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart } from 'lucide-react'
+import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart, Search } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
 import { formatPhoneDisplay } from '@/lib/phoneAuth'
@@ -24,9 +24,24 @@ export default function Header() {
   const staffLabel = staffRole === 'super_admin' ? 'Super Admin' : staffRole === 'admin' ? 'Admin' : 'Modération'
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const router = useRouter()
   const pathname = usePathname()
   const { totalItems } = useCart()
+
+  const isHiddenPath =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/commande') ||
+    pathname.startsWith('/paiement') ||
+    pathname.startsWith('/panier')
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return
+    setMobileMenuOpen(false)
+    router.push(`/produits?q=${encodeURIComponent(trimmed)}`)
+  }
 
   useEffect(() => {
     const checkUser = async () => {
@@ -124,7 +139,7 @@ export default function Header() {
           <div className="flex justify-between items-center h-16 md:h-20">
             <Link 
               href="/" 
-              className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+              className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2 shrink-0"
               aria-label="Baol Market - Retour à l'accueil"
             >
               <Image 
@@ -138,7 +153,38 @@ export default function Header() {
               <span className="text-lg md:text-xl font-bold text-(--encre) hidden sm:inline">Baol Market</span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+            {!isHiddenPath && (
+              <form
+                role="search"
+                onSubmit={handleSearchSubmit}
+                className="hidden md:flex flex-1 max-w-xs lg:max-w-md xl:max-w-lg mx-3 lg:mx-6 items-center"
+              >
+                <label htmlFor="header-search-desktop" className="sr-only">
+                  Rechercher un produit
+                </label>
+                <div className="relative w-full flex items-center">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3.5 pointer-events-none" />
+                  <input
+                    id="header-search-desktop"
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cherchez un produit ou une catégorie"
+                    className="w-full pl-10 pr-10 lg:pr-28 py-2 text-sm bg-gray-100/80 hover:bg-gray-100 focus:bg-white text-(--encre) placeholder:text-(--gris-texte) rounded-full border border-transparent focus:border-(--vert-baol) focus:outline-none focus:ring-2 focus:ring-(--vert-baol)/20 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Rechercher"
+                    className="absolute right-1 px-3 py-1.5 bg-(--vert-baol) hover:bg-(--vert-baol-fonce) text-white text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">Rechercher</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 shrink-0">
               <Link
                 href="/produits"
                 className={`flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1 ${
@@ -241,6 +287,39 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      {!isHiddenPath && (
+        <div className="md:hidden bg-white border-b border-gray-100 px-4 py-2.5">
+          <form
+            role="search"
+            onSubmit={handleSearchSubmit}
+            className="relative flex items-center"
+          >
+            <label htmlFor="header-search-mobile" className="sr-only">
+              Rechercher un produit
+            </label>
+            <div className="relative w-full flex items-center">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 pointer-events-none" />
+              <input
+                id="header-search-mobile"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cherchez un produit ou une catégorie"
+                className="w-full pl-10 pr-24 py-2 text-sm bg-gray-100/80 hover:bg-gray-100 focus:bg-white text-(--encre) placeholder:text-(--gris-texte) rounded-full border border-transparent focus:border-(--vert-baol) focus:outline-none focus:ring-2 focus:ring-(--vert-baol)/20 transition-all"
+              />
+              <button
+                type="submit"
+                aria-label="Rechercher"
+                className="absolute right-1 px-3 py-1.5 bg-(--vert-baol) hover:bg-(--vert-baol-fonce) text-white text-xs font-semibold rounded-full flex items-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Rechercher</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {mobileMenuOpen && (
         <div

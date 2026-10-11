@@ -20,9 +20,17 @@ type Product = {
 }
 
 export default function CatalogClient({ products, categories }: { products: Product[], categories: Category[] }) {
-  const [search, setSearch] = useState('')
   const searchParams = useSearchParams()
   const activeCategorySlug = searchParams.get('categorie')
+  const urlQ = searchParams.get('q') ?? ''
+
+  const [prevUrlQ, setPrevUrlQ] = useState(urlQ)
+  const [search, setSearch] = useState(urlQ)
+
+  if (urlQ !== prevUrlQ) {
+    setPrevUrlQ(urlQ)
+    setSearch(urlQ)
+  }
 
   const filteredProducts = useMemo(() => {
     let result = products;
