@@ -8,7 +8,7 @@ export async function createOrderNotification(orderId: string, status: string) {
     .eq('id', orderId)
     .single()
 
-  // Commande invité (pas de compte) ou introuvable : rien à notifier
+  // Sécurité : si la commande est introuvable ou si le compte client est manquant, rien à notifier
   if (!order?.customer_id) return
 
   const label = STATUS_LABELS[status as OrderStatus] ?? status

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, Phone, ShieldCheck, RotateCcw } from 'lucide-react'
-import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, type OrderStatus } from '@/lib/orderStatus'
+import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, allowedNextStatuses, type OrderStatus } from '@/lib/orderStatus'
 
 type OrderItem = {
   quantity: number
@@ -314,6 +314,7 @@ export default function AdminOrdersPage() {
             const isRefundable = needsRefund(order)
             const isRefunded = order.status === 'refunded'
             const statusMenuDisabled = isRefunded || isRefundable
+            const nextAllowed = allowedNextStatuses(order.status, role)
 
             return (
               <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -412,13 +413,10 @@ export default function AdminOrdersPage() {
                         className={`appearance-none font-bold text-sm px-4 py-2 pr-8 rounded-xl border outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${getStatusColor(order.status)} ${statusMenuDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {ORDER_STATUSES.map((s) => {
-                          // « Remboursée » désactivée sauf si c'est le statut actuel
-                          const disabledRefunded = s === 'refunded' && order.status !== 'refunded'
-                          // On désactive "cancelled" dans le menu si la commande n'est plus annulable,
-                          // sauf si c'est déjà son statut actuel (pour ne pas casser l'affichage).
-                          const disabledCancelled = s === 'cancelled' && !orderCancellable && order.status !== 'cancelled'
+                          const isCurrent = s === order.status
+                          const disabled = !isCurrent && !nextAllowed.includes(s)
                           return (
-                            <option key={s} value={s} disabled={disabledRefunded || disabledCancelled}>
+                            <option key={s} value={s} disabled={disabled}>
                               {STATUS_LABELS[s].toUpperCase()}
                             </option>
                           )

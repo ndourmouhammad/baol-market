@@ -1,0 +1,17 @@
+-- Nettoyage facultatif des colonnes résiduelles de l'ancien parcours « invité » (commandes sans compte).
+-- Le compte utilisateur est désormais obligatoire sur Baol Market.
+--
+-- REMARQUE :
+-- Cette modification est purement FACULTATIVE et peut être exécutée manuellement dans Supabase (base de production).
+-- Elle supprime les colonnes qui ne sont plus lues ni écrites par l'application :
+--   - guest_phone
+--   - guest_email
+--   - tracking_code
+--
+-- ATTENTION :
+-- Avant d'exécuter, assurez-vous de ne pas avoir besoin des données historiques de contact
+-- pour d'anciennes commandes créées avant la mise en place du compte obligatoire.
+
+-- ALTER TABLE orders DROP COLUMN IF EXISTS guest_phone;
+-- ALTER TABLE orders DROP COLUMN IF EXISTS guest_email;
+-- ALTER TABLE orders DROP COLUMN IF EXISTS tracking_code;

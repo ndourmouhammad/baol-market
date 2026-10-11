@@ -18,15 +18,17 @@ export async function GET(request: Request) {
     if (ordersError) throw ordersError
 
     const totalOrders = orders.length
-    const pendingOrders = orders.filter(o => o.status === 'created' || o.status === 'confirmed' || o.status === 'payment_pending').length
+    // Commandes en attente : payées mais pas encore livrées
+    const pendingOrders = orders.filter(o => ['paid', 'preparing', 'confirmed', 'delivering'].includes(o.status)).length
     
     // Commandes livrées = ventes confirmées
     const deliveredOrders = orders.filter(o => o.status === 'delivered')
     const completedSales = deliveredOrders.length
 
-    // Chiffre d'affaires global (toutes commandes sauf annulées/remboursées)
+    // Chiffre d'affaires : somme des commandes payées (paid, preparing, confirmed, delivering, delivered)
+    const paidStatuses = ['paid', 'preparing', 'confirmed', 'delivering', 'delivered']
     const totalRevenue = orders
-      .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
+      .filter(o => paidStatuses.includes(o.status))
       .reduce((sum, order) => sum + (order.total_amount || 0), 0)
 
     // Montant réellement encaissé (commandes livrées uniquement)

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff } from '@/lib/verifyStaff'
-import { canCancelOrder, ORDER_STATUSES } from '@/lib/orderStatus'
+import { canCancelOrder, ORDER_STATUSES, allowedNextStatuses } from '@/lib/orderStatus'
 import { createOrderNotification } from '@/lib/orderNotifications'
 import { getStaffIdsWithMatricule, verifyMatricule } from '@/lib/matricule'
 import { logActivity } from '@/lib/activityLog'
@@ -64,6 +64,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     statusChanging = body.status !== current.status
 
     if (statusChanging) {
+      const allowed = allowedNextStatuses(current.status, staff.role)
+      if (!allowed.includes(body.status)) {
+        return NextResponse.json(
+          { error: `Changement de statut non autorisé : de ${current.status} vers ${body.status}.` },
+          { status: 400 }
+        )
+      }
       // Un modérateur doit confirmer son identité avec son matricule (vérifié ici, côté serveur)
       if (staff.role === 'moderator') {
         const provided = typeof body.matricule === 'string' ? body.matricule : ''

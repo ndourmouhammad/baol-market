@@ -3,6 +3,14 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff } from '@/lib/verifyStaff'
 import { expireStaleOrders } from '@/lib/expireStaleOrders'
 
+type Profile = {
+  id: string
+  phone: string
+  first_name: string
+  last_name: string
+  email: string | null
+}
+
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
   if (!staff) {
@@ -16,7 +24,6 @@ export async function GET(request: Request) {
     .select(`
       id, status, payment_method, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed,
       delivery_address, created_at, customer_id, rider_id,
-      guest_phone, guest_email, tracking_code,
       paid_at, refunded_at, refund_reference,
       order_items ( quantity, unit_price, products ( name ) ),
       riders ( id, name ),
@@ -37,12 +44,12 @@ export async function GET(request: Request) {
       .select('id, phone, first_name, last_name, email')
       .in('id', customerIds)
 
-    const profileMap = new Map((profiles || []).map(p => [p.id, p]))
+    const profileMap = new Map((profiles || []).map(p => [p.id, p as Profile]))
     
     fullOrders = orders.map(order => ({
       ...order,
       profiles: order.customer_id ? profileMap.get(order.customer_id) || null : null
-    })) as typeof orders & { profiles: any }[]
+    })) as typeof orders & { profiles: Profile | null }[]
   } else {
     fullOrders = orders.map(order => ({
       ...order,

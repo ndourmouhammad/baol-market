@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     {
       title: 'Chiffre d\'Affaires',
       value: formatCurrency(kpis.totalRevenue),
-      subValue: 'Total des commandes',
+      subValue: 'Total des commandes payées',
       icon: TrendingUp,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
     {
       title: 'Encaissé',
       value: formatCurrency(kpis.collectedRevenue),
-      subValue: 'Paiements reçus',
+      subValue: 'Commandes livrées',
       icon: Wallet,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100'
