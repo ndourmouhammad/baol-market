@@ -80,20 +80,15 @@ export default function OrdersPage() {
 
     setNotifications(notifData || [])
     setLoading(false)
-
-    // Le client voit les nouveautés à sa visite : on marque tout comme lu
-    const unreadIds = (notifData || []).filter((n) => !n.is_read).map((n) => n.id)
-    if (unreadIds.length > 0) {
-      await supabase.from('order_notifications').update({ is_read: true }).in('id', unreadIds)
-    }
   }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
 
+    const channelName = `client_orders_${Date.now()}`
     const channel = supabase
-      .channel('client_orders_realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },

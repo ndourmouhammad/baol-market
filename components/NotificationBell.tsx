@@ -42,16 +42,9 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     if (!userId) return
 
-    // Remove any stale channel with the same name first.
-    // Supabase caches channels by name, so re-running this effect
-    // (e.g. React Strict Mode, HMR) would return the already-subscribed
-    // channel and .on() would throw.
-    const channelName = `order_notifications:${userId}`
-    const existing = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`)
-    if (existing) {
-      supabase.removeChannel(existing)
-    }
-
+    // Nom de canal unique pour chaque montage pour éviter que Supabase
+    // ne réutilise une instance de canal déjà souscrite (Strict Mode React / HMR)
+    const channelName = `order_notifications:${userId}:${Date.now()}`
     const channel = supabase
       .channel(channelName)
       .on(
