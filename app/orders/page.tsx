@@ -91,6 +91,28 @@ export default function OrdersPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
+
+    const channel = supabase
+      .channel('client_orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          loadOrders()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'order_notifications' },
+        () => {
+          loadOrders()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

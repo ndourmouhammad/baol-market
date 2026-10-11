@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Bell } from 'lucide-react'
+import { requestPushPermissionAndSubscribe } from '@/lib/pushClient'
 
 type Notification = {
   id: string
@@ -16,6 +17,7 @@ type Notification = {
 export function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
+  const [canPromptPush, setCanPromptPush] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -29,7 +31,57 @@ export function NotificationBell({ userId }: { userId: string }) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNotifications()
+
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        setCanPromptPush(true)
+      }
+    }
+
+    if (!userId) return
+
+    // Remove any stale channel with the same name first.
+    // Supabase caches channels by name, so re-running this effect
+    // (e.g. React Strict Mode, HMR) would return the already-subscribed
+    // channel and .on() would throw.
+    const channelName = `order_notifications:${userId}`
+    const existing = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`)
+    if (existing) {
+      supabase.removeChannel(existing)
+    }
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_notifications',
+          filter: `customer_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newNotif = payload.new as Notification
+            setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)])
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedNotif = payload.new as Notification
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === updatedNotif.id ? updatedNotif : n))
+            )
+          } else if (payload.eventType === 'DELETE') {
+            const oldNotif = payload.old as { id: string }
+            setNotifications((prev) => prev.filter((n) => n.id !== oldNotif.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [userId])
 
   useEffect(() => {
@@ -92,11 +144,26 @@ export function NotificationBell({ userId }: { userId: string }) {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <span className="font-bold text-sm text-(--encre)">Notifications</span>
               {unreadCount > 0 && (
-                <button onClick={markAllAsRead} className="text-xs text-(--vert-baol) font-medium hover:underline">
-                  Tout marquer comme lu
-                </button>
-              )}
+                 <button onClick={markAllAsRead} className="text-xs text-(--vert-baol) font-medium hover:underline">
+                   Tout marquer comme lu
+                 </button>
+               )}
             </div>
+            {canPromptPush && (
+              <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2.5 flex items-center justify-between gap-2">
+                <span className="text-xs text-emerald-900 font-medium leading-tight">Activer les alertes sur cet appareil</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await requestPushPermissionAndSubscribe()
+                    if (ok) setCanPromptPush(false)
+                  }}
+                  className="text-xs font-bold bg-(--vert-baol) hover:bg-(--vert-baol-fonce) text-white px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                >
+                  Activer
+                </button>
+              </div>
+            )}
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <p className="text-sm text-(--gris-texte) text-center py-8">Aucune notification pour le moment.</p>
