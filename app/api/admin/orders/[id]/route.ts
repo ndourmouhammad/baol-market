@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: current, error: currentError } = await supabaseAdmin
     .from('orders')
-    .select('status, rider_id')
+    .select('status, rider_id, paid_at')
     .eq('id', id)
     .single()
 
@@ -25,13 +25,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Commande introuvable.' }, { status: 404 })
   }
 
+  // --- Gardes globales ---
+  if (current.status === 'refunded') {
+    return NextResponse.json(
+      { error: 'Cette commande est remboursée et ne peut plus être modifiée.' },
+      { status: 400 }
+    )
+  }
+
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   // --- Changement de statut ---
   let statusChanging = false
   if (body.status !== undefined) {
+    if (body.status === 'refunded') {
+      return NextResponse.json(
+        { error: 'Utilisez le bouton « Marquer comme remboursée ».' },
+        { status: 400 }
+      )
+    }
     if (!ORDER_STATUSES.includes(body.status)) {
       return NextResponse.json({ error: 'Statut invalide.' }, { status: 400 })
+    }
+    if (current.status === 'cancelled' && current.paid_at) {
+      return NextResponse.json(
+        { error: 'Cette commande annulée a été payée. Elle ne peut changer de statut que via un remboursement.' },
+        { status: 400 }
+      )
     }
     if (body.status === 'cancelled' && !canCancelOrder(current.status) && current.status !== 'cancelled') {
       return NextResponse.json(

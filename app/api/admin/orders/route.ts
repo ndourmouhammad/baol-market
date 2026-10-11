@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       id, status, payment_method, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed,
       delivery_address, created_at, customer_id, rider_id,
       guest_phone, guest_email, tracking_code,
+      paid_at, refunded_at, refund_reference,
       order_items ( quantity, unit_price, products ( name ) ),
       riders ( id, name ),
       delivery_zones ( id, name )

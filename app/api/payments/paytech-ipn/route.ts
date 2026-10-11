@@ -32,19 +32,48 @@ export async function POST(request: Request) {
   }
 
   if (typeEvent === 'sale_complete') {
+    // Toujours enregistrer paid_at, quel que soit le statut actuel
     await supabaseAdmin
+      .from('orders')
+      .update({ paid_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .is('paid_at', null)
+
+    // Passer à 'paid' seulement si la commande est encore 'created'
+    const { data: statusUpdated } = await supabaseAdmin
       .from('orders')
       .update({ status: 'paid', updated_at: new Date().toISOString() })
       .eq('id', orderId)
       .eq('status', 'created')
-    await createOrderNotification(orderId, 'paid')
+      .select('id')
+
+    if (statusUpdated && statusUpdated.length > 0) {
+      await createOrderNotification(orderId, 'paid')
+    }
+
+    // Vérifier si le paiement arrive sur une commande déjà annulée
+    const { data: order } = await supabaseAdmin
+      .from('orders')
+      .select('status')
+      .eq('id', orderId)
+      .single()
+
+    if (order?.status === 'cancelled') {
+      console.warn(
+        `⚠️ Paiement reçu sur commande annulée : remboursement à prévoir. Commande : ${orderId}`
+      )
+    }
   } else if (typeEvent === 'sale_canceled') {
-    await supabaseAdmin
+    const { data: cancelUpdated } = await supabaseAdmin
       .from('orders')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', orderId)
       .eq('status', 'created')
-    await createOrderNotification(orderId, 'cancelled')
+      .select('id')
+
+    if (cancelUpdated && cancelUpdated.length > 0) {
+      await createOrderNotification(orderId, 'cancelled')
+    }
   }
 
   return new NextResponse('OK', { status: 200 })

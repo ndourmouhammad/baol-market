@@ -5,6 +5,7 @@ import { STATUS_LABELS, type OrderStatus } from './orderStatus'
 export const ACTION_LABELS: Record<string, string> = {
   order_status_changed: 'Changement de statut',
   order_rider_assigned: "Affectation d'un livreur",
+  order_refunded: 'Remboursement de commande',
   product_created: 'Création de produit',
   product_updated: 'Modification de produit',
   product_availability_changed: "Disponibilité d'un produit",
@@ -150,6 +151,11 @@ export function detailsLabel(action: string, details: Details): string {
     case 'product_availability_changed':
     case 'rider_availability_changed':
       return details.to === true ? 'Activé' : details.to === false ? 'Désactivé' : '—'
+    case 'order_refunded': {
+      const ref = typeof details.reference === 'string' ? details.reference : '—'
+      const amount = typeof details.amount === 'number' ? details.amount.toLocaleString('fr-FR') : '—'
+      return `Réf. ${ref} · ${amount} FCFA`
+    }
     default:
       return '—'
   }
