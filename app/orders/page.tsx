@@ -15,6 +15,8 @@ type Order = {
   total_amount: number
   delivery_address: string | null
   created_at: string
+  paid_at: string | null
+  refunded_at: string | null
 }
 
 type NotificationRow = {
@@ -66,7 +68,7 @@ export default function OrdersPage() {
 
     const { data } = await supabase
       .from('orders')
-      .select('id, status, payment_method, total_amount, delivery_address, created_at')
+      .select('id, status, payment_method, total_amount, delivery_address, created_at, paid_at, refunded_at')
       .order('created_at', { ascending: false })
 
     setOrders(data || [])
@@ -87,7 +89,9 @@ export default function OrdersPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleCancel(orderId: string) {
@@ -230,7 +234,15 @@ export default function OrdersPage() {
                   {pastOrders.map((order) => (
                     <div key={order.id} className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
                       <div className="flex items-center gap-4 flex-wrap">
-                        <StatusBadge status={order.status} />
+                        <div>
+                          <StatusBadge status={order.status} />
+                          {order.status === 'cancelled' && order.paid_at && !order.refunded_at && (
+                            <p className="text-xs font-medium text-orange-600 mt-1">Remboursement en cours, sous 7 jours ouvrables</p>
+                          )}
+                          {order.status === 'refunded' && (
+                            <p className="text-xs font-medium text-rose-700 mt-1">Remboursée</p>
+                          )}
+                        </div>
                         <span className="text-sm text-(--gris-texte)">{formatDate(order.created_at)}</span>
                       </div>
                       <div className="flex items-center gap-4">
