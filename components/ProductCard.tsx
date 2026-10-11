@@ -30,6 +30,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const flash = product.flash ?? null
   const currentPrice = flash ? flash.price : product.price
+  const shortDescription = product.description
+    ? product.description.length > 80
+      ? product.description.slice(0, 80).trim() + '…'
+      : product.description
+    : null
 
   function handleAddToCart() {
     addItem({
@@ -43,13 +48,13 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <article className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 focus-within:ring-2 focus-within:ring-(--vert-baol) focus-within:ring-offset-2">
+    <article className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 focus-within:ring-2 focus-within:ring-(--vert-baol) focus-within:ring-offset-2 h-full">
       <div className="aspect-[4/3] w-full overflow-hidden bg-gray-50 flex items-center justify-center relative">
-        <div className="absolute top-2 left-2 z-10">
+        <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 z-10 origin-top-left scale-[0.75] sm:scale-100 [&>div]:!top-0 [&>div]:!left-0">
           <VerifiedBadge />
         </div>
         {flash && (
-          <span className="absolute top-2 right-2 z-10 bg-(--rouge-baol) text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+          <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 bg-(--rouge-baol) text-white text-[10px] sm:text-xs font-bold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-sm">
             -{flash.percent} %
           </span>
         )}
@@ -58,7 +63,7 @@ export function ProductCard({ product }: ProductCardProps) {
             src={product.image_url}
             alt={`Image de ${product.name}`}
             fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -68,25 +73,35 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
       </div>
-      <div className="p-4 md:p-5 flex flex-col grow">
-        <h3 className="text-base md:text-lg font-bold text-(--encre) mb-1 line-clamp-1" title={product.name}>
-          {product.name}
-        </h3>
-        <p className="text-sm text-(--gris-texte) line-clamp-2 mb-4 grow" title={product.description || undefined}>
-          {product.description}
-        </p>
-        <div className="mt-auto flex flex-col gap-2">
+      <div className="p-3 md:p-5 flex flex-col grow justify-between">
+        <div>
+          <h3
+            className="text-sm sm:text-base md:text-lg font-bold text-(--encre) mb-1 line-clamp-2 min-h-[2.5rem] sm:min-h-0 sm:line-clamp-1"
+            title={product.name}
+          >
+            {product.name}
+          </h3>
+          {shortDescription && (
+            <p
+              className="hidden sm:block text-sm text-(--gris-texte) sm:h-10 overflow-hidden mb-4"
+              title={product.description || undefined}
+            >
+              {shortDescription}
+            </p>
+          )}
+        </div>
+        <div className="mt-auto flex flex-col gap-2 pt-1 sm:pt-0">
           {flash ? (
             <div>
-              <p className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl font-bold text-(--rouge-baol)">
-                  {flash.price.toLocaleString('fr-SN')} <span className="text-sm font-medium">FCFA</span>
+              <p className="flex items-baseline gap-1.5 md:gap-2 flex-wrap">
+                <span className="text-base md:text-xl font-bold text-(--rouge-baol)">
+                  {flash.price.toLocaleString('fr-SN')} <span className="text-xs md:text-sm font-medium">FCFA</span>
                 </span>
-                <span className="text-sm text-gray-400 line-through">
+                <span className="text-xs md:text-sm text-gray-400 line-through">
                   {product.price.toLocaleString('fr-SN')} FCFA
                 </span>
               </p>
-              <p className="text-xs text-(--rouge-baol) font-medium mt-0.5">
+              <p className="text-[11px] md:text-xs text-(--rouge-baol) font-medium mt-0.5">
                 Vente flash jusqu&apos;au{' '}
                 {new Date(flash.endsAt).toLocaleString('fr-FR', {
                   timeZone: 'Africa/Dakar',
@@ -98,22 +113,28 @@ export function ProductCard({ product }: ProductCardProps) {
               </p>
             </div>
           ) : (
-            <p className="text-xl font-bold text-(--encre)">
-              {product.price.toLocaleString('fr-SN')} <span className="text-sm font-medium text-(--gris-texte)">FCFA</span>
+            <p className="text-base md:text-xl font-bold text-(--encre)">
+              {product.price.toLocaleString('fr-SN')} <span className="text-xs md:text-sm font-medium text-(--gris-texte)">FCFA</span>
             </p>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
             <Button
               variant="secondary"
               size="sm"
+              fullWidth
               onClick={handleAddToCart}
-              className="shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+              className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2 gap-1.5"
             >
-              {added ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              {added ? 'Ajouté' : 'Ajouter'}
+              {added ? <Check className="w-4 h-4 shrink-0" /> : <Plus className="w-4 h-4 shrink-0" />}
+              <span>{added ? 'Ajouté' : 'Ajouter'}</span>
             </Button>
             <Link href={`/order/${product.id}`} className="block w-full outline-none" tabIndex={-1}>
-              <Button fullWidth size="sm" className="shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2">
+              <Button
+                variant="primary"
+                fullWidth
+                size="sm"
+                className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+              >
                 Commander
               </Button>
             </Link>

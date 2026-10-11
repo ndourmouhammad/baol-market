@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import { NotificationBell } from '@/components/NotificationBell'
-import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart, Search } from 'lucide-react'
+import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart, Search, ChevronRight, MessageCircle } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
 import { formatPhoneDisplay } from '@/lib/phoneAuth'
@@ -25,6 +25,9 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  type CategoryItem = { id: string; name: string; slug: string }
+  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [showAllCategories, setShowAllCategories] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { totalItems } = useCart()
@@ -80,6 +83,23 @@ export default function Header() {
       authListener.subscription.unsubscribe()
       window.removeEventListener('scroll', handleScroll)
     }
+  }, [])
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name, slug')
+          .order('name')
+        if (!error && data) {
+          setCategories(data)
+        }
+      } catch (err) {
+        console.error('Erreur chargement catégories menu:', err)
+      }
+    }
+    fetchCategories()
   }, [])
 
   useEffect(() => {
@@ -421,6 +441,71 @@ export default function Header() {
                 </Link>
               </>
             )}
+
+            {categories.length > 0 && (
+              <>
+                <div className="h-px bg-gray-100 my-4" />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-(--gris-texte)">
+                      Nos catégories
+                    </span>
+                    {categories.length > 6 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllCategories((prev) => !prev)}
+                        className="text-xs font-bold text-(--vert-baol) hover:text-(--vert-baol-fonce) transition-colors py-1 px-2 -mr-2 rounded-lg"
+                      >
+                        {showAllCategories ? 'Voir moins' : 'Voir plus'}
+                      </button>
+                    )}
+                  </div>
+
+                  <Link
+                    href="/produits"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between min-h-[44px] px-3 py-2.5 text-base text-(--encre) hover:bg-gray-50 rounded-xl transition-colors"
+                  >
+                    <span className="font-medium">Tous les produits</span>
+                    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                  </Link>
+
+                  {(showAllCategories ? categories : categories.slice(0, 6)).map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/categorie/${cat.slug}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between min-h-[44px] px-3 py-2.5 text-base text-(--encre) hover:bg-gray-50 rounded-xl transition-colors"
+                    >
+                      <span>{cat.name}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="h-px bg-gray-100 my-4" />
+            <div className="space-y-1">
+              <div className="px-2 mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-(--gris-texte)">
+                  Besoin d&apos;aide ?
+                </span>
+              </div>
+              <a
+                href="https://wa.me/221781507505"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between min-h-[44px] px-3 py-2.5 text-base text-(--vert-baol-fonce) bg-emerald-50/70 hover:bg-emerald-100/70 rounded-xl font-medium transition-colors border border-emerald-100/60"
+              >
+                <span className="flex items-center gap-2.5">
+                  <MessageCircle className="w-5 h-5 text-(--vert-baol) shrink-0" />
+                  <span>Nous contacter sur WhatsApp</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-emerald-600/70 shrink-0" />
+              </a>
+            </div>
           </nav>
 
           <div className="p-4 border-t border-gray-100 bg-gray-50">
