@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { LayoutGrid } from 'lucide-react'
 
-type Category = { id: string; name: string; slug: string; image_url: string | null }
+type Category = { id: string; name: string; slug: string; image_url?: string | null }
 
 /**
  * Barre horizontale de catégories texte seule, compacte et sobre.
@@ -11,7 +11,7 @@ export function CategoryBar({ categories }: { categories: Category[] }) {
   if (categories.length === 0) return null
 
   return (
-    <nav aria-label="Catégories" className="hidden md:block bg-white border-b border-gray-100">
+    <nav aria-label="Catégories" className="hidden md:block border-t border-gray-100/80 bg-white/95">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-3">
           <Link

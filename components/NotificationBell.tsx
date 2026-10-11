@@ -42,9 +42,10 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     if (!userId) return
 
-    // Nom de canal unique pour chaque montage pour éviter que Supabase
-    // ne réutilise une instance de canal déjà souscrite (Strict Mode React / HMR)
-    const channelName = `order_notifications:${userId}:${Date.now()}`
+    // Nom de canal strictement unique pour chaque instance (desktop et mobile montent en même temps)
+    // afin d'éviter les collisions de souscription dans le client Supabase Realtime
+    const uniqueSuffix = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+    const channelName = `order_notifications:${userId}:${Date.now()}:${uniqueSuffix}`
     const channel = supabase
       .channel(channelName)
       .on(

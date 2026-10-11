@@ -87,7 +87,8 @@ export default function OrdersPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders()
 
-    const channelName = `client_orders_${Date.now()}`
+    const uniqueSuffix = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+    const channelName = `client_orders_${Date.now()}_${uniqueSuffix}`
     const channel = supabase
       .channel(channelName)
       .on(

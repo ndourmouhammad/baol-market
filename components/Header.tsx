@@ -12,6 +12,7 @@ import { Button } from '@/components/Button'
 import { formatPhoneDisplay } from '@/lib/phoneAuth'
 import { unsubscribeFromPush } from '@/lib/pushClient'
 import { PushToggle } from '@/components/PushToggle'
+import { CategoryBar } from '@/components/CategoryBar'
 
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -306,6 +307,11 @@ export default function Header() {
             </div>
           </div>
         </div>
+
+        {/* Barre de catégories desktop fixée dans le header (style Jumia) */}
+        {!isHiddenPath && categories.length > 0 && (
+          <CategoryBar categories={categories} />
+        )}
       </header>
 
       {!isHiddenPath && (

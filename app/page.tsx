@@ -5,7 +5,7 @@ import { Button } from '@/components/Button'
 import { CheckCircle, ShieldCheck, Truck, ShoppingBag, ArrowRight, MapPin, Wallet } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { HeroCarousel } from '@/components/HeroCarousel'
-import { CategoryBar } from '@/components/CategoryBar'
+import { CategorySection } from '@/components/CategorySection'
 import { BannerCarousel, type CarouselSlide } from '@/components/BannerCarousel'
 import { PromoBanner } from '@/components/PromoBanner'
 import { ProductCard } from '@/components/ProductCard'
@@ -32,6 +32,7 @@ type ProductRow = {
   description: string | null
   price: number
   image_url: string | null
+  category_id?: string | null
   flash_price: number | null
   flash_starts_at: string | null
   flash_ends_at: string | null
@@ -70,10 +71,9 @@ export default async function Home() {
       .order('sort_order'),
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
+      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at')
       .eq('is_available', true)
-      .order('created_at', { ascending: false })
-      .limit(NEW_PRODUCTS_COUNT),
+      .order('created_at', { ascending: false }),
     // Ventes flash en cours : prix réduit, déjà commencées et pas encore terminées, fin la plus proche en premier
     supabase
       .from('products')
@@ -104,18 +104,33 @@ export default async function Home() {
 
   // Un souci sur les bannières ou les nouveautés ne doit jamais empêcher l'accueil de s'afficher
   const bannerRows = (bannersResponse.error ? [] : bannersResponse.data ?? []) as BannerRow[]
-  const newProducts = (productsResponse.error ? [] : (productsResponse.data ?? []) as ProductRow[]).map((p) =>
+  const allProducts = (productsResponse.error ? [] : (productsResponse.data ?? []) as ProductRow[]).map((p) =>
     withFlash(p, now)
   )
+  const newProducts = allProducts.slice(0, NEW_PRODUCTS_COUNT)
   const flashProducts = (flashResponse.error ? [] : (flashResponse.data ?? []) as ProductRow[])
     .map((p) => withFlash(p, now))
     .filter((p): p is typeof p & { flash: NonNullable<typeof p.flash> } => p.flash !== null)
-  const categoryList = (categories ?? []).map((c) => ({
-    id: String(c.id),
-    name: c.name as string,
-    slug: c.slug as string,
-    image_url: (c.image_url as string | null) ?? null,
-  }))
+
+  // Grouper les produits par catégorie
+  const productsByCat = new Map<string, typeof allProducts>()
+  for (const p of allProducts) {
+    if (!p.category_id) continue
+    const list = productsByCat.get(p.category_id) ?? []
+    list.push(p)
+    productsByCat.set(p.category_id, list)
+  }
+
+  // Catégories avec leurs produits — les catégories vides sont automatiquement exclues (style Jumia)
+  const populatedCategories = (categories ?? [])
+    .map((c) => ({
+      id: String(c.id),
+      name: c.name as string,
+      slug: c.slug as string,
+      description: (c.description as string | null) ?? null,
+      products: productsByCat.get(String(c.id)) ?? [],
+    }))
+    .filter((c) => c.products.length > 0)
 
   // Un lien vers un produit n'est conservé que si ce produit est toujours disponible
   const productLinkIds = bannerRows
@@ -133,7 +148,7 @@ export default async function Home() {
 
   function resolveHref(banner: BannerRow): string | null {
     if (banner.link_type === 'category' && banner.link_id) {
-      const category = categoryList.find((c) => c.id === banner.link_id)
+      const category = (categories ?? []).find((c) => String(c.id) === banner.link_id)
       return category ? `/categorie/${category.slug}` : null
     }
     if (banner.link_type === 'product' && banner.link_id) {
@@ -161,9 +176,6 @@ export default async function Home() {
 
   return (
     <main className="bg-(--fond) pb-20">
-      {/* Barre de catégories */}
-      <CategoryBar categories={categoryList} />
-
       {carouselSlides.length > 0 ? (
         /* Carrousel de bannières (géré depuis l'admin) */
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">
@@ -300,6 +312,11 @@ export default async function Home() {
           </div>
         )}
       </section>
+
+      {/* Rayons par catégorie disponible (style Jumia) — juste après Nouveautés et ses produits */}
+      {populatedCategories.map((cat) => (
+        <CategorySection key={cat.id} category={cat} products={cat.products} />
+      ))}
 
       {/* Réassurance */}
       <section className="bg-white border-y border-gray-100 relative z-20">
