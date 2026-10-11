@@ -1,0 +1,25 @@
+{
+  "name": "Baol Market",
+  "short_name": "Baol Market",
+  "description": "Votre supermarché en ligne au Sénégal. Produits frais, épicerie et livraison rapide.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "fr",
+  "background_color": "#FFFFFF",
+  "theme_color": "#009A3D",
+  "icons": [
+    {
+      "src": "/logo/logo-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo/logo-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
