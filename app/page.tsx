@@ -23,7 +23,8 @@ export const revalidate = 60
 
 const MAX_CAROUSEL_SLIDES = 8
 const MAX_PROMO_CARDS = 4
-const NEW_PRODUCTS_COUNT = 8
+const NEW_PRODUCTS_COUNT = 4
+const CATEGORY_PRODUCTS_COUNT = 8
 const MAX_FLASH_PRODUCTS = 8
 
 type ProductRow = {
@@ -128,7 +129,7 @@ export default async function Home() {
       name: c.name as string,
       slug: c.slug as string,
       description: (c.description as string | null) ?? null,
-      products: productsByCat.get(String(c.id)) ?? [],
+      products: (productsByCat.get(String(c.id)) ?? []).slice(0, CATEGORY_PRODUCTS_COUNT),
     }))
     .filter((c) => c.products.length > 0)
 
