@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
+import AudioGuideCard from '@/components/AudioGuideCard'
 
 // Statuts qui prouvent que le paiement a bien eu lieu (la commande a pu avancer depuis)
 const PAID_STATUSES = ['paid', 'preparing', 'confirmed', 'delivering', 'delivered']
@@ -78,6 +79,9 @@ function SuccessContent() {
           <Link href="/orders" className="inline-block bg-(--vert-baol) text-white px-6 py-3 rounded-xl font-medium hover:bg-(--vert-baol-fonce) transition-colors">
             Voir mes commandes
           </Link>
+          <div className="mt-6">
+            <AudioGuideCard guideId={3} />
+          </div>
         </>
       ) : (
         <>

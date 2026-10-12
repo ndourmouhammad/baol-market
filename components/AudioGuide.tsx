@@ -1,42 +1,35 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
-import { Volume2, Pause, Loader2 } from 'lucide-react'
+import { Play, Pause, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
-
-// Constantes des chemins audio (faciles à modifier)
-export const AUDIO_GUIDE_1 = '/audio/guide-1-accueil.mp3'
-export const AUDIO_GUIDE_2 = '/audio/guide-2-connecte.mp3'
-export const AUDIO_GUIDE_3 = '/audio/guide-3-apres-commande.mp3'
-
-// Constantes des libellés et textes du bouton
-export const LABEL_DEFAULT = 'Écouter en wolof'
-export const LABEL_PAUSE = 'Pause'
-export const LABEL_ERROR = 'Audio indisponible pour le moment'
+import { AUDIO_GUIDES, TOTAL_STEPS, LABEL_DEFAULT, type GuideId } from '@/lib/audioGuides'
+import { useGuideAudio } from '@/lib/useGuideAudio'
 
 // Paramètres de configuration
 const STORAGE_KEY_SEEN = 'baol-market-audio-seen'
 const AUTO_COLLAPSE_DELAY_MS = 8000
-const ERROR_DISPLAY_DURATION_MS = 3000
 
-type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error'
+// Mémoire de session de navigation (sans localStorage) pour le badge « Nouveau »
+const sessionOfferedGuides = new Set<GuideId>()
+let hasSessionStarted = false
 
 /**
- * Détermine le fichier audio correspondant selon le chemin et l'état de connexion.
+ * Détermine l'ID du guide selon le chemin et l'état de connexion.
  * Retourne null si aucun bouton ne doit être affiché sur la page courante.
+ * Le bouton flottant n'est plus affiché sur /paiement/succes (remplacé par AudioGuideCard).
  */
-function resolveAudioGuide(pathname: string, isLoggedIn: boolean): string | null {
-  // Normalisation du chemin (retrait du slash final éventuel sauf racine)
+function resolveGuideId(pathname: string, isLoggedIn: boolean): GuideId | null {
   const normalizedPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
 
   if (normalizedPath === '/') {
-    return isLoggedIn ? AUDIO_GUIDE_2 : AUDIO_GUIDE_1
+    return isLoggedIn ? 2 : 1
   }
 
   if (normalizedPath === '/signup') {
-    return AUDIO_GUIDE_1
+    return 1
   }
 
   if (
@@ -44,14 +37,14 @@ function resolveAudioGuide(pathname: string, isLoggedIn: boolean): string | null
     normalizedPath === '/commande' ||
     normalizedPath.startsWith('/order/')
   ) {
-    return AUDIO_GUIDE_2
+    return 2
   }
 
-  if (normalizedPath === '/paiement/succes' || normalizedPath === '/orders') {
-    return AUDIO_GUIDE_3
+  if (normalizedPath === '/orders') {
+    return 3
   }
 
-  // Toute autre page (/admin, /login, /paiement/annule, /mot-de-passe-oublie, /cgv, /mentions-legales, /produits, /categorie...)
+  // Toute autre page (/paiement/succes, /admin, /login, /paiement/annule, /produits, etc.)
   return null
 }
 
@@ -67,12 +60,11 @@ export default function AudioGuide() {
   const [isHovered, setIsHovered] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
 
-  const [playbackState, setPlaybackState] = useState<PlaybackState>('idle')
-  const [srAnnouncement, setSrAnnouncement] = useState('')
+  const [showNewBadge, setShowNewBadge] = useState(false)
 
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const previousGuideIdRef = useRef<GuideId | null>(null)
   const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const badgeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Vérification de l'utilisateur et du statut membre d'équipe (staff)
   useEffect(() => {
@@ -158,93 +150,68 @@ export default function AudioGuide() {
     }
   }, [])
 
-  // Détermination du guide audio à jouer
-  const targetSrc = useMemo(() => {
-    return resolveAudioGuide(pathname, !!user)
+  // Détermination du guide audio courant
+  const guideId = useMemo(() => {
+    return resolveGuideId(pathname, !!user)
   }, [pathname, user])
 
-  // Arrêt et libération complète de l'objet audio
-  const stopAndCleanAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.removeAttribute('src')
-      audioRef.current.load()
-      audioRef.current = null
-    }
-  }, [])
+  const guide = guideId ? AUDIO_GUIDES[guideId] : null
 
-  // Gestion des erreurs de lecture audio
-  const triggerErrorState = useCallback(() => {
-    stopAndCleanAudio()
-    setPlaybackState('error')
-    setSrAnnouncement('Audio indisponible')
+  // Hook partagé pour la lecture audio unique et différée au clic
+  const { status, toggle, errorVisible } = useGuideAudio(guide?.src ?? null)
 
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current)
-    }
-
-    errorTimeoutRef.current = setTimeout(() => {
-      setPlaybackState('idle')
-      setSrAnnouncement('')
-    }, ERROR_DISPLAY_DURATION_MS)
-  }, [stopAndCleanAudio])
-
-  // Changement de page, de source ou de compte : réinitialisation complète
+  // Gestion du timer de repli et du badge « Nouveau » lors d'un changement de guide
   useEffect(() => {
-    stopAndCleanAudio()
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- retour à l'état de repos lors d'une transition
-    setPlaybackState('idle')
-    setSrAnnouncement('')
+    if (!guideId) {
+      previousGuideIdRef.current = null
+      return
+    }
 
-    // Réinitialisation du minuteur de 8 secondes pour afficher le texte
+    // Réinitialisation du minuteur de 8 secondes pour afficher la pilule
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- affichage initial de la pilule à la navigation
     setIsTimerActive(true)
 
     if (collapseTimeoutRef.current) {
       clearTimeout(collapseTimeoutRef.current)
     }
-
     collapseTimeoutRef.current = setTimeout(() => {
       setIsTimerActive(false)
     }, AUTO_COLLAPSE_DELAY_MS)
 
+    const isGuideChanged = previousGuideIdRef.current !== null && previousGuideIdRef.current !== guideId
+    previousGuideIdRef.current = guideId
+
+    if (!hasSessionStarted) {
+      // Tout premier affichage de la session : pas de badge « Nouveau »
+      hasSessionStarted = true
+      sessionOfferedGuides.add(guideId)
+      setShowNewBadge(false)
+    } else if (isGuideChanged && !sessionOfferedGuides.has(guideId)) {
+      // Guide différent et non encore proposé pendant cette session :
+      sessionOfferedGuides.add(guideId)
+      setShowNewBadge(true)
+
+      if (badgeTimeoutRef.current) {
+        clearTimeout(badgeTimeoutRef.current)
+      }
+      badgeTimeoutRef.current = setTimeout(() => {
+        setShowNewBadge(false)
+      }, AUTO_COLLAPSE_DELAY_MS)
+    } else {
+      setShowNewBadge(false)
+    }
+
     return () => {
       if (collapseTimeoutRef.current) {
         clearTimeout(collapseTimeoutRef.current)
       }
-      stopAndCleanAudio()
-    }
-  }, [pathname, targetSrc, user?.id, stopAndCleanAudio])
-
-  // Mise en pause quand l'onglet passe en arrière-plan
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause()
-        setPlaybackState('paused')
-        setSrAnnouncement('Pause')
+      if (badgeTimeoutRef.current) {
+        clearTimeout(badgeTimeoutRef.current)
       }
     }
+  }, [guideId])
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  // Nettoyage global au démontage
-  useEffect(() => {
-    return () => {
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
-      }
-      if (collapseTimeoutRef.current) {
-        clearTimeout(collapseTimeoutRef.current)
-      }
-      stopAndCleanAudio()
-    }
-  }, [stopAndCleanAudio])
-
-  // Gestion du clic utilisateur
+  // Clic sur le bouton
   const handleTogglePlay = () => {
     // Premier clic : enregistrement pour supprimer l'anneau pulsant
     if (!hasSeen) {
@@ -256,69 +223,7 @@ export default function AudioGuide() {
       setHasSeen(true)
     }
 
-    // 1. Si en cours de lecture : mettre en pause
-    if (playbackState === 'playing') {
-      if (audioRef.current) {
-        audioRef.current.pause()
-      }
-      setPlaybackState('paused')
-      setSrAnnouncement('Pause')
-      return
-    }
-
-    // 2. Si en pause : reprendre la lecture
-    if (playbackState === 'paused' && audioRef.current) {
-      setPlaybackState('loading')
-      audioRef.current
-        .play()
-        .then(() => {
-          setPlaybackState('playing')
-          setSrAnnouncement('Lecture')
-        })
-        .catch(() => {
-          triggerErrorState()
-        })
-      return
-    }
-
-    // 3. Si en repos ou premier clic : création de l'objet Audio uniquement ici
-    if (!targetSrc) return
-
-    stopAndCleanAudio()
-    setPlaybackState('loading')
-
-    const audio = new Audio(targetSrc)
-    audio.preload = 'none'
-    audioRef.current = audio
-
-    audio.onwaiting = () => {
-      setPlaybackState('loading')
-    }
-
-    audio.onplaying = () => {
-      setPlaybackState('playing')
-      setSrAnnouncement('Lecture')
-    }
-
-    audio.onended = () => {
-      stopAndCleanAudio()
-      setPlaybackState('idle')
-      setSrAnnouncement('')
-    }
-
-    audio.onerror = () => {
-      triggerErrorState()
-    }
-
-    audio
-      .play()
-      .then(() => {
-        setPlaybackState('playing')
-        setSrAnnouncement('Lecture')
-      })
-      .catch(() => {
-        triggerErrorState()
-      })
+    toggle()
   }
 
   // Ne jamais afficher le bouton aux membres de l'équipe (staff)
@@ -332,42 +237,41 @@ export default function AudioGuide() {
   }
 
   // Si la page courante n'a pas de guide associé, aucun bouton n'est affiché
-  if (!targetSrc) {
+  if (!guide) {
     return null
   }
 
+  const isPlaying = status === 'playing'
+  const isLoading = status === 'loading'
+
   // État étendu : le bouton reste pilule pendant les 8 premières secondes, au survol, au focus,
-  // pendant la lecture, le chargement ou en cas d'erreur
+  // pendant la lecture, le chargement, en cas d'erreur ou tant que le badge Nouveau est affiché
   const isExpanded =
     isTimerActive ||
     isHovered ||
     isFocused ||
-    playbackState === 'playing' ||
-    playbackState === 'loading' ||
-    playbackState === 'error'
+    isPlaying ||
+    isLoading ||
+    errorVisible ||
+    showNewBadge
 
-  // Calcul du texte et de l'icône selon l'état
-  const displayText =
-    playbackState === 'error'
-      ? LABEL_ERROR
-      : playbackState === 'playing'
-      ? LABEL_PAUSE
-      : LABEL_DEFAULT
+  const displayText = errorVisible
+    ? 'Audio indisponible pour le moment'
+    : isPlaying
+    ? 'Pause'
+    : LABEL_DEFAULT
 
-  const ariaLabel =
-    playbackState === 'playing'
-      ? 'Mettre en pause le guide audio'
-      : playbackState === 'paused'
-      ? 'Reprendre le guide audio'
-      : playbackState === 'error'
-      ? LABEL_ERROR
-      : 'Écouter le guide en wolof'
+  const ariaLabel = isPlaying
+    ? `Mettre en pause le guide audio, étape ${guide.step} sur ${TOTAL_STEPS} : ${guide.title}`
+    : status === 'paused'
+    ? `Reprendre le guide audio, étape ${guide.step} sur ${TOTAL_STEPS} : ${guide.title}`
+    : errorVisible
+    ? 'Audio indisponible pour le moment'
+    : `Écouter le guide en wolof, étape ${guide.step} sur ${TOTAL_STEPS} : ${guide.title}`
 
   return (
     <>
-      <div
-        className="fixed z-30 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] md:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] md:left-[calc(1.5rem+env(safe-area-inset-left,0px))] pointer-events-auto"
-      >
+      <div className="fixed z-30 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] md:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] md:left-[calc(1.5rem+env(safe-area-inset-left,0px))] pointer-events-auto">
         <button
           type="button"
           onClick={handleTogglePlay}
@@ -376,9 +280,11 @@ export default function AudioGuide() {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           aria-label={ariaLabel}
-          aria-pressed={playbackState === 'playing'}
-          className={`group relative h-12 flex items-center justify-center bg-(--vert-baol) text-white font-medium text-sm rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all duration-300 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--vert-baol)/40 focus-visible:ring-offset-2 ${
-            isExpanded ? 'px-4 w-auto' : 'w-12 px-0'
+          aria-pressed={isPlaying}
+          className={`group relative h-12 flex items-center bg-(--vert-baol) text-white rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all duration-300 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--vert-baol)/40 focus-visible:ring-offset-2 ${
+            isExpanded
+              ? 'px-3.5 sm:px-4 w-auto max-w-[calc(100vw-2rem)] sm:max-w-md'
+              : 'w-12 px-0 justify-center'
           }`}
         >
           {/* Anneau pulsant discret à la première visite uniquement (désactivé si prefers-reduced-motion) */}
@@ -389,33 +295,72 @@ export default function AudioGuide() {
             />
           )}
 
-          {/* Icône selon l'état */}
+          {/* Badge « Nouveau » en haut de la pilule */}
+          {showNewBadge && isExpanded && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-2.5 right-4 z-10 bg-(--or-senegal) text-(--encre) text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs border border-yellow-300 animate-in fade-in zoom-in-75 duration-200 pointer-events-none"
+            >
+              Nouveau
+            </span>
+          )}
+
+          {/* Badge avec numéro d'étape en coin du rond réduit de 48px */}
+          {!isExpanded && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-(--or-senegal) text-(--encre) text-xs font-bold flex items-center justify-center shadow-xs border-2 border-white pointer-events-none"
+            >
+              {guide.step}
+            </span>
+          )}
+
+          {/* Icône selon l'état : Play, Pause ou Loader2 */}
           <span className="flex items-center justify-center shrink-0">
-            {playbackState === 'loading' ? (
+            {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-            ) : playbackState === 'playing' ? (
+            ) : isPlaying ? (
               <Pause className="w-5 h-5" aria-hidden="true" />
             ) : (
-              <Volume2 className="w-5 h-5" aria-hidden="true" />
+              <Play className="w-5 h-5 ml-0.5 fill-current" aria-hidden="true" />
             )}
           </span>
 
-          {/* Libellé texte avec transition douce vers l'état replié (icône seule) */}
-          <span
-            className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out motion-reduce:transition-none ${
+          {/* Contenu détaillé de la pilule (texte principal, ligne secondaire et puces d'étapes) */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none flex items-center ${
               isExpanded
-                ? 'max-w-64 opacity-100 ml-2.5'
-                : 'max-w-0 opacity-0 ml-0 group-hover:max-w-64 group-hover:opacity-100 group-hover:ml-2.5 group-focus-visible:max-w-64 group-focus-visible:opacity-100 group-focus-visible:ml-2.5'
+                ? 'max-w-xs sm:max-w-sm opacity-100 ml-2.5'
+                : 'max-w-0 opacity-0 ml-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2.5 group-focus-visible:max-w-xs group-focus-visible:opacity-100 group-focus-visible:ml-2.5'
             }`}
           >
-            {displayText}
-          </span>
+            <div className="flex flex-col text-left min-w-0 pr-1">
+              <span className="text-sm font-bold leading-tight select-none truncate">
+                {displayText}
+              </span>
+              <span className="text-[11px] text-white/90 leading-tight truncate select-none">
+                Étape {guide.step} sur {TOTAL_STEPS} · {guide.title}
+              </span>
+            </div>
+
+            {/* 3 petits points (puces de 6 px) */}
+            <div className="flex items-center gap-1 shrink-0 ml-2.5" aria-hidden="true">
+              {[1, 2, 3].map((step) => (
+                <span
+                  key={step}
+                  className={`w-1.5 h-1.5 rounded-full border border-white transition-colors ${
+                    step === guide.step ? 'bg-white' : 'bg-transparent'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </button>
       </div>
 
-      {/* Région d'annonce d'accessibilité (sr-only polite) */}
+      {/* Région d'annonce accessibilité (sr-only polite) */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {srAnnouncement}
+        {isPlaying ? 'Lecture' : status === 'paused' ? 'Pause' : errorVisible ? 'Audio indisponible' : ''}
       </div>
     </>
   )
