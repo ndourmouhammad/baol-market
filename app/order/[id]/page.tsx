@@ -69,6 +69,14 @@ export default function OrderPage() {
       }
       setZones(zonesData || [])
       setInitLoading(false)
+
+      const rawQte = new URLSearchParams(window.location.search).get('qte')
+      if (rawQte) {
+        const parsed = parseInt(rawQte, 10)
+        if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 20) {
+          setQuantity(parsed)
+        }
+      }
     }
     loadData()
   }, [id])

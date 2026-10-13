@@ -49,7 +49,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <article className="group bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 focus-within:ring-2 focus-within:ring-(--vert-baol) focus-within:ring-offset-2 h-full">
-      <div className="aspect-[4/3] w-full overflow-hidden bg-gray-50 flex items-center justify-center relative">
+      <Link
+        href={`/produit/${product.id}`}
+        aria-label={`Voir la fiche de ${product.name}`}
+        className="aspect-[4/3] w-full overflow-hidden bg-gray-50 flex items-center justify-center relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-inset"
+      >
         <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 z-10 origin-top-left scale-[0.75] sm:scale-100 [&>div]:!top-0 [&>div]:!left-0">
           <VerifiedBadge />
         </div>
@@ -72,14 +76,19 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-xs font-medium">Photo à venir</span>
           </div>
         )}
-      </div>
+      </Link>
       <div className="p-3 md:p-5 flex flex-col grow justify-between">
         <div>
           <h3
             className="text-sm sm:text-base md:text-lg font-bold text-(--encre) mb-1 line-clamp-2 min-h-[2.5rem] sm:min-h-0 sm:line-clamp-1"
             title={product.name}
           >
-            {product.name}
+            <Link
+              href={`/produit/${product.id}`}
+              className="hover:text-(--vert-baol) transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded"
+            >
+              {product.name}
+            </Link>
           </h3>
           {shortDescription && (
             <p

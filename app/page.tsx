@@ -153,7 +153,7 @@ export default async function Home() {
       return category ? `/categorie/${category.slug}` : null
     }
     if (banner.link_type === 'product' && banner.link_id) {
-      return linkableProductIds.has(banner.link_id) ? `/order/${banner.link_id}` : null
+      return linkableProductIds.has(banner.link_id) ? `/produit/${banner.link_id}` : null
     }
     return null
   }
