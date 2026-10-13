@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { PushToggle } from '@/components/PushToggle'
 import { isActiveStatus, canCancelOrder } from '@/lib/orderStatus'
+import { PAYMENT_SHORT } from '@/lib/paymentInfo'
 
 type Order = {
   id: string
@@ -30,7 +31,7 @@ type NotificationRow = {
 }
 
 const formatPaymentMethod = (method: string) => {
-  if (method === 'en_ligne') return 'Paiement en ligne (PayTech)'
+  if (method === 'en_ligne') return PAYMENT_SHORT
   return method
 }
 

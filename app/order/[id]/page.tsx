@@ -9,6 +9,7 @@ import { Button } from '@/components/Button'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { fetchLivePrices, type LivePrice } from '@/lib/livePrices'
+import { PAYMENT_TITLE, PAYMENT_DETAIL } from '@/lib/paymentInfo'
 import { ShieldCheck, Truck, ShoppingBag, MapPin } from 'lucide-react'
 import Image from 'next/image'
 
@@ -312,8 +313,8 @@ export default function OrderPage() {
                   <h2 className="text-lg font-bold text-(--encre)">Mode de paiement</h2>
                 </div>
                 <div className="border border-(--vert-baol) bg-(--vert-baol)/5 rounded-xl p-4">
-                  <p className="font-semibold text-(--encre)">Paiement en ligne sécurisé</p>
-                  <p className="text-sm text-(--gris-texte)">Orange Money, Wave, Free Money ou carte bancaire, via PayTech.</p>
+                  <p className="font-semibold text-(--encre)">{PAYMENT_TITLE}</p>
+                  <p className="text-sm text-(--gris-texte)">{PAYMENT_DETAIL}</p>
                 </div>
               </section>
 

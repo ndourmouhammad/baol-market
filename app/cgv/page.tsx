@@ -67,9 +67,9 @@ export default function CGVPage() {
         <section>
           <h2 className="text-lg font-bold text-(--encre) mb-2">5. Paiement</h2>
           <p>
-            Le paiement s&#39;effectue en ligne, au moment de la commande, via la plateforme sécurisée
-            PayTech : Orange Money, Wave, Free Money ou carte bancaire. Baol Market ne conserve
-            aucune donnée de carte bancaire.
+            Le paiement s&#39;effectue en ligne, au moment de la commande, via une plateforme
+            de paiement sécurisée. Baol Market ne conserve aucune donnée bancaire ni aucun
+            identifiant de compte de paiement.
           </p>
         </section>
 
@@ -98,7 +98,7 @@ export default function CGVPage() {
             En cas d&#39;annulation avant confirmation, ou si un produit est indisponible, le client
             est remboursé de la totalité du montant payé, frais de livraison compris. Le
             remboursement est effectué sous 7 jours ouvrables, par le même moyen que celui utilisé
-            pour le paiement (Orange Money, Wave ou carte bancaire), ou par un autre moyen convenu
+            pour le paiement, ou par un autre moyen convenu
             avec le client.
           </p>
         </section>

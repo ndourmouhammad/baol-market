@@ -593,7 +593,7 @@ export default function AdminOrdersPage() {
                 type="text"
                 value={refundRef}
                 onChange={(e) => setRefundRef(e.target.value)}
-                placeholder="N° de transaction Wave / Orange Money"
+                placeholder="N° de transaction du remboursement"
                 autoFocus
                 autoComplete="off"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-(--encre) text-sm focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none"

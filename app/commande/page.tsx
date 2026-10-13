@@ -7,6 +7,7 @@ import { useCart } from '@/components/CartContext'
 import { Button } from '@/components/Button'
 import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
+import { PAYMENT_TITLE, PAYMENT_DETAIL } from '@/lib/paymentInfo'
 
 type DeliveryZone = {
   id: string
@@ -208,8 +209,8 @@ export default function CheckoutPage() {
           <div>
             <label className="block text-sm font-semibold text-(--encre) mb-2">Mode de paiement</label>
             <div className="border border-(--vert-baol) bg-(--vert-baol)/5 rounded-xl p-4">
-              <p className="font-semibold text-(--encre)">Paiement en ligne sécurisé</p>
-              <p className="text-sm text-(--gris-texte)">Orange Money, Wave, Free Money ou carte bancaire, via PayTech.</p>
+              <p className="font-semibold text-(--encre)">{PAYMENT_TITLE}</p>
+              <p className="text-sm text-(--gris-texte)">{PAYMENT_DETAIL}</p>
             </div>
           </div>
 

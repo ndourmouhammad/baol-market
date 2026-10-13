@@ -11,6 +11,7 @@ import { PromoBanner } from '@/components/PromoBanner'
 import { ProductCard } from '@/components/ProductCard'
 import { FlashSaleSection } from '@/components/FlashSaleSection'
 import { flashDisplay } from '@/lib/flashSale'
+import { PAYMENT_DETAIL } from '@/lib/paymentInfo'
 
 export const metadata: Metadata = {
   title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
@@ -341,7 +342,7 @@ export default async function Home() {
               <div>
                 <h3 className="font-bold text-(--encre) text-base mb-1">Paiement en ligne sécurisé</h3>
                 <p className="text-sm text-(--gris-texte) leading-relaxed">
-                  Réglez simplement en ligne (Orange Money, Wave, carte...) au moment de la commande.
+                  {PAYMENT_DETAIL}
                 </p>
               </div>
             </article>
