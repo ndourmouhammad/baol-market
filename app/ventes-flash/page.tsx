@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: 'Ventes flash - Baol Market',
   description:
     'Profitez de nos ventes flash : des produits vérifiés à prix réduit, pour une durée limitée.',
+  alternates: {
+    canonical: '/ventes-flash',
+  },
 }
 
 // Mise à jour automatique au plus toutes les 60 secondes

@@ -7,6 +7,7 @@ import { CartProvider } from "@/components/CartContext";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import AudioGuide from "@/components/AudioGuide";
+import { SITE_URL } from "@/lib/siteUrl";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -19,8 +20,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Baol Market",
   description: "Marketplace e-commerce de proximité au Sénégal",
+  applicationName: "Baol Market",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -28,9 +31,32 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/logo/logo-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
     apple: [
       { url: "/logo/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  openGraph: {
+    siteName: "Baol Market",
+    locale: "fr_SN",
+    type: "website",
+    images: [
+      {
+        url: "/logo/logo-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "Baol Market",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
   },
 };
 

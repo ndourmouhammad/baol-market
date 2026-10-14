@@ -12,10 +12,14 @@ import { ProductCard } from '@/components/ProductCard'
 import { FlashSaleSection } from '@/components/FlashSaleSection'
 import { flashDisplay } from '@/lib/flashSale'
 import { PAYMENT_DETAIL } from '@/lib/paymentInfo'
+import { SITE_URL } from '@/lib/siteUrl'
 
 export const metadata: Metadata = {
   title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
   description: 'Découvrez des produits locaux vérifiés, commandez simplement et payez en ligne en toute sécurité avec Baol Market.',
+  alternates: {
+    canonical: '/',
+  },
 }
 
 // La page se met à jour toute seule au plus toutes les 60 secondes : les bannières modifiées
@@ -58,6 +62,44 @@ type BannerRow = {
   badge: string | null
   link_type: string
   link_id: string | null
+}
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      name: 'Baol Market',
+      legalName: 'Mohamed Saw Business',
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo/logo-512x512.png`,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Diourbel',
+        addressCountry: 'SN',
+      },
+      contactPoint: [
+        {
+          '@type': 'ContactPoint',
+          contactType: 'customer service',
+          telephone: '+221761938888',
+          availableLanguage: ['fr', 'wo'],
+        },
+      ],
+      sameAs: ['https://www.tiktok.com/@msbusinessbm'],
+    },
+    {
+      '@type': 'WebSite',
+      url: SITE_URL,
+      name: 'Baol Market',
+      inLanguage: 'fr',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${SITE_URL}/produits?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
 }
 
 export default async function Home() {
@@ -178,6 +220,12 @@ export default async function Home() {
 
   return (
     <main className="bg-(--fond) pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
+        }}
+      />
       {carouselSlides.length > 0 ? (
         /* Carrousel de bannières (géré depuis l'admin) */
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">

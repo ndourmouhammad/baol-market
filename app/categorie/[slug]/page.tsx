@@ -22,6 +22,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${category.name} - Baol Market`,
     description: category.description || `Découvrez nos produits locaux vérifiés dans la catégorie ${category.name}.`,
+    alternates: {
+      canonical: `/categorie/${slug}`,
+    },
   }
 }
 

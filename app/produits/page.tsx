@@ -9,6 +9,9 @@ import { flashDisplay } from '@/lib/flashSale'
 export const metadata: Metadata = {
   title: 'Tous les produits - Baol Market',
   description: 'Parcourez l\'ensemble de notre catalogue de produits locaux vérifiés.',
+  alternates: {
+    canonical: '/produits',
+  },
 }
 
 // Mise à jour automatique au plus toutes les 60 secondes (ventes flash comprises)

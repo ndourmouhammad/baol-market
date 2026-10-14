@@ -28,6 +28,26 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      ...[
+        '/admin/:path*',
+        '/panier',
+        '/commande',
+        '/orders',
+        '/order/:path*',
+        '/login',
+        '/signup',
+        '/mot-de-passe-oublie',
+        '/paiement/:path*',
+        '/auth/:path*',
+      ].map((source) => ({
+        source,
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
+          },
+        ],
+      })),
     ]
   },
 };
