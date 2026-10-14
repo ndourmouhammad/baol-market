@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         '/login',
         '/signup',
         '/mot-de-passe-oublie',
+        '/reinitialiser-mot-de-passe',
         '/paiement',
         '/auth',
       ],

@@ -24,13 +24,25 @@ function AuthCallbackContent() {
       }
     }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        redirected = true
+        router.replace('/reinitialiser-mot-de-passe')
+        return
+      }
       if (session) {
         redirectAfterLogin(session.user.id)
       }
     })
 
     async function handle() {
+      const type = searchParams.get('type')
+      if (type === 'recovery') {
+        redirected = true
+        router.replace('/reinitialiser-mot-de-passe')
+        return
+      }
+
       const code = searchParams.get('code')
       if (code) {
         const { data } = await supabase.auth.exchangeCodeForSession(code)
