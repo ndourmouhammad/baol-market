@@ -8,7 +8,12 @@ const ROLE_RANK: Record<StaffRole, number> = {
   super_admin: 3,
 }
 
-export async function verifyStaff(request: Request) {
+interface VerifyStaffOptions {
+  /** Autoriser l'accès même si must_change_password est activé (page de changement). */
+  allowPasswordChange?: boolean
+}
+
+export async function verifyStaff(request: Request, options?: VerifyStaffOptions) {
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')
   if (!token) return null
@@ -24,7 +29,12 @@ export async function verifyStaff(request: Request) {
 
   if (!staffRow) return null
 
-  return { user, role: staffRow.role as StaffRole }
+  const mustChangePassword = user.app_metadata?.must_change_password === true
+
+  // Bloquer l'accès si le mot de passe doit être changé (sauf autorisation explicite)
+  if (mustChangePassword && !options?.allowPasswordChange) return null
+
+  return { user, role: staffRow.role as StaffRole, mustChangePassword }
 }
 
 export function hasRole(role: StaffRole, minimum: StaffRole) {

@@ -10,8 +10,9 @@ type StaffMember = { id: string; email: string; role: StaffRole; created_at: str
 
 // Identifiants affichés une seule fois, après une création ou une réinitialisation
 type Credentials = {
-  kind: 'created' | 'reset'
+  kind: 'created' | 'reset' | 'password_reset'
   email: string
+  emailSent: boolean
   tempPassword?: string
   matricule?: string | null
 }
@@ -20,6 +21,7 @@ type Credentials = {
 type PendingAction =
   | { type: 'remove'; member: StaffMember }
   | { type: 'matricule'; member: StaffMember }
+  | { type: 'password_reset'; member: StaffMember }
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   super_admin: 'Super admin',
@@ -90,6 +92,7 @@ export default function AdminStaffPage() {
       setCredentials({
         kind: 'created',
         email: createdEmail,
+        emailSent: json.emailSent === true,
         tempPassword: json.tempPassword,
         matricule: json.matricule,
       })
@@ -124,7 +127,27 @@ export default function AdminStaffPage() {
         return
       }
 
-      setCredentials({ kind: 'reset', email: member.email, matricule: json.matricule })
+      setCredentials({ kind: 'reset', email: member.email, emailSent: false, matricule: json.matricule })
+      loadData()
+    } else if (pendingAction.type === 'password_reset') {
+      const member = pendingAction.member
+      setError('')
+      const res = await authFetch(`/api/admin/staff/${member.id}/password`, { method: 'POST' })
+      const json = await res.json()
+      setPendingAction(null)
+      setActionLoading(false)
+
+      if (!res.ok) {
+        setError(json.error || 'Impossible de réinitialiser le mot de passe.')
+        return
+      }
+
+      setCredentials({
+        kind: 'password_reset',
+        email: member.email,
+        emailSent: json.emailSent === true,
+        tempPassword: json.tempPassword,
+      })
       loadData()
     }
   }
@@ -147,6 +170,21 @@ export default function AdminStaffPage() {
       }
     }
 
+    if (pendingAction.type === 'password_reset') {
+      return {
+        title: 'Réinitialiser le mot de passe ?',
+        variant: 'warning' as ConfirmModalVariant,
+        confirmLabel: 'Réinitialiser',
+        children: (
+          <p>
+            Un nouveau mot de passe temporaire sera envoyé par e-mail à{' '}
+            <strong className="text-(--encre)">{pendingAction.member.email}</strong>.
+            L&apos;ancien ne fonctionnera plus.
+          </p>
+        ),
+      }
+    }
+
     const m = pendingAction.member
     return {
       title: m.has_matricule ? 'Réinitialiser le matricule ?' : 'Générer un matricule ?',
@@ -164,6 +202,14 @@ export default function AdminStaffPage() {
         </p>
       ),
     }
+  }
+
+  // Peut-on réinitialiser le mot de passe de ce membre ?
+  function canResetPassword(member: StaffMember): boolean {
+    if (member.id === currentUserId) return false
+    if (member.role === 'super_admin') return false
+    if (member.role === 'admin' && currentRole !== 'super_admin') return false
+    return true
   }
 
   if (loading) return <p className="p-4 text-(--gris-texte)">Chargement...</p>
@@ -202,27 +248,79 @@ export default function AdminStaffPage() {
           </form>
 
           {credentials && (
-            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-2xl p-5 space-y-4">
-              <p className="text-sm font-bold text-(--encre)">
-                {credentials.kind === 'created' ? 'Compte créé' : 'Nouveau matricule'} pour {credentials.email}.
-                À communiquer maintenant : ces informations ne seront plus jamais affichées.
-              </p>
+            <div className={`mt-4 rounded-2xl p-5 space-y-4 border ${
+              credentials.emailSent
+                ? 'bg-green-50 border-green-200'
+                : credentials.kind === 'reset'
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-orange-50 border-orange-200'
+            }`}>
+              {/* Cas 1 : e-mail envoyé avec succès */}
+              {credentials.emailSent && (
+                <>
+                  <p className="text-sm font-bold text-(--encre)">
+                    {credentials.kind === 'created'
+                      ? `Compte créé ! Un e-mail avec le mot de passe temporaire a été envoyé à ${credentials.email}.`
+                      : `Un nouveau mot de passe temporaire a été envoyé par e-mail à ${credentials.email}.`}
+                  </p>
 
-              {credentials.tempPassword && (
-                <div>
-                  <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Mot de passe temporaire</p>
-                  <p className="font-mono text-xl font-bold text-(--encre)">{credentials.tempPassword}</p>
-                </div>
+                  {/* Pour un modérateur fraîchement créé, afficher le matricule même si l'e-mail a été envoyé */}
+                  {credentials.kind === 'created' && credentials.matricule && (
+                    <div>
+                      <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Matricule (secret)</p>
+                      <p className="font-mono text-xl font-bold text-(--encre)">{credentials.matricule}</p>
+                      <p className="text-xs text-(--gris-texte) mt-1">
+                        À remettre en personne au modérateur. Il est demandé pour confirmer ses changements de statut de commande.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
-              {credentials.matricule && (
-                <div>
-                  <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Matricule (secret)</p>
-                  <p className="font-mono text-xl font-bold text-(--encre)">{credentials.matricule}</p>
-                  <p className="text-xs text-(--gris-texte) mt-1">
-                    Demandé au modérateur pour confirmer ses changements de statut de commande. Il doit le garder pour lui.
+              {/* Cas 2 : e-mail non envoyé → afficher le mot de passe temporaire */}
+              {!credentials.emailSent && credentials.tempPassword && (
+                <>
+                  <div className="flex items-start gap-2 bg-orange-100 border border-orange-300 rounded-xl p-3">
+                    <span className="text-orange-600 text-lg leading-none mt-0.5">⚠</span>
+                    <p className="text-sm font-medium text-orange-800">
+                      L&apos;e-mail n&apos;a pas pu être envoyé : transmettez ce mot de passe de façon sécurisée. Il ne sera plus jamais affiché.
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-(--encre)">
+                    {credentials.kind === 'created' ? 'Compte créé' : 'Mot de passe réinitialisé'} pour {credentials.email}.
                   </p>
-                </div>
+                  <div>
+                    <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Mot de passe temporaire</p>
+                    <p className="font-mono text-xl font-bold text-(--encre)">{credentials.tempPassword}</p>
+                  </div>
+
+                  {credentials.kind === 'created' && credentials.matricule && (
+                    <div>
+                      <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Matricule (secret)</p>
+                      <p className="font-mono text-xl font-bold text-(--encre)">{credentials.matricule}</p>
+                      <p className="text-xs text-(--gris-texte) mt-1">
+                        À remettre en personne au modérateur. Il est demandé pour confirmer ses changements de statut de commande.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Cas 3 : réinitialisation de matricule (pas d'e-mail concerné) */}
+              {credentials.kind === 'reset' && !credentials.tempPassword && credentials.matricule && (
+                <>
+                  <p className="text-sm font-bold text-(--encre)">
+                    Nouveau matricule pour {credentials.email}.
+                    À communiquer maintenant : ces informations ne seront plus jamais affichées.
+                  </p>
+                  <div>
+                    <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-1">Matricule (secret)</p>
+                    <p className="font-mono text-xl font-bold text-(--encre)">{credentials.matricule}</p>
+                    <p className="text-xs text-(--gris-texte) mt-1">
+                      Demandé au modérateur pour confirmer ses changements de statut de commande. Il doit le garder pour lui.
+                    </p>
+                  </div>
+                </>
               )}
 
               <button
@@ -265,6 +363,14 @@ export default function AdminStaffPage() {
                         : s.has_matricule ? 'Réinitialiser le matricule' : 'Générer un matricule'}
                     </button>
                   )}
+                  {canResetPassword(s) && (
+                    <button
+                      onClick={() => setPendingAction({ type: 'password_reset', member: s })}
+                      className="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 hover:bg-amber-100 transition-colors"
+                    >
+                      Réinitialiser le mot de passe
+                    </button>
+                  )}
                   {s.role !== 'super_admin' && s.id !== currentUserId && (s.role !== 'admin' || currentRole === 'super_admin') && (
                     <button
                       onClick={() => setPendingAction({ type: 'remove', member: s })}
@@ -297,3 +403,4 @@ export default function AdminStaffPage() {
     </>
   )
 }
+

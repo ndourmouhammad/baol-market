@@ -17,6 +17,8 @@ export const ACTION_LABELS: Record<string, string> = {
   staff_removed: 'Retrait de membre',
   staff_matricule_generated: 'Génération de matricule',
   staff_matricule_reset: 'Réinitialisation de matricule',
+  staff_password_reset: 'Réinitialisation de mot de passe',
+  staff_password_changed: 'Changement de mot de passe',
   staff_login: 'Connexion',
   banner_created: 'Création de bannière',
   banner_updated: 'Modification de bannière',
@@ -138,7 +140,12 @@ export function detailsLabel(action: string, details: Details): string {
       return changesText(details.changes)
     case 'staff_created': {
       const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'
-      return details.matricule_generated === true ? `Rôle : ${role} · matricule généré` : `Rôle : ${role}`
+      const emailFlag = details.email_sent === true ? ' · e-mail envoyé' : details.email_sent === false ? ' · e-mail non envoyé' : ''
+      return (details.matricule_generated === true ? `Rôle : ${role} · matricule généré` : `Rôle : ${role}`) + emailFlag
+    }
+    case 'staff_password_reset': {
+      const emailFlag2 = details.email_sent === true ? 'e-mail envoyé' : details.email_sent === false ? 'e-mail non envoyé' : '—'
+      return emailFlag2
     }
     case 'staff_removed': {
       const role = typeof details.role === 'string' ? (ROLE_LABELS[details.role] ?? details.role) : '—'

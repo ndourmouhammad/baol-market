@@ -27,6 +27,7 @@ type StaffRole = 'super_admin' | 'admin' | 'moderator'
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
   const [role, setRole] = useState<StaffRole | null>(null)
+  const [mustChangePassword, setMustChangePassword] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
@@ -50,11 +51,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
+      const needsPasswordChange = user.app_metadata?.must_change_password === true
+
       setRole(staffRow.role as StaffRole)
+      setMustChangePassword(needsPasswordChange)
+
+      if (needsPasswordChange && pathname !== '/admin/mot-de-passe') {
+        router.replace('/admin/mot-de-passe')
+        return
+      }
+      if (!needsPasswordChange && pathname === '/admin/mot-de-passe') {
+        const home = staffRow.role === 'moderator' ? '/admin/orders' : '/admin'
+        router.replace(home)
+        return
+      }
+
       setChecking(false)
     }
     checkStaff()
-  }, [router])
+  }, [router, pathname])
 
   async function handleLogout() {
     await unsubscribeFromPush()
@@ -66,6 +81,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen bg-(--fond) flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-(--vert-baol) animate-spin" />
+      </div>
+    )
+  }
+
+  // Mise en page simple centrée pour la page de changement de mot de passe
+  if (mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-(--fond) flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {children}
+        </div>
       </div>
     )
   }
@@ -158,4 +184,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </main>
     </div>
   )
-}
+}

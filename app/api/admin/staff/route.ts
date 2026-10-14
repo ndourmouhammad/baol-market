@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyStaff, hasRole } from "@/lib/verifyStaff";
 import { setMatricule, getStaffIdsWithMatricule } from "@/lib/matricule";
 import { logActivity } from "@/lib/activityLog";
-
-function generateTempPassword() {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#";
-  let pwd = "";
-  for (let i = 0; i < 12; i++) pwd += chars[crypto.randomInt(0, chars.length)];
-  return pwd;
-}
+import { generateSimplePassword, sendStaffEmail } from "@/lib/staffEmail";
 
 export async function GET(request: Request) {
   const staff = await verifyStaff(request);
@@ -65,13 +58,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rôle invalide." }, { status: 400 });
   }
 
-  const tempPassword = generateTempPassword();
+  const tempPassword = generateSimplePassword();
 
   const { data: created, error: createError } =
     await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
       email_confirm: true,
+      app_metadata: { must_change_password: true },
     });
 
   if (createError || !created.user) {
@@ -109,13 +103,27 @@ export async function POST(request: Request) {
     matricule = result.matricule;
   }
 
+  // Envoi de l'e-mail de bienvenue (ne bloque pas la création)
+  const emailSent = await sendStaffEmail({
+    to: email,
+    role,
+    tempPassword,
+    kind: "welcome",
+  });
+
   await logActivity(staff, {
     action: "staff_created",
     entityType: "staff",
     entityId: created.user.id,
     // Ni le mot de passe temporaire ni le matricule ne sont jamais écrits dans le journal
-    details: { email, role, matricule_generated: role === "moderator" },
+    details: { email, role, matricule_generated: role === "moderator", email_sent: emailSent },
   });
 
-  return NextResponse.json({ success: true, tempPassword, matricule });
-}
+  // Le mot de passe n'est renvoyé que si l'e-mail n'a pas pu être envoyé
+  return NextResponse.json({
+    success: true,
+    matricule,
+    emailSent,
+    ...(emailSent ? {} : { tempPassword }),
+  });
+}
