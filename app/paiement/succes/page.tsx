@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import AudioGuideCard from '@/components/AudioGuideCard'
+import PushInviteCard from '@/components/PushInviteCard'
 
 // Statuts qui prouvent que le paiement a bien eu lieu (la commande a pu avancer depuis)
 const PAID_STATUSES = ['paid', 'preparing', 'confirmed', 'delivering', 'delivered']
@@ -22,6 +23,7 @@ function SuccessContent() {
 
   useEffect(() => {
     if (!ref) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setChecking(false)
       return
     }
@@ -81,6 +83,9 @@ function SuccessContent() {
           </Link>
           <div className="mt-6">
             <AudioGuideCard guideId={3} />
+            <div className="mt-4">
+              <PushInviteCard />
+            </div>
           </div>
         </>
       ) : (

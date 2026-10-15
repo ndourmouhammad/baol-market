@@ -7,6 +7,7 @@ import { CartProvider } from "@/components/CartContext";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import AudioGuide from "@/components/AudioGuide";
+import PushInvite from "@/components/PushInvite";
 import { SITE_URL } from "@/lib/siteUrl";
 
 const inter = Inter({
@@ -82,6 +83,7 @@ export default function RootLayout({
           <main className="grow">{children}</main>
           <InstallPrompt />
           <AudioGuide />
+          <PushInvite />
           <Footer />
         </CartProvider>
       </body>
