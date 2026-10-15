@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin'
-import { STATUS_LABELS, type OrderStatus } from './orderStatus'
+import { getStatusLabel } from './orderStatus'
 import { webpush, isConfigured } from './webPush'
 
 /**
@@ -78,7 +78,7 @@ export async function notifyAdminsNewOrder(orderId: string, totalAmount?: number
 export async function createOrderNotification(orderId: string, status: string) {
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('customer_id, total_amount')
+    .select('customer_id, total_amount, fulfillment_method')
     .eq('id', orderId)
     .single()
 
@@ -90,8 +90,16 @@ export async function createOrderNotification(orderId: string, status: string) {
   // Sécurité : si la commande est introuvable ou si le compte client est manquant, rien à notifier côté client
   if (!order?.customer_id) return
 
-  const label = STATUS_LABELS[status as OrderStatus] ?? status
-  const message = `Votre commande #${orderId.slice(0, 8).toUpperCase()} est maintenant : ${label}`
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  let message = `Votre commande #${shortId} est maintenant : ${getStatusLabel(status, order.fulfillment_method)}`
+
+  if (order.fulfillment_method === 'pickup') {
+    if (status === 'delivering') {
+      message = `Votre commande #${shortId} est prête au retrait. Notre équipe vous communiquera l'adresse de retrait par notification ou par appel.`
+    } else if (status === 'delivered') {
+      message = `Votre commande #${shortId} a bien été retirée. Merci de votre confiance !`
+    }
+  }
 
   await supabaseAdmin.from('order_notifications').insert({
     order_id: orderId,

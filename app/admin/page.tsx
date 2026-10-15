@@ -206,7 +206,7 @@ export default function AdminDashboard() {
                       {formatCurrency(order.total_amount)}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={order.status} />
+                      <StatusBadge status={order.status} fulfillmentMethod={order.fulfillment_method} />
                     </td>
                   </tr>
                 ))

@@ -1,8 +1,9 @@
 import React from 'react';
-import { STATUS_LABELS, type OrderStatus } from '@/lib/orderStatus';
+import { getStatusLabel, type OrderStatus } from '@/lib/orderStatus';
 
 interface StatusBadgeProps {
   status: string;
+  fulfillmentMethod?: string | null;
 }
 
 const BADGE_STYLES: Record<OrderStatus, string> = {
@@ -16,9 +17,9 @@ const BADGE_STYLES: Record<OrderStatus, string> = {
   refunded:   'bg-gray-200 text-gray-700',
 };
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, fulfillmentMethod }: StatusBadgeProps) {
   const key = status.toLowerCase() as OrderStatus;
-  const label = STATUS_LABELS[key] ?? status;
+  const label = getStatusLabel(status, fulfillmentMethod);
   const style = BADGE_STYLES[key] ?? 'bg-gray-100 text-gray-700';
 
   return (

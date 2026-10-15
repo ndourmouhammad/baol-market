@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: current, error: currentError } = await supabaseAdmin
     .from('orders')
-    .select('status, rider_id, paid_at')
+    .select('status, rider_id, paid_at, fulfillment_method')
     .eq('id', id)
     .single()
 
@@ -106,6 +106,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   // --- Affectation d'un livreur (pas de matricule demandé, mais journalisée) ---
+  if (body.rider_id !== undefined && body.rider_id) {
+    const method = current.fulfillment_method ?? 'delivery'
+    if (method !== 'delivery') {
+      return NextResponse.json(
+        { error: "Un livreur ne peut être affecté qu'à une livraison à Diourbel." },
+        { status: 400 }
+      )
+    }
+  }
+
   const newRiderId: string | null = body.rider_id !== undefined ? (body.rider_id || null) : current.rider_id
   const riderChanging = body.rider_id !== undefined && newRiderId !== current.rider_id
   if (riderChanging) {

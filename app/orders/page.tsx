@@ -7,7 +7,7 @@ import OrderTimeline from '@/components/OrderTimeline'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { PushToggle } from '@/components/PushToggle'
-import { isActiveStatus, canCancelOrder } from '@/lib/orderStatus'
+import { isActiveStatus, canCancelOrder, FULFILLMENT_LABELS, type FulfillmentMethod } from '@/lib/orderStatus'
 import { PAYMENT_SHORT } from '@/lib/paymentInfo'
 
 type Order = {
@@ -19,6 +19,7 @@ type Order = {
   created_at: string
   paid_at: string | null
   refunded_at: string | null
+  fulfillment_method: string | null
 }
 
 type NotificationRow = {
@@ -70,7 +71,7 @@ export default function OrdersPage() {
 
     const { data } = await supabase
       .from('orders')
-      .select('id, status, payment_method, total_amount, delivery_address, created_at, paid_at, refunded_at')
+      .select('id, status, payment_method, total_amount, delivery_address, created_at, paid_at, refunded_at, fulfillment_method')
       .order('created_at', { ascending: false })
 
     setOrders(data || [])
@@ -193,61 +194,89 @@ export default function OrdersPage() {
                   En cours
                 </h2>
                 <div className="space-y-6">
-                  {activeOrders.map((order) => (
-                    <div key={order.id} className="bg-white border border-(--vert-baol)/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                        <div className="mb-3 sm:mb-0">
-                          <p className="text-sm text-(--gris-texte) mb-2">Commande du {formatDate(order.created_at)}</p>
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={order.status} />
-                            {hadUnreadNotification(order.id) && (
-                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--rouge-erreur)/10 text-(--rouge-erreur)">
-                                Nouveau
-                              </span>
-                            )}
+                  {activeOrders.map((order) => {
+                    const method = (order.fulfillment_method as FulfillmentMethod) || 'delivery'
+                    const methodLabel = FULFILLMENT_LABELS[method] ?? FULFILLMENT_LABELS.delivery
+
+                    return (
+                      <div key={order.id} className="bg-white border border-(--vert-baol)/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                          <div className="mb-3 sm:mb-0">
+                            <p className="text-sm text-(--gris-texte) mb-2">Commande du {formatDate(order.created_at)}</p>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={order.status} fulfillmentMethod={order.fulfillment_method} />
+                              {hadUnreadNotification(order.id) && (
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--rouge-erreur)/10 text-(--rouge-erreur)">
+                                  Nouveau
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-(--gris-texte) mt-1.5 font-medium">
+                              Réception : {methodLabel}
+                            </p>
+                          </div>
+                          <div className="sm:text-right">
+                            <p className="text-2xl font-bold text-(--encre)">{order.total_amount.toLocaleString('fr-SN')} FCFA</p>
                           </div>
                         </div>
-                        <div className="sm:text-right">
-                          <p className="text-2xl font-bold text-(--encre)">{order.total_amount.toLocaleString('fr-SN')} FCFA</p>
+
+                        <div className="mb-4">
+                          <OrderTimeline status={order.status} fulfillmentMethod={order.fulfillment_method} />
                         </div>
-                      </div>
 
-                      <div className="mb-4">
-                        <OrderTimeline status={order.status} />
-                      </div>
+                        {/* Messages contextuels selon le mode pour commande active */}
+                        {order.fulfillment_method === 'pickup' && (
+                          order.status === 'delivering' ? (
+                            <div className="mb-4 p-3.5 bg-green-50 border border-green-200 rounded-xl text-xs sm:text-sm font-bold text-green-800 flex items-start gap-2.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-green-600 mt-1 shrink-0 animate-pulse" />
+                              <p>Votre commande est prête : notre équipe vous communique l&apos;adresse de retrait. Surveillez vos notifications et votre téléphone.</p>
+                            </div>
+                          ) : (['paid', 'preparing', 'confirmed'].includes(order.status) && (
+                            <p className="mb-4 text-xs text-(--gris-texte) italic">
+                              L&apos;adresse de retrait vous sera communiquée par notification ou par appel.
+                            </p>
+                          ))
+                        )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-(--gris-texte) mt-4 pt-4 border-t border-gray-100">
-                        <div>
-                          <span className="block font-bold text-(--encre) mb-1">Mode de paiement</span>
-                          <p>{formatPaymentMethod(order.payment_method)}</p>
+                        {order.fulfillment_method === 'self_arranged' && (
+                          <p className="mb-4 text-xs text-(--gris-texte) italic">
+                            Vous organisez vous-même la livraison depuis Diourbel.
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-(--gris-texte) mt-4 pt-4 border-t border-gray-100">
+                          <div>
+                            <span className="block font-bold text-(--encre) mb-1">Mode de paiement</span>
+                            <p>{formatPaymentMethod(order.payment_method)}</p>
+                          </div>
                         </div>
+
+                        {historyFor(order.id).length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                            <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-2">Historique</p>
+                            <ul className="space-y-1.5">
+                              {historyFor(order.id).map((n) => (
+                                <li key={n.id} className="text-xs text-(--gris-texte) flex justify-between">
+                                  <span>{n.message}</span>
+                                  <span className="shrink-0 ml-3">{formatDateTime(n.created_at)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {canCancelOrder(order.status) && (
+                          <button
+                            onClick={() => handleCancel(order.id)}
+                            disabled={cancellingId === order.id}
+                            className="mt-4 text-sm font-medium text-(--rouge-erreur) hover:underline disabled:opacity-50"
+                          >
+                            {cancellingId === order.id ? 'Annulation...' : 'Annuler ma commande'}
+                          </button>
+                        )}
                       </div>
-
-                      {historyFor(order.id).length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <p className="text-xs font-bold text-(--gris-texte) uppercase tracking-wider mb-2">Historique</p>
-                          <ul className="space-y-1.5">
-                            {historyFor(order.id).map((n) => (
-                              <li key={n.id} className="text-xs text-(--gris-texte) flex justify-between">
-                                <span>{n.message}</span>
-                                <span className="shrink-0 ml-3">{formatDateTime(n.created_at)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {canCancelOrder(order.status) && (
-                        <button
-                          onClick={() => handleCancel(order.id)}
-                          disabled={cancellingId === order.id}
-                          className="mt-4 text-sm font-medium text-(--rouge-erreur) hover:underline disabled:opacity-50"
-                        >
-                          {cancellingId === order.id ? 'Annulation...' : 'Annuler ma commande'}
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             )}
@@ -260,7 +289,7 @@ export default function OrdersPage() {
                     <div key={order.id} className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
                       <div className="flex items-center gap-4 flex-wrap">
                         <div>
-                          <StatusBadge status={order.status} />
+                          <StatusBadge status={order.status} fulfillmentMethod={order.fulfillment_method} />
                           {order.status === 'cancelled' && order.paid_at && !order.refunded_at && (
                             <p className="text-xs font-medium text-orange-600 mt-1">Remboursement en cours, sous 7 jours ouvrables</p>
                           )}

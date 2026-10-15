@@ -11,6 +11,14 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = typeof ORDER_STATUSES[number]
 
+export type FulfillmentMethod = 'delivery' | 'pickup' | 'self_arranged'
+
+export const FULFILLMENT_LABELS: Record<FulfillmentMethod, string> = {
+  delivery: 'Livraison à Diourbel',
+  pickup: 'Retrait',
+  self_arranged: 'Hors Diourbel',
+}
+
 export const STATUS_LABELS: Record<OrderStatus, string> = {
   created: 'Créée',
   paid: 'Payée',
@@ -20,6 +28,21 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: 'Livrée',
   cancelled: 'Annulée',
   refunded: 'Remboursée',
+}
+
+/**
+ * Retourne le libellé adapté au mode de remise de la commande.
+ * Pour le retrait ('pickup') :
+ * - 'delivering' => 'Prête au retrait'
+ * - 'delivered' => 'Retirée'
+ * Un mode absent ou inconnu se comporte comme 'delivery'.
+ */
+export function getStatusLabel(status: string, method?: string | null): string {
+  if (method === 'pickup') {
+    if (status === 'delivering') return 'Prête au retrait'
+    if (status === 'delivered') return 'Retirée'
+  }
+  return STATUS_LABELS[status as OrderStatus] ?? status
 }
 
 export const STATUS_COLORS: Record<OrderStatus, string> = {

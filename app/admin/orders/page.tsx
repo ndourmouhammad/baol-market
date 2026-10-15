@@ -3,7 +3,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Inbox, MapPin, CreditCard, ChevronLeft, ChevronRight, Truck, Phone, ShieldCheck, RotateCcw } from 'lucide-react'
-import { ORDER_STATUSES, STATUS_LABELS, STATUS_COLORS, canCancelOrder, isActiveStatus, allowedNextStatuses, type OrderStatus } from '@/lib/orderStatus'
+import {
+  ORDER_STATUSES,
+  STATUS_COLORS,
+  canCancelOrder,
+  isActiveStatus,
+  allowedNextStatuses,
+  getStatusLabel,
+  FULFILLMENT_LABELS,
+  type OrderStatus,
+  type FulfillmentMethod,
+} from '@/lib/orderStatus'
 
 type OrderItem = {
   quantity: number
@@ -33,6 +43,13 @@ type Order = {
   paid_at: string | null
   refunded_at: string | null
   refund_reference: string | null
+  fulfillment_method: string | null
+}
+
+const FULFILLMENT_BADGES: Record<FulfillmentMethod, string> = {
+  delivery: 'bg-blue-50 text-blue-700 border-blue-200',
+  pickup: 'bg-purple-50 text-purple-700 border-purple-200',
+  self_arranged: 'bg-gray-100 text-gray-700 border-gray-200',
 }
 
 const getStatusColor = (status: string) => STATUS_COLORS[status as OrderStatus] || 'bg-gray-100 text-gray-800 border-gray-200'
@@ -255,7 +272,12 @@ export default function AdminOrdersPage() {
 
   const busyRiderIds = new Set(
     orders
-      .filter((o) => o.rider_id && isActiveStatus(o.status))
+      .filter(
+        (o) =>
+          o.rider_id &&
+          isActiveStatus(o.status) &&
+          (o.fulfillment_method === 'delivery' || !o.fulfillment_method)
+      )
       .map((o) => o.rider_id)
   )
 
@@ -308,6 +330,8 @@ export default function AdminOrdersPage() {
       ) : (
         <div className="space-y-4">
           {paginatedOrders.map((order) => {
+            const method: FulfillmentMethod = (order.fulfillment_method as FulfillmentMethod) || 'delivery'
+            const isDelivery = method === 'delivery' || !order.fulfillment_method
             const subtotal = order.subtotal_amount ?? order.total_amount
             const deliveryFee = order.delivery_fee ?? 0
             const orderCancellable = canCancelOrder(order.status)
@@ -324,6 +348,9 @@ export default function AdminOrdersPage() {
                       <p className="text-xs text-(--gris-texte)">
                         Commande #{order.id.split('-')[0].toUpperCase()} • {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                       </p>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${FULFILLMENT_BADGES[method]}`}>
+                        {FULFILLMENT_LABELS[method]}
+                      </span>
                       {!orderCancellable && isActiveStatus(order.status) && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                           Non annulable
@@ -385,49 +412,65 @@ export default function AdminOrdersPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative">
-                      <select
-                        value={order.rider_id ?? ''}
-                        onChange={(e) => assignRider(order.id, e.target.value)}
-                        disabled={isRefunded}
-                        className={`appearance-none font-bold text-sm pl-8 pr-8 py-2 rounded-xl border border-gray-200 bg-gray-50 text-(--encre) outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${isRefunded ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <option value="">Aucun livreur</option>
-                        {riders.map((r) => {
-                          const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
-                          return (
-                            <option key={r.id} value={r.id} disabled={isBusyElsewhere}>
-                              {r.name}{isBusyElsewhere ? ' (occupé)' : ''}
-                            </option>
-                          )
-                        })}
-                      </select>
-                      <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-(--gris-texte) pointer-events-none" />
-                    </div>
-                    <div className="relative">
-                      <select
-                        value={order.status}
-                        onChange={(e) => updateStatus(order.id, e.target.value)}
-                        disabled={statusMenuDisabled}
-                        className={`appearance-none font-bold text-sm px-4 py-2 pr-8 rounded-xl border outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${getStatusColor(order.status)} ${statusMenuDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {ORDER_STATUSES.map((s) => {
-                          const isCurrent = s === order.status
-                          const disabled = !isCurrent && !nextAllowed.includes(s)
-                          return (
-                            <option key={s} value={s} disabled={disabled}>
-                              {STATUS_LABELS[s].toUpperCase()}
-                            </option>
-                          )
-                        })}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-70">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
+                  <div className="flex flex-col items-start md:items-end gap-2 w-full md:w-auto">
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {isDelivery ? (
+                        <div className="relative">
+                          <select
+                            value={order.rider_id ?? ''}
+                            onChange={(e) => assignRider(order.id, e.target.value)}
+                            disabled={isRefunded}
+                            className={`appearance-none font-bold text-sm pl-8 pr-8 py-2 rounded-xl border border-gray-200 bg-gray-50 text-(--encre) outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${isRefunded ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <option value="">Aucun livreur</option>
+                            {riders.map((r) => {
+                              const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
+                              return (
+                                <option key={r.id} value={r.id} disabled={isBusyElsewhere}>
+                                  {r.name}{isBusyElsewhere ? ' (occupé)' : ''}
+                                </option>
+                              )
+                            })}
+                          </select>
+                          <Truck className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-(--gris-texte) pointer-events-none" />
+                        </div>
+                      ) : (
+                        order.rider_id && (
+                          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium text-(--gris-texte)">
+                            <Truck className="w-4 h-4 text-(--gris-texte)" />
+                            <span>{order.riders?.name ?? 'Livreur affecté'}</span>
+                          </div>
+                        )
+                      )}
+                      <div className="relative">
+                        <select
+                          value={order.status}
+                          onChange={(e) => updateStatus(order.id, e.target.value)}
+                          disabled={statusMenuDisabled}
+                          className={`appearance-none font-bold text-sm px-4 py-2 pr-8 rounded-xl border outline-none cursor-pointer focus:ring-2 focus:ring-(--vert-baol) transition-colors ${getStatusColor(order.status)} ${statusMenuDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {ORDER_STATUSES.map((s) => {
+                            const isCurrent = s === order.status
+                            const disabled = !isCurrent && !nextAllowed.includes(s)
+                            return (
+                              <option key={s} value={s} disabled={disabled}>
+                                {getStatusLabel(s, order.fulfillment_method).toUpperCase()}
+                              </option>
+                            )
+                          })}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-70">
+                          <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
+                    {order.fulfillment_method === 'pickup' && order.status === 'confirmed' && (
+                      <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium max-w-xs text-left md:text-right">
+                        Au passage à « Prête au retrait », le client est notifié : communiquez-lui l&apos;adresse de retrait.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -435,12 +478,22 @@ export default function AdminOrdersPage() {
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-(--gris-texte) mt-0.5 shrink-0" />
-                        <span className="text-(--encre) font-medium">
-                        {order.delivery_zones?.name ?? 'Zone non renseignée'}
-                        {order.delivery_fee === 0 && (
-                          <span className="ml-2 text-xs font-normal text-(--gris-texte)">(livraison gérée par le client)</span>
+                      <div className="text-(--encre) font-medium">
+                        {method === 'delivery' && (
+                          <span>{order.delivery_zones?.name ?? 'Zone non renseignée'}</span>
                         )}
-                      </span>
+                        {method === 'self_arranged' && (
+                          <div>
+                            <span>Région : {order.delivery_zones?.name ?? 'Non renseignée'}</span>
+                            <span className="block text-xs font-normal text-(--gris-texte)">Livraison gérée par le client</span>
+                          </div>
+                        )}
+                        {method === 'pickup' && (
+                          <span className="text-xs text-(--gris-texte)">
+                            Retrait : l&apos;adresse est à communiquer au client (notification ou appel)
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <CreditCard className="w-4 h-4 text-(--gris-texte) shrink-0" />
@@ -533,7 +586,7 @@ export default function AdminOrdersPage() {
             </div>
             <p className="text-(--gris-texte) mb-4 text-sm font-medium">
               Commande #{pendingChange.orderId.split('-')[0].toUpperCase()} :{' '}
-              passer au statut <span className="font-bold text-(--encre)">{STATUS_LABELS[pendingChange.status as OrderStatus]?.toUpperCase() ?? pendingChange.status}</span>.
+              passer au statut <span className="font-bold text-(--encre)">{getStatusLabel(pendingChange.status, orders.find((o) => o.id === pendingChange.orderId)?.fulfillment_method).toUpperCase()}</span>.
             </p>
             <input
               type="text"

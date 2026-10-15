@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     // 1. Fetch total orders and calculate revenue
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
-      .select('id, total_amount, status, created_at, customer_id, payment_method')
+      .select('id, total_amount, status, created_at, customer_id, payment_method, fulfillment_method')
       .order('created_at', { ascending: false })
 
     if (ordersError) throw ordersError

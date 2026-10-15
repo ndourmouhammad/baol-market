@@ -1,20 +1,26 @@
-import { STATUS_LABELS, type OrderStatus } from '@/lib/orderStatus'
+import { getStatusLabel, type OrderStatus } from '@/lib/orderStatus'
 import { XCircle } from 'lucide-react'
 
 /** Étapes visibles dans la timeline de progression client */
-const STEPS: { key: OrderStatus; label: string }[] = [
-  { key: 'created', label: 'Créée' },
-  { key: 'paid', label: 'Payée' },
-  { key: 'preparing', label: 'En préparation' },
-  { key: 'confirmed', label: 'Confirmée' },
-  { key: 'delivering', label: 'En livraison' },
-  { key: 'delivered', label: 'Livrée' },
+const STEPS: { key: OrderStatus }[] = [
+  { key: 'created' },
+  { key: 'paid' },
+  { key: 'preparing' },
+  { key: 'confirmed' },
+  { key: 'delivering' },
+  { key: 'delivered' },
 ]
 
-export default function OrderTimeline({ status }: { status: string }) {
+export default function OrderTimeline({
+  status,
+  fulfillmentMethod,
+}: {
+  status: string
+  fulfillmentMethod?: string | null
+}) {
   // ── Commandes annulées / remboursées : affichage spécial ──
   if (status === 'cancelled' || status === 'refunded') {
-    const label = STATUS_LABELS[status as OrderStatus] ?? status
+    const label = getStatusLabel(status, fulfillmentMethod)
     return (
       <div className="flex items-center gap-3 mt-6 mb-2 py-3 px-4 rounded-xl bg-red-50 border border-red-200">
         <XCircle className="w-5 h-5 text-(--rouge-erreur) shrink-0" />
@@ -47,6 +53,7 @@ export default function OrderTimeline({ status }: { status: string }) {
           {STEPS.map((step, index) => {
             const isCompleted = index <= safeIndex
             const isCurrent = index === safeIndex
+            const stepLabel = getStatusLabel(step.key, fulfillmentMethod)
 
             const circleClass = isCompleted
               ? 'bg-(--vert-baol) text-white'
@@ -68,7 +75,7 @@ export default function OrderTimeline({ status }: { status: string }) {
                   )}
                 </div>
                 <span className={`mt-2 text-xs font-bold uppercase tracking-wider text-center max-w-20 ${labelClass}`}>
-                  {step.label}
+                  {stepLabel}
                 </span>
               </div>
             )

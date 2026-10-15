@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     .from('orders')
     .select(`
       id, status, payment_method, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed,
-      delivery_address, created_at, customer_id, rider_id,
+      delivery_address, created_at, customer_id, rider_id, fulfillment_method,
       paid_at, refunded_at, refund_reference,
       order_items ( quantity, unit_price, products ( name ) ),
       riders ( id, name ),
