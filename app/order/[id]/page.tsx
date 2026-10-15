@@ -10,22 +10,21 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { fetchLivePrices, type LivePrice } from '@/lib/livePrices'
 import { PAYMENT_TITLE, PAYMENT_DETAIL } from '@/lib/paymentInfo'
-import { ShieldCheck, Truck, ShoppingBag, MapPin } from 'lucide-react'
+import { ShieldCheck, Truck, ShoppingBag, MapPin, Store } from 'lucide-react'
 import Image from 'next/image'
+import {
+  DeliveryChooser,
+  type DeliveryChoice,
+  type DeliveryZone,
+  isDeliveryChoiceValid,
+  getDeliveryFee,
+} from '@/components/DeliveryChooser'
 
 type Product = {
   id: string
   name: string
   price: number
   image_url?: string
-}
-
-type DeliveryZone = {
-  id: string
-  name: string
-  fee: number
-  is_variable: boolean
-  display_group: string | null
 }
 
 export default function OrderPage() {
@@ -36,7 +35,10 @@ export default function OrderPage() {
   const [zones, setZones] = useState<DeliveryZone[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const [zoneId, setZoneId] = useState('')
+  const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>({
+    mode: null,
+    zoneId: '',
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [initLoading, setInitLoading] = useState(true)
@@ -60,7 +62,7 @@ export default function OrderPage() {
 
       const { data: zonesData } = await supabase
         .from('delivery_zones')
-        .select('id, name, fee, is_variable, display_group')
+        .select('id, name, fee, is_variable, display_group, zone_kind')
         .order('sort_order')
 
       if (productError || !productData) {
@@ -105,7 +107,8 @@ export default function OrderPage() {
     }
   }, [id])
 
-  const selectedZone = zones.find((z) => z.id === zoneId)
+  const deliveryFee = getDeliveryFee(deliveryChoice, zones)
+  const isDeliveryValid = isDeliveryChoiceValid(deliveryChoice, zones)
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
@@ -113,7 +116,7 @@ export default function OrderPage() {
       router.push(`/login?next=${nextParam}`)
       return
     }
-    if (!product || !zoneId) return
+    if (!product || !isDeliveryValid) return
 
     setLoading(true)
     setError('')
@@ -149,7 +152,8 @@ export default function OrderPage() {
       },
       body: JSON.stringify({
         items: [{ productId: product.id, quantity }],
-        deliveryZoneId: zoneId,
+        deliveryMode: deliveryChoice.mode,
+        ...(deliveryChoice.mode !== 'pickup' ? { deliveryZoneId: deliveryChoice.zoneId } : {}),
       }),
     })
     const json = await res.json()
@@ -167,7 +171,7 @@ export default function OrderPage() {
   const increaseQty = () => setQuantity(q => q + 1)
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
-  const isFormValid = !!zoneId && !!user && livePrice?.available !== false
+  const isFormValid = isDeliveryValid && !!user && livePrice?.available !== false
 
   if (initLoading) {
     return (
@@ -199,15 +203,16 @@ export default function OrderPage() {
   const regularPrice = livePrice ? livePrice.regularPrice : product.price
   const onSale = unitPrice < regularPrice
   const subtotal = unitPrice * quantity
-  const deliveryFee = selectedZone?.fee ?? 0
   const total = subtotal + deliveryFee
 
-  const zoneGroups = zones.reduce<Record<string, DeliveryZone[]>>((acc, zone) => {
-    const group = zone.display_group ?? 'Autres zones'
-    if (!acc[group]) acc[group] = []
-    acc[group].push(zone)
-    return acc
-  }, {})
+  let deliverySummary = '—'
+  if (deliveryChoice.mode === 'pickup') {
+    deliverySummary = 'Gratuit (retrait)'
+  } else if (deliveryChoice.mode === 'self_arranged') {
+    deliverySummary = '0 FCFA (gérée par vous)'
+  } else if (deliveryChoice.mode === 'delivery') {
+    deliverySummary = deliveryChoice.zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'
+  }
 
   return (
     <div className="bg-(--fond) pb-20 pt-8 px-4 sm:px-6 min-h-screen">
@@ -271,39 +276,14 @@ export default function OrderPage() {
               <section>
                 <div className="flex items-center gap-3 mb-5">
                   <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">2</span>
-                  <h2 className="text-lg font-bold text-(--encre)">Zone de livraison</h2>
+                  <h2 className="text-lg font-bold text-(--encre)">Mode de livraison</h2>
                 </div>
 
-                <div className="space-y-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="zone-select" className="text-sm font-bold text-(--encre)">Quartier / Zone</label>
-                    <select
-                      id="zone-select"
-                      value={zoneId}
-                      onChange={(e) => setZoneId(e.target.value)}
-                      required
-                      className="block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-(--encre) focus:border-(--vert-baol) focus:outline-none focus:ring-2 focus:ring-(--vert-baol) transition-all shadow-sm"
-                    >
-                      <option value="" disabled>Sélectionnez votre zone de livraison</option>
-                      {Object.entries(zoneGroups).map(([group, groupZones]) => (
-                        <optgroup key={group} label={group} className="font-bold">
-                          {groupZones.map((z) => (
-                            <option key={z.id} value={z.id} className="font-medium text-(--encre)">{z.name}</option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedZone && selectedZone.fee === 0 && (
-                    <div className="flex gap-3 text-sm text-(--vert-baol-fonce) bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-xl p-4">
-                      <MapPin className="w-5 h-5 shrink-0" />
-                      <p>
-                        Pour les zones hors Diourbel, vous gérez vous-même la livraison. Aucun frais n&#39;est appliqué.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <DeliveryChooser
+                  zones={zones}
+                  value={deliveryChoice}
+                  onChange={setDeliveryChoice}
+                />
               </section>
 
               {/* Section 3: Paiement */}
@@ -383,11 +363,9 @@ export default function OrderPage() {
                   <span className="font-medium text-(--encre)">{subtotal.toLocaleString('fr-SN')} FCFA</span>
                 </div>
                 <div className="flex justify-between items-center text-(--gris-texte)">
-                  <span>Frais de livraison</span>
+                  <span>Livraison</span>
                   <span className="font-medium text-(--encre)">
-                    {zoneId
-                      ? `${deliveryFee.toLocaleString('fr-SN')} FCFA`
-                      : 'Calculés après sélection'}
+                    {deliverySummary}
                   </span>
                 </div>
               </div>
@@ -414,12 +392,28 @@ export default function OrderPage() {
                 </div>
               </div>
 
-              <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
-                <Truck className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
-                <p className="text-(--gris-texte) leading-relaxed">
-                  Livraison suivie. Une fois la commande confirmée, un coursier vous contactera.
-                </p>
-              </div>
+              {deliveryChoice.mode === 'pickup' ? (
+                <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
+                  <Store className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
+                  <p className="text-(--gris-texte) leading-relaxed">
+                    Retrait : notre équipe vous communiquera l&apos;adresse de retrait par notification ou par appel.
+                  </p>
+                </div>
+              ) : deliveryChoice.mode === 'self_arranged' ? (
+                <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
+                  <MapPin className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
+                  <p className="text-(--gris-texte) leading-relaxed">
+                    Vous organisez vous-même la livraison depuis Diourbel.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
+                  <Truck className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
+                  <p className="text-(--gris-texte) leading-relaxed">
+                    Livraison suivie. Une fois la commande confirmée, un coursier vous contactera.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

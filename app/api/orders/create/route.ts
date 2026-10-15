@@ -22,16 +22,23 @@ export async function POST(request: Request) {
   }
   const customerId = user.id
 
-  let body: { items?: CartItemInput[]; deliveryZoneId?: string }
+  type DeliveryMode = 'delivery' | 'pickup' | 'self_arranged'
+  const VALID_MODES: DeliveryMode[] = ['delivery', 'pickup', 'self_arranged']
+
+  let body: { items?: CartItemInput[]; deliveryMode?: string; deliveryZoneId?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
   }
 
-  const { items, deliveryZoneId } = body
-  if (!Array.isArray(items) || items.length === 0 || typeof deliveryZoneId !== 'string' || !deliveryZoneId) {
+  const { items, deliveryMode, deliveryZoneId } = body
+  if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'Informations de commande incomplètes.' }, { status: 400 })
+  }
+
+  if (deliveryMode !== undefined && !VALID_MODES.includes(deliveryMode as DeliveryMode)) {
+    return NextResponse.json({ error: 'Mode de livraison invalide.' }, { status: 400 })
   }
 
   // 2. Quantités : entiers entre 1 et le maximum. Un même produit présent
@@ -72,14 +79,58 @@ export async function POST(request: Request) {
     )
   }
 
-  const { data: zone, error: zoneError } = await supabaseAdmin
-    .from('delivery_zones')
-    .select('id, fee')
-    .eq('id', deliveryZoneId)
-    .single()
+  // 4. Mode de remise et zone de livraison
+  let resolvedMode: DeliveryMode
+  let deliveryFee = 0
+  let effectiveZoneId: string | null = null
 
-  if (zoneError || !zone) {
-    return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+  if (deliveryMode === 'pickup') {
+    // 'pickup' : ignorer deliveryZoneId, frais 0, delivery_zone_id null
+    resolvedMode = 'pickup'
+    deliveryFee = 0
+    effectiveZoneId = null
+  } else {
+    if (typeof deliveryZoneId !== 'string' || !deliveryZoneId) {
+      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+    }
+
+    const { data: zone, error: zoneError } = await supabaseAdmin
+      .from('delivery_zones')
+      .select('id, fee, zone_kind')
+      .eq('id', deliveryZoneId)
+      .single()
+
+    if (zoneError || !zone) {
+      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+    }
+
+    const zoneKind = zone.zone_kind ?? 'local'
+
+    if (deliveryMode === 'delivery') {
+      if (zoneKind !== 'local') {
+        return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+      }
+      resolvedMode = 'delivery'
+      deliveryFee = zone.fee
+      effectiveZoneId = zone.id
+    } else if (deliveryMode === 'self_arranged') {
+      if (zoneKind !== 'region') {
+        return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+      }
+      resolvedMode = 'self_arranged'
+      deliveryFee = 0
+      effectiveZoneId = zone.id
+    } else {
+      // deliveryMode est absent (ancien client) : déduire de zone_kind
+      if (zoneKind === 'region') {
+        resolvedMode = 'self_arranged'
+        deliveryFee = 0
+      } else {
+        resolvedMode = 'delivery'
+        deliveryFee = zone.fee
+      }
+      effectiveZoneId = zone.id
+    }
   }
 
   // Prix toujours relus depuis la base, jamais depuis le navigateur.
@@ -93,7 +144,7 @@ export async function POST(request: Request) {
   }))
 
   const subtotalAmount = orderItemsLines.reduce((sum, line) => sum + line.unit_price * line.quantity, 0)
-  const totalAmount = subtotalAmount + zone.fee
+  const totalAmount = subtotalAmount + deliveryFee
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
@@ -101,11 +152,12 @@ export async function POST(request: Request) {
       customer_id: customerId,
       status: 'created',
       payment_method: 'en_ligne',
+      fulfillment_method: resolvedMode,
       subtotal_amount: subtotalAmount,
-      delivery_fee: zone.fee,
+      delivery_fee: deliveryFee,
       delivery_fee_confirmed: true,
       total_amount: totalAmount,
-      delivery_zone_id: zone.id,
+      delivery_zone_id: effectiveZoneId,
     })
     .select()
     .single()

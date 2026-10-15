@@ -8,14 +8,13 @@ import { Button } from '@/components/Button'
 import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { PAYMENT_TITLE, PAYMENT_DETAIL } from '@/lib/paymentInfo'
-
-type DeliveryZone = {
-  id: string
-  name: string
-  fee: number
-  is_variable: boolean
-  display_group: string | null
-}
+import {
+  DeliveryChooser,
+  type DeliveryChoice,
+  type DeliveryZone,
+  isDeliveryChoiceValid,
+  getDeliveryFee,
+} from '@/components/DeliveryChooser'
 
 const DRAFT_KEY = 'baol-market-checkout-draft'
 // Doit rester identique à la clé utilisée dans app/paiement/succes/page.tsx
@@ -27,7 +26,10 @@ export default function CheckoutPage() {
 
   const [user, setUser] = useState<User | null>(null)
   const [zones, setZones] = useState<DeliveryZone[]>([])
-  const [zoneId, setZoneId] = useState('')
+  const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>({
+    mode: null,
+    zoneId: '',
+  })
   const [loading, setLoading] = useState(false)
   const [initLoading, setInitLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,7 +41,7 @@ export default function CheckoutPage() {
 
       const { data: zonesData } = await supabase
         .from('delivery_zones')
-        .select('id, name, fee, is_variable, display_group')
+        .select('id, name, fee, is_variable, display_group, zone_kind')
         .order('sort_order')
       setZones(zonesData || [])
 
@@ -47,7 +49,14 @@ export default function CheckoutPage() {
         const draft = localStorage.getItem(DRAFT_KEY)
         if (draft) {
           const parsed = JSON.parse(draft)
-          setZoneId(parsed.zoneId ?? '')
+          const mode = parsed.mode
+          const zoneId = typeof parsed.zoneId === 'string' ? parsed.zoneId : ''
+          const validModes = ['delivery', 'pickup', 'self_arranged']
+          if (validModes.includes(mode)) {
+            setDeliveryChoice({ mode, zoneId })
+          } else if (zoneId) {
+            setDeliveryChoice({ mode: 'delivery', zoneId })
+          }
         }
       } catch (e) {
         console.error('Erreur lecture brouillon:', e)
@@ -61,16 +70,16 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (initLoading) return
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ zoneId }))
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(deliveryChoice))
     } catch (e) {
       console.error('Erreur sauvegarde brouillon:', e)
     }
-  }, [zoneId, initLoading])
+  }, [deliveryChoice, initLoading])
 
-  const selectedZone = zones.find((z) => z.id === zoneId)
-  const deliveryFee = selectedZone?.fee ?? 0
+  const deliveryFee = getDeliveryFee(deliveryChoice, zones)
   const total = subtotal + deliveryFee
-  const isFormValid = items.length > 0 && !!zoneId && !!user && !hasUnavailable
+  const isDeliveryValid = isDeliveryChoiceValid(deliveryChoice, zones)
+  const isFormValid = items.length > 0 && isDeliveryValid && !!user && !hasUnavailable
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -114,7 +123,8 @@ export default function CheckoutPage() {
       },
       body: JSON.stringify({
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        deliveryZoneId: zoneId,
+        deliveryMode: deliveryChoice.mode,
+        ...(deliveryChoice.mode !== 'pickup' ? { deliveryZoneId: deliveryChoice.zoneId } : {}),
       }),
     })
     const json = await res.json()
@@ -137,13 +147,6 @@ export default function CheckoutPage() {
     window.location.href = json.redirectUrl
   }
 
-  const zoneGroups = zones.reduce<Record<string, DeliveryZone[]>>((acc, zone) => {
-    const group = zone.display_group ?? 'Autres zones'
-    if (!acc[group]) acc[group] = []
-    acc[group].push(zone)
-    return acc
-  }, {})
-
   if (initLoading) {
     return (
       <div className="flex items-center justify-center p-6 py-32">
@@ -160,6 +163,15 @@ export default function CheckoutPage() {
         <Button onClick={() => router.push('/produits')}>Voir le catalogue</Button>
       </div>
     )
+  }
+
+  let deliverySummary = '—'
+  if (deliveryChoice.mode === 'pickup') {
+    deliverySummary = 'Gratuit (retrait)'
+  } else if (deliveryChoice.mode === 'self_arranged') {
+    deliverySummary = '0 FCFA (gérée par vous)'
+  } else if (deliveryChoice.mode === 'delivery') {
+    deliverySummary = deliveryChoice.zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'
   }
 
   return (
@@ -183,27 +195,12 @@ export default function CheckoutPage() {
       <div className="grid md:grid-cols-[1fr_320px] gap-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-(--encre) mb-2">Zone de livraison</label>
-            <select
-              value={zoneId}
-              onChange={(e) => setZoneId(e.target.value)}
-              required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-(--vert-baol)"
-            >
-              <option value="" disabled>Choisissez votre quartier</option>
-              {Object.entries(zoneGroups).map(([group, groupZones]) => (
-                <optgroup key={group} label={group}>
-                  {groupZones.map((z) => (
-                    <option key={z.id} value={z.id}>{z.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            {selectedZone && selectedZone.fee === 0 && (
-              <p className="text-xs text-(--vert-baol-fonce) bg-(--vert-baol)/10 border-l-4 border-(--vert-baol) p-3 mt-2">
-                Pour les zones hors Diourbel, vous gérez vous-même la livraison. Aucun frais n&#39;est appliqué.
-              </p>
-            )}
+            <label className="block text-sm font-semibold text-(--encre) mb-3">Mode de livraison</label>
+            <DeliveryChooser
+              zones={zones}
+              value={deliveryChoice}
+              onChange={setDeliveryChoice}
+            />
           </div>
 
           <div>
@@ -255,7 +252,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between text-(--gris-texte)">
               <span>Livraison</span>
-              <span>{zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'}</span>
+              <span>{deliverySummary}</span>
             </div>
             <div className="flex justify-between font-bold text-(--encre) pt-2 border-t border-gray-100">
               <span>Total</span>
