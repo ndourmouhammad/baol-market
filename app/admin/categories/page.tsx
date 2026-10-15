@@ -35,6 +35,7 @@ export default function AdminCategoriesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
+  const [imageWarning, setImageWarning] = useState('')
 
   async function loadCategories() {
     setLoading(true)
@@ -52,18 +53,55 @@ export default function AdminCategoriesPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadCategories() }, [])
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
+    const previewUrl = URL.createObjectURL(file)
     setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    setImagePreview(previewUrl)
     setError('')
+    setImageWarning('')
+
+    const probe = new window.Image()
+    probe.onload = () => {
+      const w = probe.naturalWidth
+      const h = probe.naturalHeight
+      const ratio = w / h
+      const parts: string[] = []
+
+      if (ratio < 2) {
+        parts.push(`Cette image fait ${w} × ${h} px : elle est presque carrée et sera fortement recadrée sur la page de la catégorie. Choisissez une image plus large.`)
+      }
+      if (w < 1000) {
+        parts.push("Image petite : elle risque d'être floue sur grand écran.")
+      }
+
+      setImageWarning(parts.join(' '))
+    }
+    probe.src = previewUrl
   }
 
   function removeImage() {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
     setImageFile(null)
     setImagePreview(null)
     setExistingImageUrl(null)
+    setImageWarning('')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -117,22 +155,30 @@ export default function AdminCategoriesPage() {
   }
 
   function startEdit(category: Category) {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
     setEditingId(category.id)
     setName(category.name)
     setDescription(category.description || '')
     setExistingImageUrl(category.image_url)
     setImagePreview(category.image_url)
     setImageFile(null)
+    setImageWarning('')
     setError('')
   }
 
   function resetForm() {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
     setEditingId(null)
     setName('')
     setDescription('')
     setImageFile(null)
     setImagePreview(null)
     setExistingImageUrl(null)
+    setImageWarning('')
     setError('')
   }
 
@@ -172,9 +218,12 @@ export default function AdminCategoriesPage() {
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div className="space-y-1.5">
               <label className="font-bold text-(--encre) block">Image (optionnelle)</label>
+              <p className="text-xs text-(--gris-texte)">
+                Affichée en grande bannière sur la page de la catégorie. Format conseillé : 1600 × 500 px (large), sujet au centre. JPEG, PNG ou WEBP, 500 Ko environ pour rester rapide sur mobile.
+              </p>
               {imagePreview ? (
-                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-gray-200">
-                  <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
+                <div className="relative w-full aspect-[16/5] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                  <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover object-center" />
                   <button
                     type="button"
                     onClick={removeImage}
@@ -185,12 +234,17 @@ export default function AdminCategoriesPage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <label className="flex flex-col items-center justify-center w-full aspect-[16/5] min-h-[100px] border-2 border-dashed border-gray-200 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors p-3 text-center">
                   <ImagePlus className="w-6 h-6 text-gray-400 mb-1" />
                   <span className="text-(--gris-texte) text-xs font-medium">Choisir une image</span>
-                  <span className="text-gray-400 text-xs mt-0.5">Sinon une icône générique sera utilisée</span>
+                  <span className="text-gray-400 text-xs mt-0.5">Format conseillé : 1600 × 500 px</span>
                   <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageChange} className="hidden" />
                 </label>
+              )}
+              {imageWarning && (
+                <p className="text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5">
+                  {imageWarning}
+                </p>
               )}
             </div>
 

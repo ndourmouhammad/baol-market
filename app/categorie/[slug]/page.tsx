@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ProductCard } from '@/components/ProductCard'
@@ -14,18 +15,33 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const { data: category } = await supabase
     .from('categories')
-    .select('name, description')
+    .select('name, description, image_url')
     .eq('slug', slug)
     .single()
 
   if (!category) return { title: 'Catégorie introuvable - Baol Market' }
-  return {
-    title: `${category.name} - Baol Market`,
-    description: category.description || `Découvrez nos produits locaux vérifiés dans la catégorie ${category.name}.`,
+
+  const title = `${category.name} - Baol Market`
+  const description = category.description || `Découvrez nos produits locaux vérifiés dans la catégorie ${category.name}.`
+
+  const metadata: Metadata = {
+    title,
+    description,
     alternates: {
       canonical: `/categorie/${slug}`,
     },
   }
+
+  if (category.image_url) {
+    metadata.openGraph = {
+      images: [{ url: category.image_url }],
+    }
+    metadata.twitter = {
+      images: [category.image_url],
+    }
+  }
+
+  return metadata
 }
 
 export default async function CategoryPage({
@@ -77,12 +93,29 @@ export default async function CategoryPage({
 
   return (
     <main className="bg-(--fond) pb-20 min-h-screen">
-      {/* En-tête catégorie */}
-      <section className="bg-(--vert-baol-fonce) text-white border-b border-(--vert-baol)">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">{category.name}</h1>
+      {/* En-tête catégorie / Bannière */}
+      <section className="relative w-full h-44 sm:h-56 md:h-72 bg-(--vert-baol-fonce) overflow-hidden border-b border-(--vert-baol)">
+        {category.image_url && (
+          <>
+            <Image
+              src={category.image_url}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10 pointer-events-none" />
+          </>
+        )}
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-6 sm:pb-8 md:pb-10">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white drop-shadow mb-2 sm:mb-3">
+            {category.name}
+          </h1>
           {category.description && (
-            <p className="text-white/80 max-w-xl mx-auto md:mx-0 text-sm md:text-base">{category.description}</p>
+            <p className="text-white/90 text-sm md:text-base max-w-2xl line-clamp-2 md:line-clamp-3">
+              {category.description}
+            </p>
           )}
         </div>
       </section>
