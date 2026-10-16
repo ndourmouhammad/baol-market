@@ -1,12 +1,58 @@
 // Service Worker Baol Market (PWA & Push Notifications)
-// IMPORTANT : AUCUN gestionnaire fetch, AUCUN cache (les prix et ventes flash doivent toujours être frais).
+// IMPORTANT : AUCUN cache de pages ni de données (les prix et ventes flash doivent toujours être frais).
+// Seule la page de secours /hors-ligne.html et son icône sont conservées pour le mode hors connexion.
 
-self.addEventListener('install', () => {
+const OFFLINE_CACHE = 'baol-offline-v1'
+const OFFLINE_URLS = ['/hors-ligne.html', '/logo/logo-192x192.png']
+
+self.addEventListener('install', (event) => {
   self.skipWaiting()
+  event.waitUntil(
+    caches
+      .open(OFFLINE_CACHE)
+      .then((cache) => cache.addAll(OFFLINE_URLS))
+      .catch(() => {})
+  )
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches
+        .keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key !== OFFLINE_CACHE)
+              .map((key) => caches.delete(key))
+          )
+        ),
+    ]).catch(() => {})
+  )
+})
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode !== 'navigate' || event.request.method !== 'GET') {
+    return
+  }
+
+  let url
+  try {
+    url = new URL(event.request.url)
+  } catch {
+    return
+  }
+
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
+    return
+  }
+
+  event.respondWith(
+    fetch(event.request).catch(() =>
+      caches.match('/hors-ligne.html').then((response) => response || Response.error())
+    )
+  )
 })
 
 self.addEventListener('push', (event) => {
