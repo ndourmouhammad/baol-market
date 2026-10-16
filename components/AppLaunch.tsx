@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { ShieldCheck, ShoppingBag, Bell } from 'lucide-react'
 
 const ONBOARDING_KEY = 'baol-market-onboarding-done'
+const SPLASH_SESSION_KEY = 'baol-splash-seen'
 
 interface SlideData {
   title: string
@@ -52,6 +54,8 @@ function shouldShowOnboarding(pathname: string): boolean {
 
 export default function AppLaunch() {
   const pathname = usePathname()
+  const [splashMounted, setSplashMounted] = useState(true)
+  const [splashFading, setSplashFading] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingFading, setOnboardingFading] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -115,16 +119,48 @@ export default function AppLaunch() {
     })
   }, [])
 
-  // Détection et affichage direct du nouvel onboarding au premier lancement
+  // Gestion du splash et de l'enchaînement avec la présentation
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (shouldShowOnboarding(pathname)) {
-        setShowOnboarding(true)
+    // Si lancement forcé (?lancement=1), réinitialiser les clés pour faciliter les tests
+    try {
+      if (new URLSearchParams(window.location.search).get('lancement') === '1') {
+        localStorage.removeItem(ONBOARDING_KEY)
+        sessionStorage.removeItem(SPLASH_SESSION_KEY)
       }
-    }, 0)
+    } catch {
+      // ignoré
+    }
+
+    const isSplash =
+      typeof document !== 'undefined' &&
+      document.documentElement.classList.contains('show-splash')
+
+    let splashTimer: ReturnType<typeof setTimeout> | null = null
+    let removeTimer: ReturnType<typeof setTimeout> | null = null
+
+    if (isSplash) {
+      splashTimer = setTimeout(() => {
+        setSplashFading(true)
+        removeTimer = setTimeout(() => {
+          document.documentElement.classList.remove('show-splash')
+          setSplashMounted(false)
+          if (shouldShowOnboarding(pathname)) {
+            setShowOnboarding(true)
+          }
+        }, 300)
+      }, 1500)
+    } else {
+      // Si le splash n'a pas été déclenché, vérifier la présentation en différé
+      splashTimer = setTimeout(() => {
+        if (shouldShowOnboarding(pathname)) {
+          setShowOnboarding(true)
+        }
+      }, 0)
+    }
 
     return () => {
-      clearTimeout(timer)
+      if (splashTimer) clearTimeout(splashTimer)
+      if (removeTimer) clearTimeout(removeTimer)
     }
   }, [pathname])
 
@@ -192,8 +228,117 @@ export default function AppLaunch() {
 
   return (
     <>
-      {/* Styles autonomes pour la présentation */}
+      {/* Script inline d'activation immédiate sans clignotement */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var s=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(navigator.standalone===true);var f=new URLSearchParams(window.location.search).get('lancement')==='1';if(f){document.documentElement.classList.add('show-splash');}else if(s&&!sessionStorage.getItem('baol-splash-seen')){document.documentElement.classList.add('show-splash');sessionStorage.setItem('baol-splash-seen','1');}}catch(e){}})();`,
+        }}
+      />
+
+      {/* Styles autonomes du splash screen et de son filet de sécurité 100% CSS */}
       <style>{`
+        #app-splash {
+          display: none;
+          position: fixed;
+          inset: 0;
+          z-index: 120;
+          background-color: var(--vert-baol-fonce, #005A22);
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          color: #ffffff;
+          user-select: none;
+          -webkit-user-select: none;
+          padding-top: max(16px, env(safe-area-inset-top, 16px));
+          padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+          padding-left: max(16px, env(safe-area-inset-left, 16px));
+          padding-right: max(16px, env(safe-area-inset-right, 16px));
+          transition: opacity 300ms ease-out;
+        }
+
+        html.show-splash #app-splash {
+          display: flex;
+          animation: splashAutoDismiss 0.3s ease-out 1.9s forwards;
+        }
+
+        #app-splash.splash-fading {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
+        @keyframes splashAutoDismiss {
+          to {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+          }
+        }
+
+        .splash-content-anim {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          max-width: 340px;
+          animation: splashEnter 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes splashEnter {
+          from {
+            opacity: 0;
+            transform: scale(0.92);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .splash-loader-dots {
+          display: flex;
+          gap: 8px;
+          margin-top: 2.25rem;
+        }
+
+        .splash-loader-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: rgba(255, 255, 255, 0.7);
+          animation: splashPulse 1.2s infinite ease-in-out;
+        }
+
+        .splash-loader-dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+
+        .splash-loader-dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
+
+        @keyframes splashPulse {
+          0%, 80%, 100% {
+            transform: scale(0.7);
+            opacity: 0.4;
+          }
+          40% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          html.show-splash #app-splash {
+            animation: splashAutoDismiss 0.01s linear 2.2s forwards;
+          }
+          .splash-content-anim,
+          .splash-loader-dot {
+            animation: none !important;
+            transform: none !important;
+          }
+        }
+
+        /* Masquage de la barre de défilement pour la présentation */
         .onboarding-slider {
           scrollbar-width: none;
           -ms-overflow-style: none;
@@ -203,7 +348,37 @@ export default function AppLaunch() {
         }
       `}</style>
 
-      {/* Présentation en 3 écrans (Onboarding direct au premier lancement) */}
+      {/* Écran de démarrage (Splash Screen vert de marque) */}
+      {splashMounted && (
+        <div
+          id="app-splash"
+          className={splashFading ? 'splash-fading' : ''}
+          aria-hidden="true"
+        >
+          <div className="splash-content-anim">
+            <div className="mb-6 flex justify-center">
+              <Image
+                src="/logo-bm.png"
+                alt="Baol Market"
+                width={180}
+                height={60}
+                className="brightness-0 invert opacity-95 object-contain"
+                priority
+              />
+            </div>
+            <p className="text-base text-white/85 text-center leading-relaxed">
+              Des produits vérifiés, livrés en confiance.
+            </p>
+            <div className="splash-loader-dots" aria-hidden="true">
+              <div className="splash-loader-dot" />
+              <div className="splash-loader-dot" />
+              <div className="splash-loader-dot" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Présentation en 3 écrans (Onboarding) */}
       {showOnboarding && (
         <div
           role="dialog"
