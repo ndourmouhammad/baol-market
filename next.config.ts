@@ -40,6 +40,7 @@ const nextConfig: NextConfig = {
         '/reinitialiser-mot-de-passe',
         '/paiement/:path*',
         '/auth/:path*',
+        '/profil',
       ].map((source) => ({
         source,
         headers: [

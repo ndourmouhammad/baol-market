@@ -256,12 +256,23 @@ export default function Header() {
               <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
                 {user ? (
                   <div className="flex items-center gap-4">
-                    <div
-                      className="w-9 h-9 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) flex items-center justify-center font-serif font-bold text-sm border border-(--vert-baol)/20"
-                      title={menuName}
-                    >
-                      {initial ?? <User className="w-4 h-4" />}
-                    </div>
+                    {!isStaff ? (
+                      <Link
+                        href="/profil"
+                        aria-label="Mon profil"
+                        title={menuName}
+                        className="w-9 h-9 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) flex items-center justify-center font-serif font-bold text-sm border border-(--vert-baol)/20 hover:border-(--vert-baol)/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+                      >
+                        {initial ?? <User className="w-4 h-4" />}
+                      </Link>
+                    ) : (
+                      <div
+                        className="w-9 h-9 rounded-full bg-(--vert-baol)/10 text-(--vert-baol-fonce) flex items-center justify-center font-serif font-bold text-sm border border-(--vert-baol)/20"
+                        title={menuName}
+                      >
+                        {initial ?? <User className="w-4 h-4" />}
+                      </div>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="text-sm font-medium text-(--gris-texte) hover:text-(--rouge-erreur) transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--rouge-erreur) rounded-md px-2 py-1"
@@ -384,16 +395,34 @@ export default function Header() {
 
           {user && (
             <div className="px-4 py-4 bg-gray-50/50 border-b border-gray-100 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-(--vert-baol) text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {initial ?? <User className="w-6 h-6" />}
+              {!isStaff ? (
+                <Link
+                  href="/profil"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 hover:opacity-85 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-xl"
+                  aria-label="Mon profil"
+                >
+                  <div className="w-12 h-12 rounded-full bg-(--vert-baol) text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                    {initial ?? <User className="w-6 h-6" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-(--encre) truncate">{menuName}</p>
+                    {menuContact && <p className="text-xs text-(--gris-texte) truncate">{menuContact}</p>}
+                    <p className="text-xs text-(--vert-baol) font-medium mt-0.5">Compte client</p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-(--vert-baol) text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                    {initial ?? <User className="w-6 h-6" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-(--encre) truncate">{menuName}</p>
+                    {menuContact && <p className="text-xs text-(--gris-texte) truncate">{menuContact}</p>}
+                    <p className="text-xs text-(--vert-baol) font-medium mt-0.5">{staffLabel}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-(--encre) truncate">{menuName}</p>
-                  {menuContact && <p className="text-xs text-(--gris-texte) truncate">{menuContact}</p>}
-                  <p className="text-xs text-(--vert-baol) font-medium mt-0.5">{isStaff ? staffLabel : 'Compte client'}</p>
-                </div>
-              </div>
+              )}
               <PushToggle />
             </div>
           )}
@@ -431,6 +460,19 @@ export default function Header() {
               >
                 <ShoppingBag className={`w-5 h-5 ${pathname === '/orders' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
                 Mes commandes
+              </Link>
+            )}
+
+            {user && !isStaff && (
+              <Link
+                href="/profil"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3.5 text-base font-medium rounded-xl transition-colors ${
+                  pathname === '/profil' ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'text-(--encre) hover:bg-gray-50'
+                }`}
+              >
+                <User className={`w-5 h-5 ${pathname === '/profil' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
+                Mon profil
               </Link>
             )}
 
