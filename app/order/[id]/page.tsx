@@ -10,7 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { fetchLivePrices, type LivePrice } from '@/lib/livePrices'
 import { PAYMENT_TITLE, PAYMENT_DETAIL } from '@/lib/paymentInfo'
-import { ShieldCheck, Truck, ShoppingBag, MapPin, Store } from 'lucide-react'
+import { ShieldCheck, Truck, ShoppingBag, MapPin } from 'lucide-react'
 import Image from 'next/image'
 import {
   DeliveryChooser,
@@ -153,7 +153,7 @@ export default function OrderPage() {
       body: JSON.stringify({
         items: [{ productId: product.id, quantity }],
         deliveryMode: deliveryChoice.mode,
-        ...(deliveryChoice.mode !== 'pickup' ? { deliveryZoneId: deliveryChoice.zoneId } : {}),
+        deliveryZoneId: deliveryChoice.zoneId,
       }),
     })
     const json = await res.json()
@@ -206,9 +206,7 @@ export default function OrderPage() {
   const total = subtotal + deliveryFee
 
   let deliverySummary = '—'
-  if (deliveryChoice.mode === 'pickup') {
-    deliverySummary = 'Gratuit (retrait)'
-  } else if (deliveryChoice.mode === 'self_arranged') {
+  if (deliveryChoice.mode === 'self_arranged') {
     deliverySummary = '0 FCFA (gérée par vous)'
   } else if (deliveryChoice.mode === 'delivery') {
     deliverySummary = deliveryChoice.zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'
@@ -392,14 +390,7 @@ export default function OrderPage() {
                 </div>
               </div>
 
-              {deliveryChoice.mode === 'pickup' ? (
-                <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
-                  <Store className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
-                  <p className="text-(--gris-texte) leading-relaxed">
-                    Retrait : notre équipe vous communiquera l&apos;adresse de retrait par notification ou par appel.
-                  </p>
-                </div>
-              ) : deliveryChoice.mode === 'self_arranged' ? (
+              {deliveryChoice.mode === 'self_arranged' ? (
                 <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
                   <MapPin className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
                   <p className="text-(--gris-texte) leading-relaxed">
@@ -410,7 +401,7 @@ export default function OrderPage() {
                 <div className="mt-8 bg-gray-50 rounded-xl p-4 flex gap-3 text-sm">
                   <Truck className="w-5 h-5 text-(--vert-baol) shrink-0 mt-0.5" />
                   <p className="text-(--gris-texte) leading-relaxed">
-                    Livraison suivie. Une fois la commande confirmée, un coursier vous contactera.
+                    Livraison suivie. Un livreur vous contactera une fois la commande confirmée.
                   </p>
                 </div>
               )}

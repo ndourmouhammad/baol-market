@@ -22,12 +22,12 @@ const SLIDES: SlideData[] = [
   },
   {
     title: 'Commandez et payez en ligne',
-    text: 'Choisissez vos produits, indiquez si vous voulez la livraison ou le retrait, puis payez en toute sécurité.',
+    text: 'Choisissez vos produits, indiquez votre zone de livraison, puis payez en toute sécurité.',
     Icon: ShoppingBag,
   },
   {
     title: 'Suivez votre commande',
-    text: 'Une notification à chaque étape, de la préparation jusqu\'à la livraison ou au retrait.',
+    text: 'Une notification à chaque étape, de la préparation jusqu\'à la livraison.',
     Icon: Bell,
   },
 ]

@@ -22,8 +22,8 @@ export async function POST(request: Request) {
   }
   const customerId = user.id
 
-  type DeliveryMode = 'delivery' | 'pickup' | 'self_arranged'
-  const VALID_MODES: DeliveryMode[] = ['delivery', 'pickup', 'self_arranged']
+  type DeliveryMode = 'delivery' | 'self_arranged'
+  const VALID_MODES: DeliveryMode[] = ['delivery', 'self_arranged']
 
   let body: { items?: CartItemInput[]; deliveryMode?: string; deliveryZoneId?: string }
   try {
@@ -35,6 +35,10 @@ export async function POST(request: Request) {
   const { items, deliveryMode, deliveryZoneId } = body
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'Informations de commande incomplètes.' }, { status: 400 })
+  }
+
+  if (deliveryMode === 'pickup') {
+    return NextResponse.json({ error: "Ce mode de réception n'est plus disponible." }, { status: 400 })
   }
 
   if (deliveryMode !== undefined && !VALID_MODES.includes(deliveryMode as DeliveryMode)) {
@@ -84,53 +88,46 @@ export async function POST(request: Request) {
   let deliveryFee = 0
   let effectiveZoneId: string | null = null
 
-  if (deliveryMode === 'pickup') {
-    // 'pickup' : ignorer deliveryZoneId, frais 0, delivery_zone_id null
-    resolvedMode = 'pickup'
+  if (typeof deliveryZoneId !== 'string' || !deliveryZoneId) {
+    return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+  }
+
+  const { data: zone, error: zoneError } = await supabaseAdmin
+    .from('delivery_zones')
+    .select('id, fee, zone_kind')
+    .eq('id', deliveryZoneId)
+    .single()
+
+  if (zoneError || !zone) {
+    return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+  }
+
+  const zoneKind = zone.zone_kind ?? 'local'
+
+  if (deliveryMode === 'delivery') {
+    if (zoneKind !== 'local') {
+      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+    }
+    resolvedMode = 'delivery'
+    deliveryFee = zone.fee
+    effectiveZoneId = zone.id
+  } else if (deliveryMode === 'self_arranged') {
+    if (zoneKind !== 'region') {
+      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
+    }
+    resolvedMode = 'self_arranged'
     deliveryFee = 0
-    effectiveZoneId = null
+    effectiveZoneId = zone.id
   } else {
-    if (typeof deliveryZoneId !== 'string' || !deliveryZoneId) {
-      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
-    }
-
-    const { data: zone, error: zoneError } = await supabaseAdmin
-      .from('delivery_zones')
-      .select('id, fee, zone_kind')
-      .eq('id', deliveryZoneId)
-      .single()
-
-    if (zoneError || !zone) {
-      return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
-    }
-
-    const zoneKind = zone.zone_kind ?? 'local'
-
-    if (deliveryMode === 'delivery') {
-      if (zoneKind !== 'local') {
-        return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
-      }
-      resolvedMode = 'delivery'
-      deliveryFee = zone.fee
-      effectiveZoneId = zone.id
-    } else if (deliveryMode === 'self_arranged') {
-      if (zoneKind !== 'region') {
-        return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
-      }
+    // deliveryMode est absent (ancien client) : déduire de zone_kind
+    if (zoneKind === 'region') {
       resolvedMode = 'self_arranged'
       deliveryFee = 0
-      effectiveZoneId = zone.id
     } else {
-      // deliveryMode est absent (ancien client) : déduire de zone_kind
-      if (zoneKind === 'region') {
-        resolvedMode = 'self_arranged'
-        deliveryFee = 0
-      } else {
-        resolvedMode = 'delivery'
-        deliveryFee = zone.fee
-      }
-      effectiveZoneId = zone.id
+      resolvedMode = 'delivery'
+      deliveryFee = zone.fee
     }
+    effectiveZoneId = zone.id
   }
 
   // Prix toujours relus depuis la base, jamais depuis le navigateur.

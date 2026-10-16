@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useId, useMemo, useRef } from 'react'
-import { Truck, Store, MapPin, CheckCircle2 } from 'lucide-react'
+import { Truck, MapPin, CheckCircle2 } from 'lucide-react'
 
-export type DeliveryMode = 'delivery' | 'pickup' | 'self_arranged'
+export type DeliveryMode = 'delivery' | 'self_arranged'
 
 export interface DeliveryChoice {
   mode: DeliveryMode | null
@@ -34,10 +34,6 @@ export function isDeliveryChoiceValid(
   zones: { id: string; zone_kind?: string }[]
 ): boolean {
   if (!choice || !choice.mode) return false
-
-  if (choice.mode === 'pickup') {
-    return true
-  }
 
   if (!choice.zoneId) return false
   const zone = zones.find((z) => z.id === choice.zoneId)
@@ -83,9 +79,6 @@ export function describeDelivery(
   if (choice.mode === 'delivery') {
     return zone ? `Livraison à Diourbel (${zone.name})` : 'Livraison à Diourbel'
   }
-  if (choice.mode === 'pickup') {
-    return 'Retrait en boutique'
-  }
   if (choice.mode === 'self_arranged') {
     return zone ? `Hors Diourbel (${zone.name})` : 'Hors Diourbel'
   }
@@ -103,12 +96,6 @@ const MODES: {
     title: 'Livraison à Diourbel',
     subtitle: 'Un livreur vous apporte votre commande.',
     icon: Truck,
-  },
-  {
-    id: 'pickup',
-    title: 'Retrait',
-    subtitle: 'Vous venez chercher votre commande.',
-    icon: Store,
   },
   {
     id: 'self_arranged',
@@ -178,18 +165,20 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
     }
   }
 
+  const effectiveMode = (value.mode === 'delivery' || value.mode === 'self_arranged') ? value.mode : null
+
   return (
     <div className="space-y-4">
-      {/* Grille des 3 modes */}
+      {/* Grille des 2 modes */}
       <div
         role="radiogroup"
         aria-label="Mode de remise de la commande"
-        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
       >
         {MODES.map((option, index) => {
-          const isSelected = value.mode === option.id
+          const isSelected = effectiveMode === option.id
           const Icon = option.icon
-          const tabIndex = value.mode === null ? (index === 0 ? 0 : -1) : isSelected ? 0 : -1
+          const tabIndex = effectiveMode === null ? (index === 0 ? 0 : -1) : isSelected ? 0 : -1
 
           return (
             <div
@@ -246,7 +235,7 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
       {/* Contenu conditionnel selon le mode choisi */}
 
       {/* 1. Livraison à Diourbel : Menu des quartiers & Frais */}
-      {value.mode === 'delivery' && (
+      {effectiveMode === 'delivery' && (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
           <label htmlFor={localSelectId} className="block text-sm font-bold text-(--encre)">
             Quartier de livraison à Diourbel
@@ -284,19 +273,8 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
         </div>
       )}
 
-      {/* 2. Retrait en boutique */}
-      {value.mode === 'pickup' && (
-        <div className="bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-2xl p-4 sm:p-5 flex items-start gap-3 text-sm text-(--vert-baol-fonce) animate-in fade-in duration-200">
-          <Store className="w-5 h-5 shrink-0 text-(--vert-baol) mt-0.5" />
-          <p className="leading-relaxed">
-            <strong className="block font-semibold mb-0.5">Aucun frais.</strong>
-            Notre équipe vous communiquera l&apos;adresse de retrait par notification ou par appel.
-          </p>
-        </div>
-      )}
-
-      {/* 3. Hors Diourbel : Menu des régions */}
-      {value.mode === 'self_arranged' && (
+      {/* 2. Hors Diourbel : Menu des régions */}
+      {effectiveMode === 'self_arranged' && (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
           <label htmlFor={regionSelectId} className="block text-sm font-bold text-(--encre)">
             Région de destination

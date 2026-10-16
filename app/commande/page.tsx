@@ -51,8 +51,9 @@ export default function CheckoutPage() {
           const parsed = JSON.parse(draft)
           const mode = parsed.mode
           const zoneId = typeof parsed.zoneId === 'string' ? parsed.zoneId : ''
-          const validModes = ['delivery', 'pickup', 'self_arranged']
-          if (validModes.includes(mode)) {
+          if (mode === 'pickup') {
+            // Ancien mode 'pickup' enregistré : ignoré sans erreur
+          } else if (mode === 'delivery' || mode === 'self_arranged') {
             setDeliveryChoice({ mode, zoneId })
           } else if (zoneId) {
             setDeliveryChoice({ mode: 'delivery', zoneId })
@@ -124,7 +125,7 @@ export default function CheckoutPage() {
       body: JSON.stringify({
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         deliveryMode: deliveryChoice.mode,
-        ...(deliveryChoice.mode !== 'pickup' ? { deliveryZoneId: deliveryChoice.zoneId } : {}),
+        deliveryZoneId: deliveryChoice.zoneId,
       }),
     })
     const json = await res.json()
@@ -166,9 +167,7 @@ export default function CheckoutPage() {
   }
 
   let deliverySummary = '—'
-  if (deliveryChoice.mode === 'pickup') {
-    deliverySummary = 'Gratuit (retrait)'
-  } else if (deliveryChoice.mode === 'self_arranged') {
+  if (deliveryChoice.mode === 'self_arranged') {
     deliverySummary = '0 FCFA (gérée par vous)'
   } else if (deliveryChoice.mode === 'delivery') {
     deliverySummary = deliveryChoice.zoneId ? `${deliveryFee.toLocaleString('fr-SN')} FCFA` : '—'
