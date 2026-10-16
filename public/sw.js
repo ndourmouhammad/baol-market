@@ -1,8 +1,8 @@
 // Service Worker Baol Market (PWA & Push Notifications)
 // IMPORTANT : AUCUN cache de pages ni de données (les prix et ventes flash doivent toujours être frais).
-// Seule la page de secours /hors-ligne.html et son icône sont conservées pour le mode hors connexion.
+// Seule la page de secours /hors-ligne.html et son logo sont conservés pour le mode hors connexion.
 
-const OFFLINE_CACHE = 'baol-offline-v1'
+const OFFLINE_CACHE = 'baol-offline-v2'
 const OFFLINE_URLS = ['/hors-ligne.html', '/logo/logo-192x192.png']
 
 self.addEventListener('install', (event) => {
@@ -33,7 +33,7 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode !== 'navigate' || event.request.method !== 'GET') {
+  if (event.request.method !== 'GET') {
     return
   }
 
@@ -41,6 +41,19 @@ self.addEventListener('fetch', (event) => {
   try {
     url = new URL(event.request.url)
   } catch {
+    return
+  }
+
+  // 1. Servir le logo hors ligne depuis le cache s'il est demandé
+  if (url.origin === self.location.origin && url.pathname === '/logo/logo-192x192.png') {
+    event.respondWith(
+      caches.match('/logo/logo-192x192.png').then((response) => response || fetch(event.request))
+    )
+    return
+  }
+
+  // 2. Navigation de page uniquement
+  if (event.request.mode !== 'navigate') {
     return
   }
 
