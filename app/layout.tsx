@@ -9,6 +9,7 @@ import InstallPrompt from "@/components/InstallPrompt";
 import AudioGuide from "@/components/AudioGuide";
 import PushInvite from "@/components/PushInvite";
 import OfflineBanner from "@/components/OfflineBanner";
+import AppLaunch from "@/components/AppLaunch";
 import { SITE_URL } from "@/lib/siteUrl";
 
 const inter = Inter({
@@ -78,6 +79,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-(--fond) text-(--encre)" suppressHydrationWarning>
+        <AppLaunch />
         <CartProvider>
           <ServiceWorkerRegister />
           <OfflineBanner />
