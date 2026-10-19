@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { Breadcrumb } from '@/components/Breadcrumb'
 import { ShieldCheck } from 'lucide-react'
 import { flashDisplay } from '@/lib/flashSale'
+import { SITE_URL } from '@/lib/siteUrl'
 
 // Mise à jour automatique au plus toutes les 60 secondes (ventes flash comprises)
 export const revalidate = 60
@@ -21,8 +22,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   if (!category) return { title: 'Catégorie introuvable - Baol Market' }
 
-  const title = `${category.name} - Baol Market`
-  const description = category.description || `Découvrez nos produits locaux vérifiés dans la catégorie ${category.name}.`
+  const title = `${category.name} au Sénégal - Baol Market`
+  const description =
+    category.description && category.description.trim().length > 0
+      ? category.description
+      : `Découvrez notre sélection de produits vérifiés dans la catégorie ${category.name} au Sénégal sur Baol Market.`
 
   const metadata: Metadata = {
     title,
@@ -91,8 +95,39 @@ export default async function CategoryPage({
     })
   )
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Accueil',
+        item: SITE_URL,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Catalogue',
+        item: `${SITE_URL}/produits`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: category.name,
+        item: `${SITE_URL}/categorie/${category.slug}`,
+      },
+    ],
+  }
+
   return (
     <main className="bg-(--fond) pb-20 min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c'),
+        }}
+      />
       {/* En-tête catégorie / Bannière */}
       <section className="relative w-full h-44 sm:h-56 md:h-72 bg-(--vert-baol-fonce) overflow-hidden border-b border-(--vert-baol)">
         {category.image_url && (

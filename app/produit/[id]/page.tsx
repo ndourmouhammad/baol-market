@@ -9,6 +9,7 @@ import VerifiedBadge from '@/components/VerifiedBadge'
 import { ProductPurchase } from '@/components/ProductPurchase'
 import { CategoryProductRow } from '@/components/CategoryProductRow'
 import { ShoppingBag, ShieldCheck, Wallet, Truck, RotateCcw } from 'lucide-react'
+import { SITE_URL } from '@/lib/siteUrl'
 
 export const revalidate = 60
 
@@ -142,24 +143,73 @@ export default async function ProductDetailPage({ params }: Props) {
     ? product.categories[0]
     : product.categories
 
-  // Données structurées JSON-LD (schema.org Product)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const productUrl = siteUrl ? `${siteUrl.replace(/\/$/, '')}/produit/${product.id}` : undefined
+  // Données structurées JSON-LD (schema.org Product & BreadcrumbList)
+  const productUrl = `${SITE_URL}/produit/${product.id}`
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const productJsonLd = {
     '@type': 'Product',
     name: product.name,
     ...(product.description ? { description: product.description } : {}),
     ...(product.image_url ? { image: product.image_url } : {}),
-    ...(productUrl ? { url: productUrl } : {}),
+    url: productUrl,
     offers: {
       '@type': 'Offer',
       price: currentPrice,
       priceCurrency: 'XOF',
       availability: 'https://schema.org/InStock',
-      ...(productUrl ? { url: productUrl } : {}),
+      url: productUrl,
+      seller: {
+        '@type': 'Organization',
+        name: 'Baol Market',
+      },
+      ...(flash && product.flash_ends_at ? { priceValidUntil: product.flash_ends_at } : {}),
     },
+  }
+
+  const breadcrumbJsonLd = {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Accueil',
+        item: SITE_URL,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Catalogue',
+        item: `${SITE_URL}/produits`,
+      },
+      ...(category?.name && category?.slug
+        ? [
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: category.name,
+              item: `${SITE_URL}/categorie/${category.slug}`,
+            },
+            {
+              '@type': 'ListItem',
+              position: 4,
+              name: product.name,
+              item: productUrl,
+            },
+          ]
+        : [
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: product.name,
+              item: productUrl,
+            },
+          ]),
+    ],
+  }
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [productJsonLd, breadcrumbJsonLd],
   }
 
   // Produits de la même catégorie
@@ -225,7 +275,7 @@ export default async function ProductDetailPage({ params }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
         }}
       />
 

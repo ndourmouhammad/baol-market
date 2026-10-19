@@ -15,7 +15,7 @@ import { PAYMENT_DETAIL } from '@/lib/paymentInfo'
 import { SITE_URL } from '@/lib/siteUrl'
 
 export const metadata: Metadata = {
-  title: 'Baol Market - Achetez des produits vérifiés au Sénégal',
+  title: 'Baol Market | Marketplace au Sénégal : produits vérifiés, livraison dans tout le pays',
   description: 'Découvrez des produits locaux vérifiés, commandez simplement et payez en ligne en toute sécurité avec Baol Market.',
   alternates: {
     canonical: '/',
@@ -70,9 +70,11 @@ const structuredData = {
     {
       '@type': 'Organization',
       name: 'Baol Market',
+      alternateName: ['BaolMarket', 'Baol Market Sénégal'],
       legalName: 'Mohamed Saw Business',
       url: SITE_URL,
       logo: `${SITE_URL}/logo/logo-512x512.png`,
+      areaServed: 'SN',
       address: {
         '@type': 'PostalAddress',
         addressLocality: 'Diourbel',
@@ -229,6 +231,7 @@ export default async function Home() {
       {carouselSlides.length > 0 ? (
         /* Carrousel de bannières (géré depuis l'admin) */
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">
+          <h1 className="sr-only">Baol Market, la marketplace de produits vérifiés au Sénégal</h1>
           <BannerCarousel slides={carouselSlides} />
         </section>
       ) : (

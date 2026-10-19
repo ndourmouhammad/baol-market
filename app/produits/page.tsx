@@ -7,8 +7,8 @@ import { EmptyState } from '@/components/EmptyState'
 import { flashDisplay } from '@/lib/flashSale'
 
 export const metadata: Metadata = {
-  title: 'Tous les produits - Baol Market',
-  description: 'Parcourez l\'ensemble de notre catalogue de produits locaux vérifiés.',
+  title: 'Tous les produits au Sénégal - Baol Market',
+  description: "Parcourez l'ensemble de notre catalogue de produits vérifiés au Sénégal avec paiement sécurisé et livraison dans tout le pays.",
   alternates: {
     canonical: '/produits',
   },
