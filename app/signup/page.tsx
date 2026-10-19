@@ -17,6 +17,7 @@ function SignupContent() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -30,7 +31,7 @@ function SignupContent() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName, lastName, phone, password, email: email.trim() || undefined }),
+      body: JSON.stringify({ firstName, lastName, phone, password, email: email.trim() || undefined, acceptedTerms: true }),
     })
     const json = await res.json()
 
@@ -161,6 +162,37 @@ function SignupContent() {
                 autoComplete="new-password"
               />
 
+              {/* Case à cocher CGV */}
+              <div className="flex items-start gap-3 pt-2">
+                <input
+                  id="terms"
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-(--vert-baol) focus:ring-(--vert-baol) cursor-pointer accent-(--vert-baol)"
+                />
+                <label htmlFor="terms" className="text-sm text-(--gris-texte) leading-snug cursor-pointer select-none">
+                  J&apos;ai lu et j&apos;accepte les{' '}
+                  <a
+                    href="/cgv"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-(--vert-baol) underline underline-offset-2 hover:text-(--vert-baol-fonce) transition-colors"
+                  >
+                    conditions générales de vente
+                  </a>{' '}
+                  et les{' '}
+                  <a
+                    href="/mentions-legales"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-(--vert-baol) underline underline-offset-2 hover:text-(--vert-baol-fonce) transition-colors"
+                  >
+                    mentions légales
+                  </a>.
+                </label>
+              </div>
+
               {error && (
                 <div className="pt-1">
                   <ErrorMessage message={error} />
@@ -169,7 +201,7 @@ function SignupContent() {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !termsAccepted}
                 loading={loading}
                 fullWidth
                 className="py-3.5 shadow-md text-base font-semibold mt-2"

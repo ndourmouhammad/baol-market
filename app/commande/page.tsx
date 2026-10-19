@@ -228,6 +228,10 @@ export default function CheckoutPage() {
           <Button type="submit" fullWidth size="lg" disabled={loading || !isFormValid}>
             {loading ? 'Redirection vers le paiement...' : `Payer — ${total.toLocaleString('fr-SN')} FCFA`}
           </Button>
+          <p className="text-center text-xs text-(--gris-texte) mt-3">
+            En payant, vous confirmez avoir lu les{' '}
+            <Link href="/cgv" target="_blank" rel="noopener noreferrer" className="underline hover:text-(--encre) transition-colors">CGV</Link>.
+          </p>
         </form>
 
         <div className="bg-white border border-gray-100 rounded-2xl p-5 h-fit">

@@ -320,6 +320,10 @@ export default function OrderPage() {
                 <p className="text-center text-xs text-(--gris-texte) mt-4 flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-4 h-4" /> Paiement 100% sécurisé
                 </p>
+                <p className="text-center text-xs text-(--gris-texte) mt-2">
+                  En payant, vous confirmez avoir lu les{' '}
+                  <Link href="/cgv" target="_blank" rel="noopener noreferrer" className="underline hover:text-(--encre) transition-colors">CGV</Link>.
+                </p>
               </div>
             </form>
           </div>
@@ -387,6 +391,10 @@ export default function OrderPage() {
                   >
                     {loading ? 'Redirection vers le paiement...' : `Payer — ${total.toLocaleString('fr-SN')} FCFA`}
                   </Button>
+                  <p className="text-center text-xs text-(--gris-texte) mt-3">
+                    En payant, vous confirmez avoir lu les{' '}
+                    <Link href="/cgv" target="_blank" rel="noopener noreferrer" className="underline hover:text-(--encre) transition-colors">CGV</Link>.
+                  </p>
                 </div>
               </div>
 

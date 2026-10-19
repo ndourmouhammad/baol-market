@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/phoneAuth'
+import { TERMS_VERSION } from '@/lib/terms'
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { firstName, lastName, phone, password, email } = body
+  const { firstName, lastName, phone, password, email, acceptedTerms } = body
 
   if (!firstName?.trim() || !lastName?.trim() || !phone || !password) {
     return NextResponse.json({ error: 'Tous les champs obligatoires doivent être remplis.' }, { status: 400 })
+  }
+
+  if (acceptedTerms !== true) {
+    return NextResponse.json(
+      { error: 'Vous devez accepter les conditions générales de vente pour créer un compte.' },
+      { status: 400 }
+    )
   }
 
   const canonicalPhone = normalizePhone(phone)
@@ -51,6 +59,8 @@ export async function POST(request: Request) {
     last_name: lastName.trim(),
     phone: canonicalPhone,
     email: email?.trim() || null,
+    terms_accepted_at: new Date().toISOString(),
+    terms_version: TERMS_VERSION,
   })
 
   if (profileError) {
