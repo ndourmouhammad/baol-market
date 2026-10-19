@@ -34,6 +34,7 @@ type Order = {
   delivery_fee: number | null
   delivery_address: string
   created_at: string
+  updated_at: string
   rider_id: string | null
   customer_id: string | null
   order_items: OrderItem[]
@@ -77,8 +78,8 @@ function businessDaysSince(isoDate: string): number {
 }
 
 function refundUrgencyColor(days: number): string {
-  if (days >= 5) return 'text-red-600'
-  if (days >= 3) return 'text-orange-500'
+  if (days >= 3) return 'text-red-600'
+  if (days >= 2) return 'text-orange-500'
   return 'text-(--gris-texte)'
 }
 
@@ -370,7 +371,10 @@ export default function AdminOrdersPage() {
                     {isRefundable && order.paid_at && (
                       <div className="mt-2 space-y-1">
                         {(() => {
-                          const days = businessDaysSince(order.paid_at)
+                          const refundStart = order.updated_at && order.updated_at > order.paid_at
+                            ? order.updated_at
+                            : order.paid_at
+                          const days = businessDaysSince(refundStart)
                           return (
                             <p className={`text-xs font-medium ${refundUrgencyColor(days)}`}>
                               À rembourser depuis {days} jour{days !== 1 ? 's' : ''} ouvrable{days !== 1 ? 's' : ''}

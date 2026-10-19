@@ -357,7 +357,7 @@ export default async function ProductDetailPage({ params }: Props) {
                     <RotateCcw className="w-4 h-4" />
                   </div>
                   <p className="leading-snug">
-                    Annulation possible jusqu&apos;à la confirmation, avec remboursement sous 7 jours ouvrables
+                    Annulation possible jusqu&apos;à la confirmation, avec remboursement sous 3 jours ouvrables
                   </p>
                 </div>
               </div>

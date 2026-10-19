@@ -291,7 +291,7 @@ export default function OrdersPage() {
                         <div>
                           <StatusBadge status={order.status} fulfillmentMethod={order.fulfillment_method} />
                           {order.status === 'cancelled' && order.paid_at && !order.refunded_at && (
-                            <p className="text-xs font-medium text-orange-600 mt-1">Remboursement en cours, sous 7 jours ouvrables</p>
+                            <p className="text-xs font-medium text-orange-600 mt-1">Remboursement en cours, sous 3 jours ouvrables</p>
                           )}
                           {order.status === 'refunded' && (
                             <p className="text-xs font-medium text-rose-700 mt-1">Remboursée</p>
