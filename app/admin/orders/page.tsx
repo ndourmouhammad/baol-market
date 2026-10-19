@@ -45,6 +45,7 @@ type Order = {
   refunded_at: string | null
   refund_reference: string | null
   fulfillment_method: string | null
+  delivery_department: string | null
 }
 
 const FULFILLMENT_BADGES: Record<FulfillmentMethod, string> = {
@@ -488,7 +489,10 @@ export default function AdminOrdersPage() {
                         )}
                         {method === 'self_arranged' && (
                           <div>
-                            <span>Région : {order.delivery_zones?.name ?? 'Non renseignée'}</span>
+                            <span>
+                              Région : {order.delivery_zones?.name ?? 'Non renseignée'}
+                              {order.delivery_department ? ` · Département : ${order.delivery_department}` : ''}
+                            </span>
                             <span className="block text-xs font-normal text-(--gris-texte)">Livraison gérée par le client</span>
                           </div>
                         )}

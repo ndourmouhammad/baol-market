@@ -29,6 +29,7 @@ export default function CheckoutPage() {
   const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>({
     mode: null,
     zoneId: '',
+    department: '',
   })
   const [loading, setLoading] = useState(false)
   const [initLoading, setInitLoading] = useState(true)
@@ -51,12 +52,18 @@ export default function CheckoutPage() {
           const parsed = JSON.parse(draft)
           const mode = parsed.mode
           const zoneId = typeof parsed.zoneId === 'string' ? parsed.zoneId : ''
+          const department = typeof parsed.department === 'string' ? parsed.department : ''
           if (mode === 'pickup') {
             // Ancien mode 'pickup' enregistré : ignoré sans erreur
-          } else if (mode === 'delivery' || mode === 'self_arranged') {
-            setDeliveryChoice({ mode, zoneId })
+          } else if (mode === 'delivery') {
+            setDeliveryChoice({ mode: 'delivery', zoneId, department: '' })
+          } else if (mode === 'self_arranged') {
+            // Un ancien brouillon sans département est ignoré proprement
+            if (department) {
+              setDeliveryChoice({ mode: 'self_arranged', zoneId, department })
+            }
           } else if (zoneId) {
-            setDeliveryChoice({ mode: 'delivery', zoneId })
+            setDeliveryChoice({ mode: 'delivery', zoneId, department: '' })
           }
         }
       } catch (e) {
@@ -126,6 +133,7 @@ export default function CheckoutPage() {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         deliveryMode: deliveryChoice.mode,
         deliveryZoneId: deliveryChoice.zoneId,
+        deliveryDepartment: deliveryChoice.department,
       }),
     })
     const json = await res.json()

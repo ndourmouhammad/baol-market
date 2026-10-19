@@ -38,6 +38,7 @@ export default function OrderPage() {
   const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>({
     mode: null,
     zoneId: '',
+    department: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -154,6 +155,7 @@ export default function OrderPage() {
         items: [{ productId: product.id, quantity }],
         deliveryMode: deliveryChoice.mode,
         deliveryZoneId: deliveryChoice.zoneId,
+        deliveryDepartment: deliveryChoice.department,
       }),
     })
     const json = await res.json()

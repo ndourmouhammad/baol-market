@@ -2,12 +2,14 @@
 
 import React, { useId, useMemo, useRef } from 'react'
 import { Truck, MapPin, CheckCircle2 } from 'lucide-react'
+import { getDepartmentsForRegion, isValidDepartmentForRegion } from '@/lib/senegalDepartments'
 
 export type DeliveryMode = 'delivery' | 'self_arranged'
 
 export interface DeliveryChoice {
   mode: DeliveryMode | null
   zoneId: string
+  department: string
 }
 
 export interface DeliveryZone {
@@ -31,7 +33,7 @@ export interface DeliveryChooserProps {
  */
 export function isDeliveryChoiceValid(
   choice: DeliveryChoice | null | undefined,
-  zones: { id: string; zone_kind?: string }[]
+  zones: { id: string; name?: string; zone_kind?: string }[]
 ): boolean {
   if (!choice || !choice.mode) return false
 
@@ -45,7 +47,9 @@ export function isDeliveryChoiceValid(
   }
 
   if (choice.mode === 'self_arranged') {
-    return zone.zone_kind === 'region'
+    if (zone.zone_kind !== 'region') return false
+    if (!choice.department || !choice.department.trim()) return false
+    return isValidDepartmentForRegion(zone.name ?? '', choice.department)
   }
 
   return false
@@ -80,7 +84,10 @@ export function describeDelivery(
     return zone ? `Livraison à Diourbel (${zone.name})` : 'Livraison à Diourbel'
   }
   if (choice.mode === 'self_arranged') {
-    return zone ? `Hors Diourbel (${zone.name})` : 'Hors Diourbel'
+    if (!zone) return 'Hors Diourbel'
+    return choice.department
+      ? `Hors Diourbel (${zone.name} - ${choice.department})`
+      : `Hors Diourbel (${zone.name})`
   }
   return ''
 }
@@ -108,6 +115,7 @@ const MODES: {
 export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps) {
   const localSelectId = useId()
   const regionSelectId = useId()
+  const departmentSelectId = useId()
   const radioRefs = useRef<Array<HTMLDivElement | null>>([])
 
   // Zones locales pour Diourbel, groupées par display_group
@@ -134,12 +142,18 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
     return zones.find((z) => z.id === value.zoneId) ?? null
   }, [zones, value.zoneId])
 
+  const availableDepartments = useMemo(() => {
+    if (!selectedZone || selectedZone.zone_kind !== 'region') return []
+    return getDepartmentsForRegion(selectedZone.name)
+  }, [selectedZone])
+
   const handleSelectMode = (newMode: DeliveryMode) => {
     if (value.mode === newMode) return
-    // Changer de mode réinitialise zoneId
+    // Changer de mode réinitialise zoneId et department
     onChange({
       mode: newMode,
       zoneId: '',
+      department: '',
     })
   }
 
@@ -243,7 +257,7 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
           <select
             id={localSelectId}
             value={value.zoneId}
-            onChange={(e) => onChange({ mode: 'delivery', zoneId: e.target.value })}
+            onChange={(e) => onChange({ mode: 'delivery', zoneId: e.target.value, department: '' })}
             onKeyDown={(e) => e.stopPropagation()}
             required
             className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white text-(--encre) text-sm focus:outline-none focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol)"
@@ -273,7 +287,7 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
         </div>
       )}
 
-      {/* 2. Hors Diourbel : Menu des régions */}
+      {/* 2. Hors Diourbel : Menu des régions et départements */}
       {effectiveMode === 'self_arranged' && (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
           <label htmlFor={regionSelectId} className="block text-sm font-bold text-(--encre)">
@@ -282,7 +296,7 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
           <select
             id={regionSelectId}
             value={value.zoneId}
-            onChange={(e) => onChange({ mode: 'self_arranged', zoneId: e.target.value })}
+            onChange={(e) => onChange({ mode: 'self_arranged', zoneId: e.target.value, department: '' })}
             onKeyDown={(e) => e.stopPropagation()}
             required
             className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white text-(--encre) text-sm focus:outline-none focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol)"
@@ -296,6 +310,38 @@ export function DeliveryChooser({ zones, value, onChange }: DeliveryChooserProps
               </option>
             ))}
           </select>
+
+          {/* Choix du département dès qu'une région est sélectionnée */}
+          {selectedZone && (
+            <div className="space-y-1.5 animate-in fade-in duration-150">
+              <label htmlFor={departmentSelectId} className="block text-sm font-bold text-(--encre)">
+                Département
+              </label>
+              <select
+                id={departmentSelectId}
+                value={value.department}
+                onChange={(e) =>
+                  onChange({
+                    mode: 'self_arranged',
+                    zoneId: value.zoneId,
+                    department: e.target.value,
+                  })
+                }
+                onKeyDown={(e) => e.stopPropagation()}
+                required
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white text-(--encre) text-sm focus:outline-none focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol)"
+              >
+                <option value="" disabled>
+                  Choisissez votre département
+                </option>
+                {availableDepartments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex items-start gap-2 pt-1 text-xs sm:text-sm text-(--vert-baol-fonce) bg-(--vert-baol)/10 border border-(--vert-baol)/20 rounded-xl p-3">
             <MapPin className="w-4 h-4 shrink-0 text-(--vert-baol) mt-0.5" />

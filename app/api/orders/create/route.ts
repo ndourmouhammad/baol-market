@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { requestPaytechPayment } from '@/lib/paytech'
 import { effectivePrice } from '@/lib/flashSale'
+import { isValidDepartmentForRegion } from '@/lib/senegalDepartments'
 
 // Quantité maximale commandable par produit en une seule commande
 const MAX_QUANTITY_PER_PRODUCT = 20
@@ -25,14 +26,19 @@ export async function POST(request: Request) {
   type DeliveryMode = 'delivery' | 'self_arranged'
   const VALID_MODES: DeliveryMode[] = ['delivery', 'self_arranged']
 
-  let body: { items?: CartItemInput[]; deliveryMode?: string; deliveryZoneId?: string }
+  let body: {
+    items?: CartItemInput[]
+    deliveryMode?: string
+    deliveryZoneId?: string
+    deliveryDepartment?: string
+  }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
   }
 
-  const { items, deliveryMode, deliveryZoneId } = body
+  const { items, deliveryMode, deliveryZoneId, deliveryDepartment } = body
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'Informations de commande incomplètes.' }, { status: 400 })
   }
@@ -87,6 +93,7 @@ export async function POST(request: Request) {
   let resolvedMode: DeliveryMode
   let deliveryFee = 0
   let effectiveZoneId: string | null = null
+  let resolvedDepartment: string | null = null
 
   if (typeof deliveryZoneId !== 'string' || !deliveryZoneId) {
     return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
@@ -94,7 +101,7 @@ export async function POST(request: Request) {
 
   const { data: zone, error: zoneError } = await supabaseAdmin
     .from('delivery_zones')
-    .select('id, fee, zone_kind')
+    .select('id, name, fee, zone_kind')
     .eq('id', deliveryZoneId)
     .single()
 
@@ -111,23 +118,48 @@ export async function POST(request: Request) {
     resolvedMode = 'delivery'
     deliveryFee = zone.fee
     effectiveZoneId = zone.id
+    resolvedDepartment = null
   } else if (deliveryMode === 'self_arranged') {
     if (zoneKind !== 'region') {
       return NextResponse.json({ error: 'Zone de livraison invalide.' }, { status: 400 })
     }
+    if (
+      typeof deliveryDepartment !== 'string' ||
+      !deliveryDepartment.trim() ||
+      !isValidDepartmentForRegion(zone.name, deliveryDepartment.trim())
+    ) {
+      return NextResponse.json(
+        { error: 'Veuillez sélectionner un département valide pour cette région.' },
+        { status: 400 }
+      )
+    }
     resolvedMode = 'self_arranged'
     deliveryFee = 0
     effectiveZoneId = zone.id
+    resolvedDepartment = deliveryDepartment.trim()
   } else {
     // deliveryMode est absent (ancien client) : déduire de zone_kind
     if (zoneKind === 'region') {
+      if (
+        typeof deliveryDepartment !== 'string' ||
+        !deliveryDepartment.trim() ||
+        !isValidDepartmentForRegion(zone.name, deliveryDepartment.trim())
+      ) {
+        return NextResponse.json(
+          { error: 'Veuillez sélectionner un département valide pour cette région.' },
+          { status: 400 }
+        )
+      }
       resolvedMode = 'self_arranged'
       deliveryFee = 0
+      effectiveZoneId = zone.id
+      resolvedDepartment = deliveryDepartment.trim()
     } else {
       resolvedMode = 'delivery'
       deliveryFee = zone.fee
+      effectiveZoneId = zone.id
+      resolvedDepartment = null
     }
-    effectiveZoneId = zone.id
   }
 
   // Prix toujours relus depuis la base, jamais depuis le navigateur.
@@ -155,6 +187,7 @@ export async function POST(request: Request) {
       delivery_fee_confirmed: true,
       total_amount: totalAmount,
       delivery_zone_id: effectiveZoneId,
+      delivery_department: resolvedDepartment,
     })
     .select()
     .single()
