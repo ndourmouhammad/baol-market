@@ -48,13 +48,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Charger le panier depuis localStorage au montage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) setItems(JSON.parse(stored))
-    } catch (e) {
-      console.error('Erreur lecture panier:', e)
-    }
-    setHydrated(true)
+    queueMicrotask(() => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) setItems(JSON.parse(stored))
+      } catch (e) {
+        console.error('Erreur lecture panier:', e)
+      }
+      setHydrated(true)
+    })
   }, [])
 
   // Sauvegarder à chaque changement (après hydratation, pour ne pas écraser au premier rendu)

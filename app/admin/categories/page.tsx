@@ -223,6 +223,7 @@ export default function AdminCategoriesPage() {
               </p>
               {imagePreview ? (
                 <div className="relative w-full aspect-[16/5] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover object-center" />
                   <button
                     type="button"
@@ -299,6 +300,7 @@ export default function AdminCategoriesPage() {
                   <div key={c.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-sm transition-shadow flex flex-col justify-between">
                     <div className="flex gap-3 mb-4">
                       {c.image_url ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={c.image_url} alt={c.name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 shrink-0" />
                       ) : (
                         <div className="w-14 h-14 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shrink-0">

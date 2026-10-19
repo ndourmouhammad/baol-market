@@ -17,7 +17,7 @@ export default function CartPage() {
           title="Votre panier est vide"
           description="Parcourez le catalogue pour ajouter des produits."
           actionText="Voir le catalogue"
-          onAction={() => { window.location.href = '/produits' }}
+          href="/produits"
         />
       </div>
     )

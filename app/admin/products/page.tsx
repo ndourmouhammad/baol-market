@@ -286,6 +286,7 @@ export default function AdminProductsPage() {
               <label className="font-bold text-(--encre) block">Photo du produit</label>
               {imagePreview ? (
                 <div className="relative w-full h-40 rounded-xl overflow-hidden border border-gray-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -439,6 +440,7 @@ export default function AdminProductsPage() {
                     <div>
                       <div className="flex gap-3 mb-2">
                         {p.image_url ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shrink-0" />
                         ) : (
                           <div className="w-16 h-16 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shrink-0">

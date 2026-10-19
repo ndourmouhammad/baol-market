@@ -48,7 +48,6 @@ export default function AdminMerchantsPage() {
   const [currentPage, setCurrentPage] = useState(1)
 
   async function loadMerchants() {
-    setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: staffRow } = await supabase.from('staff').select('role').eq('id', user.id).maybeSingle()
@@ -64,7 +63,11 @@ export default function AdminMerchantsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadMerchants() }, [])
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadMerchants()
+    })
+  }, [])
 
   const canWrite = role === 'admin' || role === 'super_admin'
 
