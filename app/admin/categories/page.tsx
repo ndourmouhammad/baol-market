@@ -29,6 +29,7 @@ export default function AdminCategoriesPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
+  const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null)
   const [role, setRole] = useState<StaffRole | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -187,7 +188,7 @@ export default function AdminCategoriesPage() {
     setCategoryToDelete(null)
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      alert(json.error || 'Impossible de supprimer cette catégorie.')
+      setDeleteBlocked(json.error || 'Impossible de supprimer cette catégorie.')
     }
     loadCategories()
   }
@@ -370,21 +371,49 @@ export default function AdminCategoriesPage() {
               </div>
               <h3 className="text-xl font-bold text-(--encre)">Supprimer la catégorie ?</h3>
             </div>
-            <p className="text-(--gris-texte) mb-6 font-medium">
+            <p className="text-(--gris-texte) mb-6 font-medium text-sm leading-relaxed">
               Êtes-vous sûr de vouloir supprimer cette catégorie ? Les produits associés risquent de perdre leur catégorie.
             </p>
             <div className="flex gap-3 justify-end">
               <button
+                type="button"
                 onClick={() => setCategoryToDelete(null)}
-                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors"
+                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors text-sm"
               >
                 Annuler
               </button>
               <button
+                type="button"
                 onClick={() => categoryToDelete && deleteCategory(categoryToDelete)}
-                className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors"
+                className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors text-sm"
               >
                 Oui, supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'erreur / blocage */}
+      {deleteBlocked && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-4 text-amber-600">
+              <div className="bg-amber-100 p-3 rounded-full">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-(--encre)">Suppression impossible</h3>
+            </div>
+            <p className="text-(--gris-texte) mb-6 font-medium text-sm leading-relaxed">
+              {deleteBlocked}
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteBlocked(null)}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-(--encre) rounded-xl font-bold transition-colors text-sm"
+              >
+                Fermer
               </button>
             </div>
           </div>

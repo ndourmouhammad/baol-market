@@ -126,7 +126,23 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   const { error } = await supabaseAdmin.from('products').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (
+      error.code === '23503' ||
+      error.message?.includes('foreign key constraint') ||
+      error.message?.includes('order_items')
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Ce produit ne peut pas être supprimé car il figure dans une ou plusieurs commandes passées. Pour préserver l'historique des ventes, vous pouvez plutôt le désactiver.",
+          isLinkedToOrders: true,
+        },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   await logActivity(staff, {
     action: 'product_deleted',

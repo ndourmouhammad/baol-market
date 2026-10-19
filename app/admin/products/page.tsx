@@ -92,7 +92,14 @@ export default function AdminProductsPage() {
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
 
-  const [productToDelete, setProductToDelete] = useState<string | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteBlocked, setDeleteBlocked] = useState<{
+    product: Product
+    message: string
+    isLinkedToOrders: boolean
+  } | null>(null)
+  const [isDeactivating, setIsDeactivating] = useState(false)
   const [role, setRole] = useState<StaffRole | null>(null)
 
   async function loadData() {
@@ -248,14 +255,67 @@ export default function AdminProductsPage() {
     loadData()
   }
 
-  async function deleteProduct(id: string) {
-    const res = await authFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
-    setProductToDelete(null)
-    if (!res.ok) {
+  async function deleteProduct(product: Product) {
+    setIsDeleting(true)
+    try {
+      const res = await authFetch(`/api/admin/products/${product.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
-      alert(json.error || 'Impossible de supprimer ce produit.')
+      setProductToDelete(null)
+
+      if (!res.ok) {
+        setDeleteBlocked({
+          product,
+          message:
+            json.error ||
+            (json.isLinkedToOrders
+              ? "Ce produit ne peut pas être supprimé car il figure dans une ou plusieurs commandes enregistrées."
+              : 'Impossible de supprimer ce produit.'),
+          isLinkedToOrders: Boolean(json.isLinkedToOrders),
+        })
+        return
+      }
+
+      loadData()
+    } catch {
+      setProductToDelete(null)
+      setDeleteBlocked({
+        product,
+        message: 'Une erreur inattendue est survenue lors de la suppression.',
+        isLinkedToOrders: false,
+      })
+    } finally {
+      setIsDeleting(false)
     }
-    loadData()
+  }
+
+  async function deactivateProduct(product: Product) {
+    setIsDeactivating(true)
+    try {
+      const res = await authFetch(`/api/admin/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_available: false }),
+      })
+      if (res.ok) {
+        setDeleteBlocked(null)
+        loadData()
+      } else {
+        const json = await res.json().catch(() => ({}))
+        setDeleteBlocked({
+          product,
+          message: json.error || 'Impossible de désactiver ce produit.',
+          isLinkedToOrders: false,
+        })
+      }
+    } catch {
+      setDeleteBlocked({
+        product,
+        message: 'Une erreur inattendue est survenue lors de la désactivation.',
+        isLinkedToOrders: false,
+      })
+    } finally {
+      setIsDeactivating(false)
+    }
   }
 
   if (loading && products.length === 0) {
@@ -510,7 +570,7 @@ export default function AdminProductsPage() {
                       </button>
                       {canDelete && (
                         <button
-                          onClick={() => setProductToDelete(p.id)}
+                          onClick={() => setProductToDelete(p)}
                           className="text-red-600 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors flex items-center justify-center border border-red-100"
                           title="Supprimer"
                         >
@@ -548,7 +608,7 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Modal de suppression */}
+      {/* Modal de confirmation de suppression */}
       {canDelete && productToDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
@@ -558,22 +618,94 @@ export default function AdminProductsPage() {
               </div>
               <h3 className="text-xl font-bold text-(--encre)">Supprimer le produit ?</h3>
             </div>
-            <p className="text-(--gris-texte) mb-6 font-medium">
-              Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible et supprimera le produit de manière permanente.
+            <p className="text-(--gris-texte) mb-6 font-medium text-sm leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer définitivement <strong className="text-(--encre)">« {productToDelete.name} »</strong> ? Cette action est irréversible.
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3 justify-end items-center">
               <button
+                type="button"
                 onClick={() => setProductToDelete(null)}
-                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors disabled:opacity-50 text-sm"
               >
                 Annuler
               </button>
               <button
+                type="button"
                 onClick={() => deleteProduct(productToDelete)}
-                className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50 text-sm"
               >
-                Oui, supprimer
+                {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isDeleting ? 'Suppression...' : 'Oui, supprimer'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'explication quand la suppression est bloquée (ex: produit commandé) */}
+      {deleteBlocked && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-4 text-amber-600">
+              <div className="bg-amber-100 p-3 rounded-full">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-(--encre)">Suppression impossible</h3>
+            </div>
+
+            {deleteBlocked.isLinkedToOrders ? (
+              <div className="space-y-3 mb-6 text-sm text-(--gris-texte) leading-relaxed">
+                <p>
+                  Le produit <strong className="text-(--encre)">« {deleteBlocked.product.name} »</strong> est rattaché à une ou plusieurs commandes passées.
+                </p>
+                <p>
+                  Pour préserver l&apos;historique des commandes et des factures clients, ce produit ne peut pas être supprimé définitivement de la base de données.
+                </p>
+                {deleteBlocked.product.is_available ? (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs leading-relaxed">
+                    <p className="font-bold mb-1">💡 Solution recommandée :</p>
+                    <p>
+                      Vous pouvez <span className="font-semibold">désactiver le produit</span>. Il restera conservé pour l&apos;historique de vos ventes mais ne sera plus visible par les clients sur la boutique.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 text-gray-700 rounded-xl p-3 text-xs leading-relaxed">
+                    Ce produit est déjà désactivé. Il est conservé pour l&apos;historique comptable des commandes mais n&apos;est plus visible pour les acheteurs.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-(--gris-texte) mb-6 font-medium text-sm leading-relaxed">
+                {deleteBlocked.message}
+              </p>
+            )}
+
+            <div className="flex gap-3 justify-end items-center">
+              <button
+                type="button"
+                onClick={() => setDeleteBlocked(null)}
+                disabled={isDeactivating}
+                className="px-4 py-2.5 text-(--gris-texte) hover:bg-gray-100 rounded-xl font-bold transition-colors disabled:opacity-50 text-sm"
+              >
+                {deleteBlocked.isLinkedToOrders && deleteBlocked.product.is_available ? 'Annuler' : 'Fermer'}
+              </button>
+              {deleteBlocked.isLinkedToOrders && deleteBlocked.product.is_available && (
+                <button
+                  type="button"
+                  onClick={() => deactivateProduct(deleteBlocked.product)}
+                  disabled={isDeactivating}
+                  className="px-4 py-2.5 bg-(--vert-baol) text-white hover:opacity-90 rounded-xl font-bold transition-opacity flex items-center gap-2 disabled:opacity-50 text-sm shadow-sm"
+                >
+                  {isDeactivating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <PowerOff className="w-4 h-4" />
+                  )}
+                  {isDeactivating ? 'Désactivation...' : 'Désactiver le produit'}
+                </button>
+              )}
             </div>
           </div>
         </div>

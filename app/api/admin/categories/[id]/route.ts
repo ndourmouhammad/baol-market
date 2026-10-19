@@ -81,7 +81,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   const { error } = await supabaseAdmin.from('categories').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
+      return NextResponse.json(
+        { error: 'Cette catégorie ne peut pas être supprimée car elle contient encore des produits associés. Veuillez réassigner ou supprimer ces produits au préalable.' },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   await logActivity(staff, {
     action: 'category_deleted',
