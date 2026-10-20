@@ -57,7 +57,7 @@ export default async function CategoryPage({
 
   const { data: category } = await supabase
     .from('categories')
-    .select('id, name, slug, description, image_url')
+    .select('id, name, slug, description, image_url, fulfillment_type')
     .eq('slug', slug)
     .single()
 
@@ -86,12 +86,15 @@ export default async function CategoryPage({
     )
   }
 
-  // La vente flash est évaluée ici, côté serveur, une seule fois pour tous les produits
+  // La vente flash est évaluée ici, côté serveur, une seule fois pour tous les produits (désactivée pour le type visit)
+  const isVisit = category.fulfillment_type === 'visit'
   const now = new Date()
   const productsWithFlash = (products ?? []).map(
     ({ flash_price, flash_starts_at, flash_ends_at, ...product }) => ({
       ...product,
-      flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+      fulfillment_type: category.fulfillment_type,
+      categories: { fulfillment_type: category.fulfillment_type },
+      flash: isVisit ? null : flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
     })
   )
 

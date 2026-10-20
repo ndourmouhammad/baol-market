@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   const productIds = Array.from(quantities.keys())
   const { data: products, error: productsError } = await supabaseAdmin
     .from('products')
-    .select('id, name, price, flash_price, flash_starts_at, flash_ends_at')
+    .select('id, name, price, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
     .eq('is_available', true)
     .in('id', productIds)
 
@@ -87,6 +87,21 @@ export async function POST(request: Request) {
       { error: 'Un ou plusieurs produits sont introuvables ou indisponibles.' },
       { status: 404 }
     )
+  }
+
+  // Refuser toute commande contenant un produit de type 'visit' (immobilier, véhicules, etc.)
+  for (const p of products) {
+    const fType = Array.isArray(p.categories)
+      ? p.categories[0]?.fulfillment_type
+      : (p.categories as { fulfillment_type?: string | null } | null)?.fulfillment_type
+    if (fType === 'visit') {
+      return NextResponse.json(
+        {
+          error: `Le produit « ${p.name} » ne peut pas être commandé en ligne. Veuillez demander une visite via WhatsApp.`,
+        },
+        { status: 400 }
+      )
+    }
   }
 
   // 4. Mode de remise et zone de livraison

@@ -5,9 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import VerifiedBadge from './VerifiedBadge';
 import { Button } from './Button';
-import { ShoppingBag, Plus, Check } from 'lucide-react';
+import { ShoppingBag, Plus, Check, MessageSquare } from 'lucide-react';
 import { useCart } from '@/components/CartContext';
 import type { FlashDisplay } from '@/lib/flashSale';
+import { isVisitProduct, getVisitWhatsAppUrl } from '@/lib/visitFulfillment';
 import { useState } from 'react';
 
 interface Product {
@@ -18,6 +19,8 @@ interface Product {
   image_url: string | null;
   // Vente flash en cours (calculée côté serveur), sinon absente
   flash?: FlashDisplay | null;
+  fulfillment_type?: string | null;
+  categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null;
 }
 
 interface ProductCardProps {
@@ -28,7 +31,8 @@ export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
 
-  const flash = product.flash ?? null
+  const isVisit = isVisitProduct(product)
+  const flash = isVisit ? null : (product.flash ?? null)
   const currentPrice = flash ? flash.price : product.price
   const shortDescription = product.description
     ? product.description.length > 80
@@ -37,11 +41,13 @@ export function ProductCard({ product }: ProductCardProps) {
     : null
 
   function handleAddToCart() {
+    if (isVisit) return
     addItem({
       productId: product.id,
       name: product.name,
       price: currentPrice,
       imageUrl: product.image_url,
+      fulfillmentType: product.fulfillment_type ?? (Array.isArray(product.categories) ? product.categories[0]?.fulfillment_type : product.categories?.fulfillment_type),
     })
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
@@ -100,7 +106,17 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <div className="mt-auto flex flex-col gap-2 pt-1 sm:pt-0">
-          {flash ? (
+          {isVisit ? (
+            <div>
+              <p className="text-base md:text-xl font-bold text-(--encre)">
+                {product.price.toLocaleString('fr-SN')}{' '}
+                <span className="text-xs md:text-sm font-medium text-(--gris-texte)">FCFA</span>
+              </p>
+              <p className="text-xs text-(--gris-texte) font-medium mt-0.5">
+                Prix indicatif
+              </p>
+            </div>
+          ) : flash ? (
             <div>
               <p className="flex items-baseline gap-1.5 md:gap-2 flex-wrap">
                 <span className="text-base md:text-xl font-bold text-(--rouge-baol)">
@@ -126,28 +142,40 @@ export function ProductCard({ product }: ProductCardProps) {
               {product.price.toLocaleString('fr-SN')} <span className="text-xs md:text-sm font-medium text-(--gris-texte)">FCFA</span>
             </p>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              fullWidth
-              onClick={handleAddToCart}
-              className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2 gap-1.5"
+          {isVisit ? (
+            <a
+              href={getVisitWhatsAppUrl({ id: product.id, name: product.name })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 min-h-[40px] px-3 py-2 rounded-xl text-sm font-bold text-white bg-[#25D366] hover:bg-[#1EBE5D] shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]"
             >
-              {added ? <Check className="w-4 h-4 shrink-0" /> : <Plus className="w-4 h-4 shrink-0" />}
-              <span>{added ? 'Ajouté' : 'Ajouter'}</span>
-            </Button>
-            <Link href={`/order/${product.id}`} className="block w-full outline-none" tabIndex={-1}>
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              <span>Demander une visite</span>
+            </a>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
               <Button
-                variant="primary"
-                fullWidth
+                variant="secondary"
                 size="sm"
-                className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+                fullWidth
+                onClick={handleAddToCart}
+                className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2 gap-1.5"
               >
-                Commander
+                {added ? <Check className="w-4 h-4 shrink-0" /> : <Plus className="w-4 h-4 shrink-0" />}
+                <span>{added ? 'Ajouté' : 'Ajouter'}</span>
               </Button>
-            </Link>
-          </div>
+              <Link href={`/order/${product.id}`} className="block w-full outline-none" tabIndex={-1}>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  size="sm"
+                  className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+                >
+                  Commander
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </article>

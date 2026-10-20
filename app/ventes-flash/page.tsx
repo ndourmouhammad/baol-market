@@ -27,6 +27,7 @@ type ProductRow = {
   flash_price: number | null
   flash_starts_at: string | null
   flash_ends_at: string | null
+  categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null
 }
 
 export default async function VentesFlashPage() {
@@ -35,7 +36,7 @@ export default async function VentesFlashPage() {
 
   const { data, error } = await supabase
     .from('products')
-    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
+    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
     .eq('is_available', true)
     .not('flash_price', 'is', null)
     .gt('flash_ends_at', nowIso)
@@ -59,9 +60,12 @@ export default async function VentesFlashPage() {
   const products = ((data ?? []) as ProductRow[])
     .map((row) => {
       const { flash_price, flash_starts_at, flash_ends_at, ...product } = row
+      const isVisit = Array.isArray(product.categories)
+        ? product.categories[0]?.fulfillment_type === 'visit'
+        : product.categories?.fulfillment_type === 'visit'
       return {
         ...product,
-        flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+        flash: isVisit ? null : flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
       }
     })
     .filter((p): p is typeof p & { flash: NonNullable<typeof p.flash> } => p.flash !== null)

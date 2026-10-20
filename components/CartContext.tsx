@@ -9,6 +9,7 @@ export type CartItem = {
   price: number
   imageUrl: string | null
   quantity: number
+  fulfillmentType?: string | null
 }
 
 // Une ligne du panier avec les prix ACTUELS (ceux que le serveur facturera maintenant)
@@ -101,6 +102,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, idsKey, refreshPrices])
 
   const addItem = useCallback((item: Omit<CartItem, 'quantity'>, quantity = 1) => {
+    // Les produits de type 'visit' ne peuvent jamais être ajoutés au panier
+    if (
+      item.fulfillmentType === 'visit' ||
+      (item as Record<string, unknown>).fulfillment_type === 'visit'
+    ) {
+      return
+    }
     setItems((prev) => {
       const existing = prev.find((i) => i.productId === item.productId)
       if (existing) {

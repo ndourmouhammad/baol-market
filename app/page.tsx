@@ -42,14 +42,18 @@ type ProductRow = {
   flash_price: number | null
   flash_starts_at: string | null
   flash_ends_at: string | null
+  categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null
 }
 
 // La vente flash est évaluée ici, côté serveur : l'écran affiche exactement ce calcul
 function withFlash(row: ProductRow, now: Date) {
   const { flash_price, flash_starts_at, flash_ends_at, ...product } = row
+  const isVisit = Array.isArray(product.categories)
+    ? product.categories[0]?.fulfillment_type === 'visit'
+    : product.categories?.fulfillment_type === 'visit'
   return {
     ...product,
-    flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+    flash: isVisit ? null : flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
   }
 }
 
@@ -109,7 +113,7 @@ export default async function Home() {
   const nowIso = now.toISOString()
 
   const [categoriesResponse, bannersResponse, productsResponse, flashResponse] = await Promise.all([
-    supabase.from('categories').select('id, name, slug, description, image_url').order('name'),
+    supabase.from('categories').select('id, name, slug, description, image_url, fulfillment_type').order('name'),
     // La base ne renvoie que les bannières activées et dans leurs dates (règle côté base de données)
     supabase
       .from('banners')
@@ -117,13 +121,13 @@ export default async function Home() {
       .order('sort_order'),
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at')
+      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
       .eq('is_available', true)
       .order('created_at', { ascending: false }),
     // Ventes flash en cours : prix réduit, déjà commencées et pas encore terminées, fin la plus proche en premier
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
+      .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
       .eq('is_available', true)
       .not('flash_price', 'is', null)
       .gt('flash_ends_at', nowIso)

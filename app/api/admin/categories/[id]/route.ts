@@ -19,9 +19,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Le nom de la catégorie est obligatoire.' }, { status: 400 })
   }
 
+  if (body.fulfillment_type !== undefined && !['standard', 'express', 'visit'].includes(body.fulfillment_type)) {
+    return NextResponse.json(
+      { error: 'Type de vente invalide. Valeurs acceptées : standard, express, visit.' },
+      { status: 400 }
+    )
+  }
+
   const { data: existing } = await supabaseAdmin
     .from('categories')
-    .select('name, description, image_url')
+    .select('name, description, image_url, fulfillment_type')
     .eq('id', id)
     .maybeSingle()
 
@@ -30,10 +37,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const slug = body.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-  const newValues = {
+  const newValues: Record<string, unknown> = {
     name: body.name,
     description: body.description || null,
     image_url: body.image_url || null,
+  }
+  if (body.fulfillment_type !== undefined) {
+    newValues.fulfillment_type = body.fulfillment_type
   }
 
   // Ce qui change réellement (pour le journal)
@@ -46,6 +56,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   if (normalize(existing.image_url) !== normalize(newValues.image_url)) {
     changes.push({ field: 'image_url' })
+  }
+  if (body.fulfillment_type !== undefined && existing.fulfillment_type !== newValues.fulfillment_type) {
+    changes.push({
+      field: 'fulfillment_type',
+      from: existing.fulfillment_type ?? 'standard',
+      to: newValues.fulfillment_type,
+    })
   }
 
   // Rien n'a changé : on n'écrit ni en base ni dans le journal

@@ -21,12 +21,12 @@ export default async function AllProductsPage() {
   const [productsResponse, categoriesResponse] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at')
+      .select('id, name, description, price, image_url, category_id, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
       .eq('is_available', true)
       .order('created_at', { ascending: false }),
     supabase
       .from('categories')
-      .select('id, name, slug')
+      .select('id, name, slug, fulfillment_type')
       .order('name')
   ])
 
@@ -51,10 +51,15 @@ export default async function AllProductsPage() {
   // La vente flash est évaluée ici, côté serveur, une seule fois pour tous les produits
   const now = new Date()
   const productsWithFlash = (products ?? []).map(
-    ({ flash_price, flash_starts_at, flash_ends_at, ...product }) => ({
-      ...product,
-      flash: flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
-    })
+    ({ flash_price, flash_starts_at, flash_ends_at, ...product }) => {
+      const isVisit = Array.isArray(product.categories)
+        ? product.categories[0]?.fulfillment_type === 'visit'
+        : (product.categories as { fulfillment_type?: string | null } | null)?.fulfillment_type === 'visit'
+      return {
+        ...product,
+        flash: isVisit ? null : flashDisplay({ price: product.price, flash_price, flash_starts_at, flash_ends_at }, now),
+      }
+    }
   )
 
   return (

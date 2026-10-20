@@ -9,7 +9,14 @@ import { FormField } from '@/components/FormField'
 const ITEMS_PER_PAGE = 8
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
-type Category = { id: string; name: string; slug: string; description: string | null; image_url: string | null }
+type Category = {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  image_url: string | null
+  fulfillment_type?: 'standard' | 'express' | 'visit'
+}
 
 async function authFetch(url: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -23,6 +30,7 @@ export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [fulfillmentType, setFulfillmentType] = useState<'standard' | 'express' | 'visit'>('standard')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -141,7 +149,7 @@ export default function AdminCategoriesPage() {
     const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, image_url: imageUrl }),
+      body: JSON.stringify({ name, description, image_url: imageUrl, fulfillment_type: fulfillmentType }),
     })
 
     const json = await res.json()
@@ -162,6 +170,7 @@ export default function AdminCategoriesPage() {
     setEditingId(category.id)
     setName(category.name)
     setDescription(category.description || '')
+    setFulfillmentType(category.fulfillment_type || 'standard')
     setExistingImageUrl(category.image_url)
     setImagePreview(category.image_url)
     setImageFile(null)
@@ -176,6 +185,7 @@ export default function AdminCategoriesPage() {
     setEditingId(null)
     setName('')
     setDescription('')
+    setFulfillmentType('standard')
     setImageFile(null)
     setImagePreview(null)
     setExistingImageUrl(null)
@@ -260,6 +270,24 @@ export default function AdminCategoriesPage() {
             />
 
             <div className="space-y-1.5">
+              <label className="font-bold text-(--encre) block">Type de vente</label>
+              <select
+                value={fulfillmentType}
+                onChange={(e) => setFulfillmentType(e.target.value as 'standard' | 'express' | 'visit')}
+                className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none transition-all text-sm font-medium"
+              >
+                <option value="standard">Standard (panier & commande normale)</option>
+                <option value="express">Express</option>
+                <option value="visit">Visite (immobilier, véhicules — contact WhatsApp)</option>
+              </select>
+              <p className="text-xs text-(--gris-texte)">
+                {fulfillmentType === 'visit'
+                  ? 'Les produits de cette catégorie n’auront ni panier ni paiement en ligne. Un bouton « Demander une visite » ouvrira WhatsApp.'
+                  : 'Commande normale en ligne avec panier, paiement sécurisé et choix de livraison.'}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <label className="font-bold text-(--encre) block">Description (optionnelle)</label>
               <textarea
                 placeholder="Courte description affichée sur la page catégorie" value={description}
@@ -309,7 +337,18 @@ export default function AdminCategoriesPage() {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <h3 className="font-bold text-(--encre) text-lg">{c.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-(--encre) text-lg">{c.name}</h3>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                            c.fulfillment_type === 'visit'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : c.fulfillment_type === 'express'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-gray-50 text-gray-600 border-gray-200'
+                          }`}>
+                            {c.fulfillment_type === 'visit' ? 'Visite (WhatsApp)' : c.fulfillment_type === 'express' ? 'Express' : 'Standard'}
+                          </span>
+                        </div>
                         <p className="text-sm text-(--gris-texte) font-medium">/{c.slug}</p>
                         {c.description && <p className="text-sm text-(--gris-texte) line-clamp-2 mt-1">{c.description}</p>}
                       </div>

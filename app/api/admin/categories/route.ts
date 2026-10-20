@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('categories')
-    .select('id, name, slug, description, image_url')
+    .select('id, name, slug, description, image_url, fulfillment_type')
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -23,6 +23,14 @@ export async function POST(request: Request) {
   const body = await request.json()
   const slug = body.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
+  const rawFulfillment = body.fulfillment_type ?? 'standard'
+  if (!['standard', 'express', 'visit'].includes(rawFulfillment)) {
+    return NextResponse.json(
+      { error: 'Type de vente invalide. Valeurs acceptées : standard, express, visit.' },
+      { status: 400 }
+    )
+  }
+
   const { data: created, error } = await supabaseAdmin
     .from('categories')
     .insert({
@@ -30,6 +38,7 @@ export async function POST(request: Request) {
       slug,
       description: body.description || null,
       image_url: body.image_url || null,
+      fulfillment_type: rawFulfillment,
     })
     .select('id')
     .single()

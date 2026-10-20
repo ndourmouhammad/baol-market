@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   if (validIds.length > 0) {
     const { data, error } = await supabaseAdmin
       .from('products')
-      .select('id, price, flash_price, flash_starts_at, flash_ends_at, is_available')
+      .select('id, price, flash_price, flash_starts_at, flash_ends_at, is_available, categories ( fulfillment_type )')
       .in('id', validIds)
 
     if (error) {
@@ -44,11 +44,14 @@ export async function POST(request: Request) {
 
     const now = new Date()
     for (const row of data ?? []) {
+      const isVisit = Array.isArray(row.categories)
+        ? row.categories[0]?.fulfillment_type === 'visit'
+        : (row.categories as { fulfillment_type?: string | null } | null)?.fulfillment_type === 'visit'
       prices[row.id] = {
-        available: row.is_available === true,
+        available: row.is_available === true && !isVisit,
         unitPrice: effectivePrice(row, now),
         regularPrice: Number(row.price),
-        flashEndsAt: flashState(row, now) === 'active' ? row.flash_ends_at : null,
+        flashEndsAt: !isVisit && flashState(row, now) === 'active' ? row.flash_ends_at : null,
       }
     }
   }

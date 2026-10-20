@@ -8,8 +8,9 @@ import { Breadcrumb } from '@/components/Breadcrumb'
 import VerifiedBadge from '@/components/VerifiedBadge'
 import { ProductPurchase } from '@/components/ProductPurchase'
 import { CategoryProductRow } from '@/components/CategoryProductRow'
-import { ShoppingBag, ShieldCheck, Wallet, Truck, RotateCcw } from 'lucide-react'
+import { ShoppingBag, ShieldCheck, Wallet, Truck, RotateCcw, MessageSquare } from 'lucide-react'
 import { SITE_URL } from '@/lib/siteUrl'
+import { getVisitWhatsAppUrl } from '@/lib/visitFulfillment'
 
 export const revalidate = 60
 
@@ -29,10 +30,12 @@ type ProductRow = {
     | {
         name: string
         slug: string
+        fulfillment_type?: string | null
       }
     | {
         name: string
         slug: string
+        fulfillment_type?: string | null
       }[]
     | null
 }
@@ -60,7 +63,8 @@ const getProduct = cache(async (id: string): Promise<ProductRow | null> => {
       flash_ends_at,
       categories (
         name,
-        slug
+        slug,
+        fulfillment_type
       )
     `)
     .eq('id', id)
@@ -126,8 +130,14 @@ export default async function ProductDetailPage({ params }: Props) {
     notFound()
   }
 
+  const category = Array.isArray(product.categories)
+    ? product.categories[0]
+    : product.categories
+
+  const isVisit = category?.fulfillment_type === 'visit'
+
   const now = new Date()
-  const flash = flashDisplay(
+  const flash = isVisit ? null : flashDisplay(
     {
       price: product.price,
       flash_price: product.flash_price,
@@ -139,20 +149,20 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const currentPrice = flash ? flash.price : product.price
 
-  const category = Array.isArray(product.categories)
-    ? product.categories[0]
-    : product.categories
-
   // Données structurées JSON-LD (schema.org Product & BreadcrumbList)
   const productUrl = `${SITE_URL}/produit/${product.id}`
 
-  const productJsonLd = {
+  const productJsonLd: Record<string, unknown> = {
     '@type': 'Product',
     name: product.name,
     ...(product.description ? { description: product.description } : {}),
     ...(product.image_url ? { image: product.image_url } : {}),
     url: productUrl,
-    offers: {
+  }
+
+  // Pour les produits de type 'visit', ne pas émettre d'Offer avec InStock
+  if (!isVisit) {
+    productJsonLd.offers = {
       '@type': 'Offer',
       price: currentPrice,
       priceCurrency: 'XOF',
@@ -163,7 +173,7 @@ export default async function ProductDetailPage({ params }: Props) {
         name: 'Baol Market',
       },
       ...(flash && product.flash_ends_at ? { priceValidUntil: product.flash_ends_at } : {}),
-    },
+    }
   }
 
   const breadcrumbJsonLd = {
@@ -244,15 +254,19 @@ export default async function ProductDetailPage({ params }: Props) {
           }
           return {
             ...baseProduct,
-            flash: flashDisplay(
-              {
-                price: baseProduct.price,
-                flash_price,
-                flash_starts_at,
-                flash_ends_at,
-              },
-              now
-            ),
+            fulfillment_type: category?.fulfillment_type,
+            categories: category ? { fulfillment_type: category.fulfillment_type } : null,
+            flash: isVisit
+              ? null
+              : flashDisplay(
+                  {
+                    price: baseProduct.price,
+                    flash_price,
+                    flash_starts_at,
+                    flash_ends_at,
+                  },
+                  now
+                ),
           }
         })
       }
@@ -326,7 +340,21 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {/* Prix */}
             <div className="mb-2">
-              {flash ? (
+              {isVisit ? (
+                <div className="space-y-1">
+                  <div className="text-3xl md:text-4xl font-bold text-(--encre) flex items-baseline gap-2 flex-wrap">
+                    <span>
+                      {product.price.toLocaleString('fr-SN')}{' '}
+                      <span className="text-xl md:text-2xl font-semibold text-(--gris-texte)">
+                        FCFA
+                      </span>
+                    </span>
+                    <span className="text-sm md:text-base font-normal text-(--gris-texte)">
+                      (Prix indicatif)
+                    </span>
+                  </div>
+                </div>
+              ) : flash ? (
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-3 flex-wrap">
                     <span className="text-3xl md:text-4xl font-bold text-(--rouge-baol)">
@@ -361,61 +389,80 @@ export default async function ProductDetailPage({ params }: Props) {
               )}
             </div>
 
-            {/* Achat / Panier */}
-            <ProductPurchase
-              productId={product.id}
-              name={product.name}
-              imageUrl={product.image_url}
-              currentPrice={currentPrice}
-            />
-
-            {/* Bloc « Pourquoi commander ici ? » */}
-            <div className="mt-8 bg-gray-50/80 rounded-2xl border border-gray-100 p-5 space-y-3.5">
-              <h2 className="text-sm font-bold text-(--encre) uppercase tracking-wider mb-1">
-                Pourquoi commander ici ?
-              </h2>
-
-              <div className="space-y-3 text-sm text-(--gris-texte)">
-                <div className="flex items-start gap-3">
-                  <div className="bg-(--vert-baol)/10 p-1.5 rounded-lg text-(--vert-baol) shrink-0 mt-0.5">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <p className="leading-snug font-medium text-(--encre)">
-                    Produit vérifié physiquement par notre équipe
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600 shrink-0 mt-0.5">
-                    <Wallet className="w-4 h-4" />
-                  </div>
-                  <p className="leading-snug">Paiement en ligne sécurisé</p>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600 shrink-0 mt-0.5">
-                    <Truck className="w-4 h-4" />
-                  </div>
-                  <p className="leading-snug">
-                    Livraison à Diourbel : généralement sous 24 à 72 heures après
-                    confirmation de la commande. Frais affichés avant le paiement.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="bg-purple-50 p-1.5 rounded-lg text-purple-600 shrink-0 mt-0.5">
-                    <RotateCcw className="w-4 h-4" />
-                  </div>
-                  <p className="leading-snug">
-                    Annulation possible jusqu&apos;à la confirmation, avec remboursement sous 3 jours ouvrables
-                  </p>
-                </div>
+            {/* Achat / Demande de visite */}
+            {isVisit ? (
+              <div className="my-6 space-y-3">
+                <a
+                  href={getVisitWhatsAppUrl({ id: product.id, name: product.name })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto min-h-[52px] py-3.5 px-8 font-bold text-base text-white bg-[#25D366] hover:bg-[#1EBE5D] rounded-xl shadow-md hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+                >
+                  <MessageSquare className="w-5 h-5 shrink-0" />
+                  <span>Demander une visite</span>
+                </a>
+                <p className="text-xs text-(--gris-texte) leading-relaxed">
+                  Ce bien nécessite un contact préalable. Cliquez pour convenir d&apos;un rendez-vous sur WhatsApp.
+                </p>
               </div>
+            ) : (
+              <ProductPurchase
+                productId={product.id}
+                name={product.name}
+                imageUrl={product.image_url}
+                currentPrice={currentPrice}
+              />
+            )}
 
-              <p className="text-xs text-gray-500 pt-2 border-t border-gray-200/60 leading-relaxed">
-                Hors Diourbel, aucun frais de livraison n&apos;est appliqué, mais vous organisez la livraison.
-              </p>
-            </div>
+            {/* Bloc « Pourquoi commander ici ? » (masqué pour les visites) */}
+            {!isVisit && (
+              <div className="mt-8 bg-gray-50/80 rounded-2xl border border-gray-100 p-5 space-y-3.5">
+                <h2 className="text-sm font-bold text-(--encre) uppercase tracking-wider mb-1">
+                  Pourquoi commander ici ?
+                </h2>
+
+                <div className="space-y-3 text-sm text-(--gris-texte)">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-(--vert-baol)/10 p-1.5 rounded-lg text-(--vert-baol) shrink-0 mt-0.5">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <p className="leading-snug font-medium text-(--encre)">
+                      Produit vérifié physiquement par notre équipe
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600 shrink-0 mt-0.5">
+                      <Wallet className="w-4 h-4" />
+                    </div>
+                    <p className="leading-snug">Paiement en ligne sécurisé</p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600 shrink-0 mt-0.5">
+                      <Truck className="w-4 h-4" />
+                    </div>
+                    <p className="leading-snug">
+                      Livraison à Diourbel : généralement sous 24 à 72 heures après
+                      confirmation de la commande. Frais affichés avant le paiement.
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="bg-purple-50 p-1.5 rounded-lg text-purple-600 shrink-0 mt-0.5">
+                      <RotateCcw className="w-4 h-4" />
+                    </div>
+                    <p className="leading-snug">
+                      Annulation possible jusqu&apos;à la confirmation, avec remboursement sous 3 jours ouvrables
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 pt-2 border-t border-gray-200/60 leading-relaxed">
+                  Hors Diourbel, aucun frais de livraison n&apos;est appliqué, mais vous organisez la livraison.
+                </p>
+              </div>
+            )}
 
             {/* Section Description */}
             {product.description && product.description.trim().length > 0 && (

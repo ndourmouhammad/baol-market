@@ -17,6 +17,8 @@ type Product = {
   image_url: string | null
   category_id?: string
   flash?: FlashDisplay | null
+  fulfillment_type?: string | null
+  categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null
 }
 
 export default function CatalogClient({ products, categories }: { products: Product[], categories: Category[] }) {

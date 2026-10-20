@@ -56,10 +56,20 @@ export default function OrderPage() {
       // Seuls les produits disponibles peuvent être commandés
       const { data: productData, error: productError } = await supabase
         .from('products')
-        .select('id, name, price, image_url')
+        .select('id, name, price, image_url, category_id, categories ( fulfillment_type )')
         .eq('id', id)
         .eq('is_available', true)
         .single()
+
+      if (productData) {
+        const fType = Array.isArray(productData.categories)
+          ? productData.categories[0]?.fulfillment_type
+          : (productData.categories as { fulfillment_type?: string | null } | null)?.fulfillment_type
+        if (fType === 'visit') {
+          router.replace(`/produit/${id}`)
+          return
+        }
+      }
 
       const { data: zonesData } = await supabase
         .from('delivery_zones')
@@ -83,7 +93,7 @@ export default function OrderPage() {
       }
     }
     loadData()
-  }, [id])
+  }, [id, router])
 
   // Prix actuel du produit (heure du serveur) : à l'arrivée, toutes les minutes et au retour sur l'onglet
   useEffect(() => {

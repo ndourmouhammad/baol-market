@@ -48,6 +48,7 @@ const FIELD_LABELS: Record<string, string> = {
   title: 'Titre',
   badge: 'Étiquette',
   flash_price: 'Prix flash',
+  fulfillment_type: 'Type de vente',
 }
 const FLAG_LABELS: Record<string, string> = {
   description: 'Description modifiée',
@@ -101,6 +102,11 @@ function statusText(value: unknown): string {
 function valueText(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
   if ((field === 'price' || field === 'flash_price') && typeof value === 'number') return `${value.toLocaleString('fr-FR')} FCFA`
+  if (field === 'fulfillment_type') {
+    if (value === 'visit') return 'Visite'
+    if (value === 'express') return 'Express'
+    if (value === 'standard') return 'Standard'
+  }
   return String(value)
 }
 
