@@ -47,10 +47,12 @@ export default function MentionsLegalesPage() {
           <h2 className="text-lg font-bold text-(--encre) mb-2">Protection des données personnelles</h2>
           <p>
             Baol Market collecte les données strictement nécessaires au traitement des commandes
-            (nom, téléphone, email le cas échéant, adresse de livraison), conformément à la loi
+            (nom, téléphone, email le cas échéant, zone ou région et département de livraison), conformément à la loi
             sénégalaise n° 2008-12 relative à la protection des données à caractère personnel.
             Ces données ne sont ni vendues ni transmises à des tiers en dehors de ce qui est
             nécessaire à l&#39;exécution de la commande (livraison notamment).
+            Les coordonnées nécessaires à la remise (nom, téléphone, lieu de livraison) sont
+            communiquées au livreur chargé de la commande.
           </p>
           <p className="mt-2">
             Pour toute question ou demande relative à vos données personnelles, vous pouvez nous

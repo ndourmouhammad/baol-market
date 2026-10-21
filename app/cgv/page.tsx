@@ -97,7 +97,7 @@ export default function CGVPage() {
           <p className="mt-2">
             En cas d&#39;annulation avant confirmation, ou si un produit est indisponible, le client
             est remboursé de la totalité du montant payé, frais de livraison compris. Le
-            remboursement est effectué sous 7 jours ouvrables, par le même moyen que celui utilisé
+            remboursement est effectué sous 3 jours ouvrables, par le même moyen que celui utilisé
             pour le paiement, ou par un autre moyen convenu
             avec le client.
           </p>
