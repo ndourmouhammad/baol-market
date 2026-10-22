@@ -69,6 +69,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ('error' in flash) return NextResponse.json({ error: flash.error }, { status: 400 })
   if (flash.values) Object.assign(updates, flash.values)
 
+  // Si le commerçant est modifié, vérifier que son dossier est complet
+  if ('merchant_id' in updates && updates.merchant_id) {
+    const { data: merchant } = await supabaseAdmin
+      .from('merchants')
+      .select('id, name, region, department, photo_path, id_document_path')
+      .eq('id', updates.merchant_id)
+      .maybeSingle()
+
+    if (!merchant) {
+      return NextResponse.json({ error: 'Commerçant introuvable.' }, { status: 404 })
+    }
+    const isComplete = Boolean(merchant.region && merchant.department && merchant.photo_path && merchant.id_document_path)
+    if (!isComplete) {
+      return NextResponse.json(
+        { error: 'Ce commerçant ne peut pas être associé à ce produit car son dossier est incomplet (adresse, photo ou CNI manquante).' },
+        { status: 400 }
+      )
+    }
+  }
+
   // Ce qui change réellement (pour le journal)
   const changes: { field: string; from?: unknown; to?: unknown }[] = []
   for (const field of ALL_FIELDS) {

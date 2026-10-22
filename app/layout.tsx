@@ -78,6 +78,13 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(navigator.standalone===true);var f=new URLSearchParams(window.location.search).get('lancement')==='1';if(f){document.documentElement.classList.add('show-splash');}else if(s&&!sessionStorage.getItem('baol-splash-seen')){document.documentElement.classList.add('show-splash');sessionStorage.setItem('baol-splash-seen','1');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans bg-(--fond) text-(--encre)" suppressHydrationWarning>
         <AppLaunch />
         <CartProvider>

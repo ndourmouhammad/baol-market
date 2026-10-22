@@ -12,7 +12,14 @@ const ITEMS_PER_PAGE = 4
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
 
 type Category = { id: string; name: string }
-type Merchant = { id: string; name: string }
+type Merchant = {
+  id: string
+  name: string
+  region?: string | null
+  department?: string | null
+  has_photo?: boolean
+  has_id_document?: boolean
+}
 type Product = {
   id: string
   name: string
@@ -462,7 +469,15 @@ export default function AdminProductsPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-(--encre) focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none transition-all bg-white"
               >
                 <option value="" disabled>Choisir un commerçant</option>
-                {merchants.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {merchants.map((m) => {
+                  const isComplete = Boolean(m.region && m.department && m.has_photo && m.has_id_document)
+                  const isDisabled = !isComplete && m.id !== merchantId
+                  return (
+                    <option key={m.id} value={m.id} disabled={isDisabled}>
+                      {m.name}{!isComplete ? ' (dossier incomplet - inéligible)' : ''}
+                    </option>
+                  )
+                })}
               </select>
             </div>
 

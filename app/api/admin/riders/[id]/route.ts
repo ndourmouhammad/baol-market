@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 import { logActivity } from '@/lib/activityLog'
+import { validateRegionDepartment } from '@/lib/senegalDepartments'
 
 // Seuls ces champs peuvent être modifiés via l'API
-const EDITABLE_FIELDS = ['name', 'phone', 'is_active'] as const
+const EDITABLE_FIELDS = ['name', 'phone', 'is_active', 'region', 'department', 'neighborhood'] as const
 
 // Le journal garde l'ancienne et la nouvelle valeur du nom ; pour le téléphone, il note seulement « modifié »
 const VALUE_FIELDS = ['name', 'is_active']
@@ -38,9 +39,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Valeur invalide pour le statut du livreur.' }, { status: 400 })
   }
 
+  // Validation adresse
+  const regionToCheck = updates.region !== undefined ? updates.region as string : undefined
+  const departmentToCheck = updates.department !== undefined ? updates.department as string : undefined
+  if (regionToCheck || departmentToCheck) {
+    // Si l'un est fourni, on doit pouvoir valider la paire
+    const { data: current } = await supabaseAdmin.from('riders').select('region, department').eq('id', id).maybeSingle()
+    const finalRegion = regionToCheck ?? current?.region ?? ''
+    const finalDept = departmentToCheck ?? current?.department ?? ''
+    if (finalRegion || finalDept) {
+      const v = validateRegionDepartment(finalRegion, finalDept)
+      if (!v.valid) return NextResponse.json({ error: v.error }, { status: 400 })
+    }
+  }
+
+  if ('neighborhood' in updates && updates.neighborhood && (typeof updates.neighborhood !== 'string' || (updates.neighborhood as string).length > 100)) {
+    return NextResponse.json({ error: 'Le quartier ne doit pas dépasser 100 caractères.' }, { status: 400 })
+  }
+
   const { data: existing } = await supabaseAdmin
     .from('riders')
-    .select('name, phone, is_active')
+    .select('name, phone, is_active, region, department, neighborhood')
     .eq('id', id)
     .maybeSingle()
 
@@ -91,6 +110,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ success: true })
 }
 
+/**
+ * Supprime les fichiers du bucket partner-documents pour un rider.
+ * Ne bloque pas si la suppression échoue.
+ */
+async function cleanupPartnerFiles(id: string) {
+  try {
+    const { data: rider } = await supabaseAdmin
+      .from('riders')
+      .select('photo_path, id_document_path')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!rider) return
+    const paths = [rider.photo_path, rider.id_document_path].filter(Boolean) as string[]
+    if (paths.length > 0) {
+      await supabaseAdmin.storage.from('partner-documents').remove(paths)
+    }
+  } catch (e) {
+    console.error('Échec suppression fichiers partenaire (rider):', e)
+  }
+}
+
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const staff = await verifyStaff(request)
   if (!staff || !hasRole(staff.role, 'admin')) {
@@ -103,6 +144,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!existing) {
     return NextResponse.json({ error: 'Livreur introuvable.' }, { status: 404 })
   }
+
+  // Supprimer les fichiers du bucket avant la suppression de la ligne
+  await cleanupPartnerFiles(id)
 
   const { error } = await supabaseAdmin.from('riders').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

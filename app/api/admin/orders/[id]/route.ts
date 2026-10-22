@@ -114,6 +114,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         { status: 400 }
       )
     }
+
+    const { data: rider } = await supabaseAdmin
+      .from('riders')
+      .select('id, name, region, department, photo_path, id_document_path, is_active')
+      .eq('id', body.rider_id)
+      .maybeSingle()
+
+    if (!rider) {
+      return NextResponse.json({ error: 'Livreur introuvable.' }, { status: 404 })
+    }
+    if (!rider.is_active) {
+      return NextResponse.json({ error: 'Ce livreur est actuellement inactif.' }, { status: 400 })
+    }
+
+    const isComplete = Boolean(rider.region && rider.department && rider.photo_path && rider.id_document_path)
+    if (!isComplete) {
+      return NextResponse.json(
+        { error: 'Ce livreur ne peut pas être affecté car son dossier est incomplet (adresse, photo ou CNI manquante).' },
+        { status: 400 }
+      )
+    }
   }
 
   const newRiderId: string | null = body.rider_id !== undefined ? (body.rider_id || null) : current.rider_id

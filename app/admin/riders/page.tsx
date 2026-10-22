@@ -2,14 +2,44 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Bike, Phone, CheckCircle2, XCircle, Edit, Trash2, AlertTriangle, Power, PowerOff, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
+import {
+  Loader2,
+  Bike,
+  Phone,
+  CheckCircle2,
+  XCircle,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Power,
+  PowerOff,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  MapPin,
+  FileText,
+  ImageIcon,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
+import { ALL_REGIONS_WITH_DEPARTMENTS } from '@/lib/senegalDepartments'
 
 const ITEMS_PER_PAGE = 8
+const REGION_OPTIONS = Object.keys(ALL_REGIONS_WITH_DEPARTMENTS)
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
-type Rider = { id: string; name: string; phone: string; is_active: boolean }
+type Rider = {
+  id: string
+  name: string
+  phone: string
+  is_active: boolean
+  region: string | null
+  department: string | null
+  neighborhood: string | null
+  has_photo: boolean
+  has_id_document: boolean
+}
 
 async function authFetch(url: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -19,6 +49,112 @@ async function authFetch(url: string, options: RequestInit = {}) {
   })
 }
 
+async function uploadPartnerFile(entity: 'rider' | 'merchant', id: string, kind: 'photo' | 'id_document', file: File) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const formData = new FormData()
+  formData.append('entity', entity)
+  formData.append('id', id)
+  formData.append('kind', kind)
+  formData.append('file', file)
+
+  const res = await fetch('/api/admin/partner-files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session?.access_token}` },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const json = await res.json()
+    throw new Error(json.error || `Échec du téléversement du fichier (${kind})`)
+  }
+}
+
+function PartnerPhoto({ id, hasPhoto, name }: { id: string; hasPhoto?: boolean; name: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!hasPhoto) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true)
+    })
+    authFetch(`/api/admin/partner-files?entity=rider&id=${id}&kind=photo`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.url) setUrl(data.url)
+      })
+      .catch(() => { })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, hasPhoto])
+
+  if (!hasPhoto) {
+    return (
+      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+        <Bike className="w-6 h-6" />
+      </div>
+    )
+  }
+
+  if (loading || !url) {
+    return (
+      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 animate-pulse">
+        <Loader2 className="w-4 h-4 animate-spin text-(--vert-baol)" />
+      </div>
+    )
+  }
+
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={url}
+      alt={name}
+      className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
+    />
+  )
+}
+
+function DossierBadge({
+  region,
+  department,
+  hasPhoto,
+  hasIdDocument,
+}: {
+  region: string | null
+  department: string | null
+  hasPhoto: boolean
+  hasIdDocument: boolean
+}) {
+  const missing: string[] = []
+  if (!region || !department) missing.push('adresse')
+  if (!hasPhoto) missing.push('photo')
+  if (!hasIdDocument) missing.push('CNI')
+
+  if (missing.length === 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+        Dossier complet · Éligible aux courses
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+      title={`Éléments requis : ${missing.join(', ')}`}
+    >
+      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+      Dossier incomplet · Non éligible aux courses ({missing.join(', ')})
+    </span>
+  )
+}
+
 export default function AdminRidersPage() {
   const [riders, setRiders] = useState<Rider[]>([])
   const [role, setRole] = useState<StaffRole | null>(null)
@@ -26,7 +162,15 @@ export default function AdminRidersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [region, setRegion] = useState('')
+  const [department, setDepartment] = useState('')
+  const [neighborhood, setNeighborhood] = useState('')
 
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [idDocumentFile, setIdDocumentFile] = useState<File | null>(null)
+
+  const [viewingCniId, setViewingCniId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -47,10 +191,29 @@ export default function AdminRidersPage() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadRiders() }, [])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadRiders()
+  }, [])
 
   const canWrite = role === 'admin' || role === 'super_admin'
+
+  async function handleViewCni(riderId: string) {
+    setViewingCniId(riderId)
+    try {
+      const res = await authFetch(`/api/admin/partner-files?entity=rider&id=${riderId}&kind=id_document`)
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        alert(data.error || 'Impossible d’ouvrir la pièce d’identité.')
+      } else {
+        window.open(data.url, '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      alert('Erreur lors de la récupération de la pièce d’identité.')
+    } finally {
+      setViewingCniId(null)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,20 +223,42 @@ export default function AdminRidersPage() {
     const url = editingId ? `/api/admin/riders/${editingId}` : '/api/admin/riders'
     const method = editingId ? 'PATCH' : 'POST'
 
-    const res = await authFetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone }),
-    })
+    try {
+      const res = await authFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          phone,
+          region: region || null,
+          department: department || null,
+          neighborhood: neighborhood.trim() || null,
+        }),
+      })
 
-    const json = await res.json()
-    setSaving(false)
+      const json = await res.json()
+      if (!res.ok) {
+        setSaving(false)
+        setError(json.error)
+        return
+      }
 
-    if (!res.ok) {
-      setError(json.error)
-    } else {
+      const targetId = editingId || json.id
+
+      if (photoFile && targetId) {
+        await uploadPartnerFile('rider', targetId, 'photo', photoFile)
+      }
+      if (idDocumentFile && targetId) {
+        await uploadPartnerFile('rider', targetId, 'id_document', idDocumentFile)
+      }
+
+      setSaving(false)
       cancelEdit()
       loadRiders()
+    } catch (err: unknown) {
+      setSaving(false)
+      const message = err instanceof Error ? err.message : 'Une erreur est survenue'
+      setError(message)
     }
   }
 
@@ -81,6 +266,13 @@ export default function AdminRidersPage() {
     setEditingId(rider.id)
     setName(rider.name)
     setPhone(rider.phone)
+    setRegion(rider.region || '')
+    setDepartment(rider.department || '')
+    setNeighborhood(rider.neighborhood || '')
+    setPhotoFile(null)
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoPreview(null)
+    setIdDocumentFile(null)
     setError('')
   }
 
@@ -88,6 +280,13 @@ export default function AdminRidersPage() {
     setEditingId(null)
     setName('')
     setPhone('')
+    setRegion('')
+    setDepartment('')
+    setNeighborhood('')
+    setPhotoFile(null)
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoPreview(null)
+    setIdDocumentFile(null)
     setError('')
   }
 
@@ -117,12 +316,13 @@ export default function AdminRidersPage() {
 
   const totalPages = Math.ceil(riders.length / ITEMS_PER_PAGE)
   const paginatedRiders = riders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const availableDepartments = region ? ALL_REGIONS_WITH_DEPARTMENTS[region] ?? [] : []
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className={`grid gap-8 items-start ${canWrite ? 'lg:grid-cols-[350px_1fr]' : ''}`}>
+      <div className={`grid gap-8 items-start ${canWrite ? 'lg:grid-cols-[380px_1fr]' : ''}`}>
         {canWrite ? (
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-24">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
             <h2 className="text-xl font-bold text-(--encre) mb-6">
               {editingId ? 'Modifier le livreur' : 'Ajouter un livreur'}
             </h2>
@@ -143,6 +343,156 @@ export default function AdminRidersPage() {
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-(--encre) block">Région</label>
+                <select
+                  value={region}
+                  onChange={(e) => {
+                    setRegion(e.target.value)
+                    setDepartment('')
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all"
+                >
+                  <option value="">Sélectionner une région</option>
+                  {REGION_OPTIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-(--encre) block">Département</label>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  disabled={!region}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-(--encre) focus:ring-2 focus:ring-(--vert-baol) outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <option value="">
+                    {region ? 'Sélectionner un département' : 'Choisissez d’abord une région'}
+                  </option>
+                  {availableDepartments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+
+              <FormField
+                label="Quartier (optionnel)"
+                type="text"
+                placeholder="Ex: Médina, Touba Mosquée..."
+                value={neighborhood}
+                onChange={(e) => setNeighborhood(e.target.value)}
+                maxLength={100}
+                helperText="Max 100 caractères"
+              />
+
+              {/* Photo */}
+              <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                <label className="text-sm font-medium text-(--encre) block">Photo du livreur</label>
+                <div className="border border-dashed border-gray-300 rounded-xl p-3 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                  {photoPreview ? (
+                    <div className="flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-gray-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photoPreview} alt="Aperçu" className="w-10 h-10 rounded-lg object-cover" />
+                      <span className="text-xs text-(--encre) truncate flex-1 text-left font-medium">
+                        {photoFile?.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (photoPreview) URL.revokeObjectURL(photoPreview)
+                          setPhotoFile(null)
+                          setPhotoPreview(null)
+                        }}
+                        className="text-gray-400 hover:text-red-600 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 5 * 1024 * 1024) {
+                            setError('La photo ne doit pas dépasser 5 Mo.')
+                            return
+                          }
+                          setPhotoFile(file)
+                          setPhotoPreview(URL.createObjectURL(file))
+                        }}
+                      />
+                      <div className="flex flex-col items-center gap-1 py-1 text-xs text-(--gris-texte)">
+                        <ImageIcon className="w-5 h-5 text-gray-400" />
+                        <span className="font-semibold text-(--vert-baol)">
+                          {editingId ? 'Remplacer la photo' : 'Choisir une photo'}
+                        </span>
+                        <span className="text-[11px] text-gray-400">JPEG, PNG ou WebP (max 5 Mo)</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Pièce d'identité (CNI) */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-(--encre) block">
+                  Pièce d&apos;identité (CNI PDF)
+                </label>
+                <div className="border border-dashed border-gray-300 rounded-xl p-3 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                  {idDocumentFile ? (
+                    <div className="flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-gray-200">
+                      <FileText className="w-6 h-6 text-(--vert-baol) shrink-0" />
+                      <div className="min-w-0 text-left flex-1">
+                        <p className="text-xs font-semibold text-(--encre) truncate">{idDocumentFile.name}</p>
+                        <p className="text-[11px] text-(--gris-texte)">{(idDocumentFile.size / 1024 / 1024).toFixed(2)} Mo</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIdDocumentFile(null)}
+                        className="text-gray-400 hover:text-red-600 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 5 * 1024 * 1024) {
+                            setError('Le fichier CNI ne doit pas dépasser 5 Mo.')
+                            return
+                          }
+                          if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                            setError('La CNI doit être un fichier PDF.')
+                            return
+                          }
+                          setIdDocumentFile(file)
+                        }}
+                      />
+                      <div className="flex flex-col items-center gap-1 py-1 text-xs text-(--gris-texte)">
+                        <FileText className="w-5 h-5 text-gray-400" />
+                        <span className="font-semibold text-(--vert-baol)">
+                          {editingId ? 'Remplacer la CNI (PDF)' : 'Sélectionner la CNI (PDF)'}
+                        </span>
+                        <span className="text-[11px] text-gray-400">PDF uniquement (max 5 Mo) · Confidentiel</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
               {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded-lg font-medium">{error}</p>}
               <div className="flex gap-2 mt-4">
                 <Button type="submit" disabled={saving} className="flex-1">
@@ -179,34 +529,76 @@ export default function AdminRidersPage() {
                 {paginatedRiders.map((r) => (
                   <div key={r.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-sm transition-shadow flex flex-col justify-between">
                     <div>
-                      <div className="flex justify-between items-start mb-5">
-                        <h3 className="font-bold text-(--encre) text-lg">{r.name}</h3>
-                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                          r.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                      <div className="flex justify-between items-start gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <PartnerPhoto id={r.id} hasPhoto={r.has_photo} name={r.name} />
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-(--encre) text-lg truncate">{r.name}</h3>
+                          </div>
+                        </div>
+
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shrink-0 ${r.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
                           {r.is_active ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                           {r.is_active ? 'Actif' : 'Inactif'}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 text-(--encre) text-sm bg-gray-50 p-4 rounded-xl border border-gray-100 mb-5">
-                        <Phone className="w-5 h-5 text-(--gris-texte) shrink-0" />
-                        <span className="font-bold">{r.phone}</span>
+                      <div className="mb-4">
+                        <DossierBadge
+                          region={r.region}
+                          department={r.department}
+                          hasPhoto={r.has_photo}
+                          hasIdDocument={r.has_id_document}
+                        />
                       </div>
+
+                      <div className="space-y-2 text-sm bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                        <div className="flex items-center gap-2.5 text-(--encre)">
+                          <Phone className="w-4 h-4 text-(--gris-texte) shrink-0" />
+                          <span className="font-bold">{r.phone}</span>
+                        </div>
+                        <div className="flex items-start gap-2.5 text-(--encre)">
+                          <MapPin className="w-4 h-4 text-(--gris-texte) shrink-0 mt-0.5" />
+                          <span className="text-xs leading-relaxed">
+                            {r.region && r.department
+                              ? `${r.region} · ${r.department}${r.neighborhood ? ` (${r.neighborhood})` : ''}`
+                              : <span className="text-(--gris-texte) italic">Adresse non renseignée</span>}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Consultation CNI (Admin et Super admin uniquement) */}
+                      {canWrite && r.has_id_document && (
+                        <div className="mb-4">
+                          <button
+                            type="button"
+                            onClick={() => handleViewCni(r.id)}
+                            disabled={viewingCniId === r.id}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold text-(--vert-baol-fonce) bg-(--vert-baol)/10 hover:bg-(--vert-baol)/20 rounded-xl transition-colors disabled:opacity-50"
+                          >
+                            {viewingCniId === r.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <FileText className="w-3.5 h-3.5" />
+                            )}
+                            Voir la pièce d&apos;identité (CNI)
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {canWrite && (
-                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 mt-auto">
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-2 mt-auto pt-2 border-t border-gray-100">
                         <button
                           onClick={() => toggleActive(r)}
-                          className={`flex items-center justify-center gap-2 text-sm font-bold rounded-xl px-3 py-2.5 transition-colors border ${
-                            r.is_active
+                          className={`flex items-center justify-center gap-2 text-sm font-bold rounded-xl px-3 py-2.5 transition-colors border ${r.is_active
                               ? 'border-gray-200 text-(--gris-texte) hover:bg-gray-50 hover:text-(--encre)'
                               : 'border-(--vert-baol)/30 text-(--vert-baol) hover:bg-(--vert-baol)/10'
-                          }`}
+                            }`}
                           title={r.is_active ? 'Désactiver' : 'Activer'}
                         >
-                          {r.is_active ? <PowerOff className="w-4 h-4"/> : <Power className="w-4 h-4"/>}
+                          {r.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                           <span className="hidden sm:inline">{r.is_active ? 'Désactiver' : 'Activer'}</span>
                         </button>
                         <button

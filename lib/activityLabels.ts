@@ -31,6 +31,8 @@ export const ACTION_LABELS: Record<string, string> = {
   rider_updated: 'Modification de livreur',
   rider_availability_changed: "Activité d'un livreur",
   rider_deleted: 'Suppression de livreur',
+  partner_document_viewed: "Consultation d'une pièce d'identité",
+  partner_document_uploaded: "Ajout d'un document de partenaire",
 }
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -64,6 +66,11 @@ const FLAG_LABELS: Record<string, string> = {
   ends_at: 'Dates modifiées',
   flash_starts_at: 'Dates de vente flash modifiées',
   flash_ends_at: 'Dates de vente flash modifiées',
+  region: 'Adresse modifiée',
+  department: 'Adresse modifiée',
+  neighborhood: 'Adresse modifiée',
+  photo_path: 'Photo modifiée',
+  id_document_path: "Pièce d'identité modifiée",
 }
 
 const PLACEMENT_TEXT: Record<string, string> = {
@@ -169,6 +176,10 @@ export function detailsLabel(action: string, details: Details): string {
       const amount = typeof details.amount === 'number' ? details.amount.toLocaleString('fr-FR') : '—'
       return `Réf. ${ref} · ${amount} FCFA`
     }
+    case 'partner_document_viewed':
+      return details?.kind === 'id_document' ? "Pièce d'identité" : 'Document'
+    case 'partner_document_uploaded':
+      return details?.kind === 'id_document' ? "Pièce d'identité téléversée" : details?.kind === 'photo' ? 'Photo téléversée' : 'Document téléversé'
     default:
       return '—'
   }

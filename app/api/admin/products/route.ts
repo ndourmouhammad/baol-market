@@ -27,6 +27,26 @@ export async function POST(request: Request) {
   const flash = parseFlashInput(body, Number(body.price), null)
   if ('error' in flash) return NextResponse.json({ error: flash.error }, { status: 400 })
 
+  // Si un commerçant est spécifié, vérifier que son dossier est complet
+  if (body.merchant_id) {
+    const { data: merchant } = await supabaseAdmin
+      .from('merchants')
+      .select('id, name, region, department, photo_path, id_document_path')
+      .eq('id', body.merchant_id)
+      .maybeSingle()
+
+    if (!merchant) {
+      return NextResponse.json({ error: 'Commerçant introuvable.' }, { status: 404 })
+    }
+    const isComplete = Boolean(merchant.region && merchant.department && merchant.photo_path && merchant.id_document_path)
+    if (!isComplete) {
+      return NextResponse.json(
+        { error: 'Ce commerçant ne peut pas être associé à un produit car son dossier est incomplet (adresse, photo ou CNI manquante).' },
+        { status: 400 }
+      )
+    }
+  }
+
   const { data: created, error } = await supabaseAdmin
     .from('products')
     .insert({

@@ -68,24 +68,28 @@ export function CategorySection({ category, products }: CategorySectionProps) {
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-10" aria-label={category.name}>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* En-tête de la catégorie style Jumia */}
-        <div className="px-4 sm:px-6 py-4 flex items-center justify-between border-b border-gray-100 bg-linear-to-r from-emerald-50/40 via-white to-white">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-(--encre)">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100 bg-linear-to-r from-emerald-50/40 via-white to-white">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-(--encre) truncate">
               {category.name}
             </h2>
-            <p className="text-xs sm:text-sm text-(--gris-texte) mt-0.5">
-              {category.description || 'Meilleures offres'}
-            </p>
+
+            <Link
+              href={`/categorie/${category.slug}`}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-(--vert-baol) hover:bg-(--vert-baol-fonce) rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 transition-colors shadow-xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
+              aria-label={`Voir tous les produits de ${category.name}`}
+            >
+              <span>Voir plus</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
-          <Link
-            href={`/categorie/${category.slug}`}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-(--vert-baol) hover:bg-(--vert-baol-fonce) rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 transition-colors shadow-xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol)"
-            aria-label={`Voir tous les produits de ${category.name}`}
+          <p
+            className="text-xs sm:text-sm text-(--gris-texte) mt-1 line-clamp-2 max-w-3xl leading-relaxed"
+            title={category.description || undefined}
           >
-            <span>Voir plus</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+            {category.description || 'Meilleures offres'}
+          </p>
         </div>
 
         {/* Défilement horizontal des produits */}

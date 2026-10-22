@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 import { logActivity } from '@/lib/activityLog'
+import { validateRegionDepartment } from '@/lib/senegalDepartments'
 
 // Seuls ces champs peuvent être modifiés via l'API
-const EDITABLE_FIELDS = ['name', 'phone', 'address', 'notes', 'category_id'] as const
+const EDITABLE_FIELDS = ['name', 'phone', 'address', 'notes', 'category_id', 'region', 'department', 'neighborhood'] as const
 
 // Le journal garde l'ancienne et la nouvelle valeur du nom seulement. Pour le téléphone, l'adresse,
 // les notes et la catégorie, il note « modifié » sans recopier de données personnelles.
@@ -36,9 +37,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Le nom du commerçant est obligatoire.' }, { status: 400 })
   }
 
+  // Validation adresse
+  const regionToCheck = updates.region !== undefined ? updates.region as string : undefined
+  const departmentToCheck = updates.department !== undefined ? updates.department as string : undefined
+  if (regionToCheck || departmentToCheck) {
+    const { data: current } = await supabaseAdmin.from('merchants').select('region, department').eq('id', id).maybeSingle()
+    const finalRegion = regionToCheck ?? current?.region ?? ''
+    const finalDept = departmentToCheck ?? current?.department ?? ''
+    if (finalRegion || finalDept) {
+      const v = validateRegionDepartment(finalRegion, finalDept)
+      if (!v.valid) return NextResponse.json({ error: v.error }, { status: 400 })
+    }
+  }
+
+  if ('neighborhood' in updates && updates.neighborhood && (typeof updates.neighborhood !== 'string' || (updates.neighborhood as string).length > 100)) {
+    return NextResponse.json({ error: 'Le quartier ne doit pas dépasser 100 caractères.' }, { status: 400 })
+  }
+
   const { data: existing } = await supabaseAdmin
     .from('merchants')
-    .select('name, phone, address, notes, category_id')
+    .select('name, phone, address, notes, category_id, region, department, neighborhood')
     .eq('id', id)
     .maybeSingle()
 
@@ -78,6 +96,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ success: true })
 }
 
+/**
+ * Supprime les fichiers du bucket partner-documents pour un merchant.
+ * Ne bloque pas si la suppression échoue.
+ */
+async function cleanupPartnerFiles(id: string) {
+  try {
+    const { data: merchant } = await supabaseAdmin
+      .from('merchants')
+      .select('photo_path, id_document_path')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!merchant) return
+    const paths = [merchant.photo_path, merchant.id_document_path].filter(Boolean) as string[]
+    if (paths.length > 0) {
+      await supabaseAdmin.storage.from('partner-documents').remove(paths)
+    }
+  } catch (e) {
+    console.error('Échec suppression fichiers partenaire (merchant):', e)
+  }
+}
+
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const staff = await verifyStaff(request)
   if (!staff || !hasRole(staff.role, 'admin')) {
@@ -90,6 +130,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!existing) {
     return NextResponse.json({ error: 'Commerçant introuvable.' }, { status: 404 })
   }
+
+  // Supprimer les fichiers du bucket avant la suppression de la ligne
+  await cleanupPartnerFiles(id)
 
   const { error } = await supabaseAdmin.from('merchants').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

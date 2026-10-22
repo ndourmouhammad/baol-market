@@ -21,7 +21,14 @@ type OrderItem = {
   products: { name: string } | null
 }
 
-type Rider = { id: string; name: string }
+type Rider = {
+  id: string
+  name: string
+  region?: string | null
+  department?: string | null
+  has_photo?: boolean
+  has_id_document?: boolean
+}
 type DeliveryZoneInfo = { id: string; name: string } | null
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
 
@@ -430,9 +437,12 @@ export default function AdminOrdersPage() {
                             <option value="">Aucun livreur</option>
                             {riders.map((r) => {
                               const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
+                              const isComplete = Boolean(r.region && r.department && r.has_photo && r.has_id_document)
+                              const isDisabled = isBusyElsewhere || (!isComplete && r.id !== order.rider_id)
                               return (
-                                <option key={r.id} value={r.id} disabled={isBusyElsewhere}>
-                                  {r.name}{isBusyElsewhere ? ' (occupé)' : ''}
+                                <option key={r.id} value={r.id} disabled={isDisabled}>
+                                  {r.name}
+                                  {!isComplete ? ' (dossier incomplet - inéligible)' : isBusyElsewhere ? ' (occupé)' : ''}
                                 </option>
                               )
                             })}
