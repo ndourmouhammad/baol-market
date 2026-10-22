@@ -137,20 +137,20 @@ function DossierBadge({
 
   if (missing.length === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex-wrap">
         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-        Dossier complet · Éligible aux produits
+        <span className="break-words">Dossier complet · Éligible aux produits</span>
       </span>
     )
   }
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex-wrap"
       title={`Éléments requis : ${missing.join(', ')}`}
     >
       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-      Dossier incomplet · Non éligible aux produits ({missing.join(', ')})
+      <span className="break-words">Dossier incomplet ({missing.join(', ')})</span>
     </span>
   )
 }
@@ -334,10 +334,10 @@ export default function AdminMerchantsPage() {
   const availableDepartments = region ? ALL_REGIONS_WITH_DEPARTMENTS[region] ?? [] : []
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className={`grid gap-8 items-start ${canWrite ? 'lg:grid-cols-[380px_1fr]' : ''}`}>
+    <div className="w-full max-w-6xl mx-auto">
+      <div className={`grid gap-6 lg:gap-8 items-start ${canWrite ? 'lg:grid-cols-[minmax(280px,380px)_1fr]' : ''}`}>
         {canWrite ? (
-          <div className="bg-white p-5 rounded-xl border border-mil/30 shadow-sm lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-mil/30 shadow-sm lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
             <h2 className="text-lg font-bold text-(--encre) mb-4">
               {editingId ? 'Modifier le commerçant' : 'Ajouter un commerçant'}
             </h2>
@@ -615,7 +615,7 @@ export default function AdminMerchantsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {paginatedMerchants.map((m) => (
                   <div key={m.id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow flex flex-col justify-between">
                     <div>
@@ -717,7 +717,7 @@ export default function AdminMerchantsPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white px-4 py-3 border border-gray-100 rounded-2xl mt-6">
+                <div className="flex items-center justify-between bg-white px-3 sm:px-4 py-3 border border-gray-100 rounded-2xl mt-6">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
