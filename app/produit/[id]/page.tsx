@@ -11,6 +11,7 @@ import { CategoryProductRow } from '@/components/CategoryProductRow'
 import { ShoppingBag, ShieldCheck, Wallet, Truck, RotateCcw, MessageSquare } from 'lucide-react'
 import { SITE_URL } from '@/lib/siteUrl'
 import { getVisitWhatsAppUrl } from '@/lib/visitFulfillment'
+import { ShareButton } from '@/components/ShareButton'
 
 export const revalidate = 60
 
@@ -338,9 +339,12 @@ export default async function ProductDetailPage({ params }: Props) {
 
           {/* Colonne droite : Informations */}
           <div className="flex flex-col">
-            <h1 className="text-2xl md:text-3xl font-bold text-(--encre) mb-4 leading-tight">
-              {product.name}
-            </h1>
+            <div className="flex items-start gap-3 mb-4">
+              <h1 className="text-2xl md:text-3xl font-bold text-(--encre) leading-tight flex-1">
+                {product.name}
+              </h1>
+              <ShareButton url={productUrl} name={product.name} />
+            </div>
 
             {/* Prix */}
             <div className="mb-2">
