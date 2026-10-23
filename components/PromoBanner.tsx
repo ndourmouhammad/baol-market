@@ -14,29 +14,39 @@ type PromoBannerProps = {
  * Une bannière : l'image, avec par-dessus un titre, une description et une étiquette
  * de promo, uniquement s'ils sont renseignés. Utilisée par l'aperçu de l'admin
  * et par la page d'accueil.
+ *
+ * Si `imageUrl` est vide, affiche un fond uni (vert de la marque) avec le texte centré,
+ * utilisé comme slide par défaut quand aucune bannière n'est active.
  */
 export function PromoBanner({ imageUrl, title, description, badge, variant, priority = false }: PromoBannerProps) {
   const hasText = !!(title || description || badge)
   const isCarousel = variant === 'carousel'
+  const hasImage = imageUrl.length > 0
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl bg-gray-100 ${
+      className={`relative w-full overflow-hidden rounded-2xl ${
         isCarousel ? 'aspect-[3/1]' : 'aspect-square'
       }`}
+      style={hasImage ? undefined : { backgroundColor: 'var(--vert-baol-fonce)' }}
     >
-      <Image
-        src={imageUrl}
-        alt={title || (isCarousel ? 'Bannière promotionnelle' : 'Offre promotionnelle')}
-        fill
-        sizes={isCarousel ? '100vw' : '(max-width: 768px) 50vw, 25vw'}
-        className="object-cover"
-        priority={priority}
-        // Les aperçus d'images choisies sur l'ordinateur (blob:) ne passent pas par l'optimiseur
-        unoptimized={imageUrl.startsWith('blob:')}
-      />
+      {hasImage ? (
+        <Image
+          src={imageUrl}
+          alt={title || (isCarousel ? 'Bannière promotionnelle' : 'Offre promotionnelle')}
+          fill
+          sizes={isCarousel ? '100vw' : '(max-width: 768px) 50vw, 25vw'}
+          className="object-cover"
+          priority={priority}
+          // Les aperçus d'images choisies sur l'ordinateur (blob:) ne passent pas par l'optimiseur
+          unoptimized={imageUrl.startsWith('blob:')}
+        />
+      ) : (
+        /* Fond uni pour la slide par défaut (pas d'image) */
+        <div className="absolute inset-0 bg-[var(--vert-baol-fonce)]" />
+      )}
 
-      {hasText && (
+      {hasText && hasImage && (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
           <div className={`absolute inset-0 flex flex-col justify-end ${isCarousel ? 'p-4 sm:p-8' : 'p-3 sm:p-4'}`}>
@@ -69,6 +79,21 @@ export function PromoBanner({ imageUrl, title, description, badge, variant, prio
             )}
           </div>
         </>
+      )}
+
+      {hasText && !hasImage && (
+        <div className={`absolute inset-0 flex flex-col items-center justify-center text-center ${isCarousel ? 'p-4 sm:p-8' : 'p-3 sm:p-4'}`}>
+          {title && (
+            <p className={`text-white font-bold leading-tight ${isCarousel ? 'text-xl sm:text-3xl lg:text-4xl max-w-3xl' : 'text-sm sm:text-base'}`}>
+              {title}
+            </p>
+          )}
+          {description && (
+            <p className={`text-white/80 mt-2 sm:mt-3 ${isCarousel ? 'text-sm sm:text-lg max-w-xl' : 'text-xs'}`}>
+              {description}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

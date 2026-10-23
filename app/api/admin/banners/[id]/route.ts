@@ -5,12 +5,12 @@ import { logActivity } from '@/lib/activityLog'
 import { PLACEMENT_LABELS, bannerImagePrefix, parseBannerInput, type Placement } from '@/lib/banners'
 
 const COLUMNS =
-  'placement, image_url, title, description, badge, link_type, link_id, sort_order, is_active, starts_at, ends_at'
+  'placement, image_url, title, description, badge, link_type, link_id, sort_order, is_active, starts_at, ends_at, kind'
 
 // Pour ces champs, le journal garde l'ancienne et la nouvelle valeur (titre, étiquette, activation).
-// Pour les autres (image, description, lien, dates), il note seulement « modifié ».
+// Pour les autres (image, description, lien, dates, type), il note seulement « modifié ».
 const VALUE_FIELDS = ['title', 'badge', 'is_active']
-const LOGGED_FIELDS = ['image_url', 'title', 'description', 'badge', 'link_type', 'link_id', 'starts_at', 'ends_at', 'is_active']
+const LOGGED_FIELDS = ['image_url', 'title', 'description', 'badge', 'link_type', 'link_id', 'starts_at', 'ends_at', 'is_active', 'kind']
 
 // "" et null sont considérés comme identiques (champ vide)
 function normalize(value: unknown) {

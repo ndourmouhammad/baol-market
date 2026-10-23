@@ -11,7 +11,7 @@ import {
 } from '@/lib/banners'
 
 const COLUMNS =
-  'id, placement, image_url, title, description, badge, link_type, link_id, sort_order, is_active, starts_at, ends_at'
+  'id, placement, image_url, title, description, badge, link_type, link_id, sort_order, is_active, starts_at, ends_at, kind'
 
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   const { data: created, error } = await supabaseAdmin
     .from('banners')
-    .insert({ ...parsed.values, placement, sort_order: nextOrder })
+    .insert({ kind: 'promo', ...parsed.values, placement, sort_order: nextOrder })
     .select('id')
     .single()
 

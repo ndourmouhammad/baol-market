@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/Button'
 import { FormField } from '@/components/FormField'
 import { PromoBanner } from '@/components/PromoBanner'
+import { type BannerKind, BANNER_KIND_LABELS } from '@/lib/bannerKinds'
 
 type StaffRole = 'super_admin' | 'admin' | 'moderator'
 type Placement = 'carousel' | 'promo'
@@ -26,6 +27,7 @@ type Banner = {
   is_active: boolean
   starts_at: string | null
   ends_at: string | null
+  kind: BannerKind
 }
 
 type Option = { id: string; name: string }
@@ -80,6 +82,8 @@ export default function AdminBannersPage() {
   const [startsAt, setStartsAt] = useState('')
   const [endsAt, setEndsAt] = useState('')
 
+  const [kind, setKind] = useState<BannerKind>('promo')
+
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
@@ -127,6 +131,7 @@ export default function AdminBannersPage() {
     setTitle('')
     setDescription('')
     setBadge('')
+    setKind('promo')
     setLinkType('none')
     setLinkId('')
     setStartsAt('')
@@ -216,6 +221,7 @@ export default function AdminBannersPage() {
       title,
       description,
       badge,
+      kind,
       link_type: linkType,
       link_id: linkType === 'none' ? null : linkId,
       starts_at: startsAt ? new Date(startsAt).toISOString() : null,
@@ -244,6 +250,7 @@ export default function AdminBannersPage() {
     setTitle(banner.title ?? '')
     setDescription(banner.description ?? '')
     setBadge(banner.badge ?? '')
+    setKind(banner.kind)
     setLinkType(banner.link_type)
     setLinkId(banner.link_id ?? '')
     setStartsAt(toLocalInput(banner.starts_at))
@@ -427,6 +434,26 @@ export default function AdminBannersPage() {
             />
 
             <div className="space-y-1.5">
+              <label className="font-bold text-(--encre) block">Type</label>
+              <select
+                value={kind}
+                onChange={(e) => {
+                  const next = e.target.value as BannerKind
+                  setKind(next)
+                  // Pré-remplir l'étiquette si elle est vide pour « Nouvel arrivage »
+                  if (next === 'new_arrival' && !badge.trim()) {
+                    setBadge('Nouvel arrivage')
+                  }
+                }}
+                className={selectClass}
+              >
+                {(Object.entries(BANNER_KIND_LABELS) as [BannerKind, string][]).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
               <label className="font-bold text-(--encre) block">Lien au clic</label>
               <select
                 value={linkType}
@@ -519,6 +546,13 @@ export default function AdminBannersPage() {
                         <p className="font-bold text-(--encre) truncate">{b.title || 'Sans titre'}</p>
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${status.className}`}>
                           {status.label}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          b.kind === 'new_arrival'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-50 text-blue-700'
+                        }`}>
+                          {BANNER_KIND_LABELS[b.kind]}
                         </span>
                         {b.badge && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-(--or-senegal) text-(--encre)">

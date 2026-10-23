@@ -1,10 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/Button'
 import { CheckCircle, ShieldCheck, Truck, ShoppingBag, ArrowRight, MapPin, Wallet } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
-import { HeroCarousel } from '@/components/HeroCarousel'
 import { CategorySection } from '@/components/CategorySection'
 import { BannerCarousel, type CarouselSlide } from '@/components/BannerCarousel'
 import { PromoBanner } from '@/components/PromoBanner'
@@ -60,6 +58,7 @@ function withFlash(row: ProductRow, now: Date) {
 type BannerRow = {
   id: string
   placement: 'carousel' | 'promo'
+  kind: string
   image_url: string
   title: string | null
   description: string | null
@@ -117,7 +116,7 @@ export default async function Home() {
     // La base ne renvoie que les bannières activées et dans leurs dates (règle côté base de données)
     supabase
       .from('banners')
-      .select('id, placement, image_url, title, description, badge, link_type, link_id')
+      .select('id, placement, kind, image_url, title, description, badge, link_type, link_id')
       .order('sort_order'),
     supabase
       .from('products')
@@ -208,7 +207,7 @@ export default async function Home() {
   }
 
   const carouselSlides: CarouselSlide[] = bannerRows
-    .filter((b) => b.placement === 'carousel')
+    .filter((b) => b.placement === 'carousel' || b.kind === 'new_arrival')
     .slice(0, MAX_CAROUSEL_SLIDES)
     .map((b) => ({
       id: b.id,
@@ -239,68 +238,19 @@ export default async function Home() {
           <BannerCarousel slides={carouselSlides} />
         </section>
       ) : (
-        /* Aucune bannière visible : accueil d'origine, pour que le site ne soit jamais vide */
-        <section className="bg-(--fond) text-(--encre) overflow-hidden border-b border-gray-100 relative hero-pattern">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12 md:pt-10 md:pb-16 relative z-10">
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
-              <div className="max-w-2xl flex-1 animate-fade-in-up">
-                <div className="inline-flex items-center gap-2 bg-(--vert-baol)/10 rounded-full px-4 py-1.5 text-xs font-bold text-(--vert-baol-fonce) mb-6 shadow-sm border border-(--vert-baol)/20">
-                  <ShieldCheck className="w-4 h-4" />
-                  Marketplace vérifiée au Sénégal
-                </div>
-
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-[1.15] text-(--encre)">
-                  Des produits vérifiés,
-                  <br />
-                  <span className="text-(--vert-baol) inline-block mt-2">livrés en confiance.</span>
-                </h1>
-
-                <p className="text-base md:text-lg text-(--gris-texte) max-w-xl mb-10 leading-relaxed">
-                  Chaque article est inspecté physiquement par notre équipe avant mise en vente.
-                  Achetez local, commandez simplement et payez en ligne en toute sérénité.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                  <Link href="/produits" className="w-full sm:w-auto">
-                    <Button variant="primary" className="w-full sm:w-auto text-base shadow-md hover:shadow-lg transition-shadow">
-                      Découvrir les produits
-                    </Button>
-                  </Link>
-                  <Link href="/signup" className="w-full sm:w-auto">
-                    <Button variant="ghost" className="w-full sm:w-auto text-base border border-gray-200 hover:border-gray-300">
-                      Créer un compte
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Zone visuelle décorative */}
-              <div className="hidden lg:flex flex-1 justify-end animate-slide-in-right">
-                <div className="relative w-full max-w-md aspect-square rounded-[2rem] border border-(--vert-baol)/20 shadow-xl overflow-hidden">
-                  <HeroCarousel />
-
-                  <div className="absolute top-10 right-10 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-1">
-                    <div className="bg-green-100 p-2 rounded-full text-green-600">
-                      <CheckCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-(--encre)">Produit vérifié</p>
-                      <p className="text-xs text-(--gris-texte)">Qualité garantie</p>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-20 left-4 z-10 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-3 animate-fade-in-up stagger-2">
-                    <div className="bg-blue-100 p-2 rounded-full text-blue-600">
-                      <Wallet className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-(--encre)">Paiement en ligne</p>
-                      <p className="text-xs text-(--gris-texte)">100% sécurisé</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        /* Aucune bannière visible : slide par défaut, le site n'est jamais vide */
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">
+          <h1 className="sr-only">Baol Market, la marketplace de produits vérifiés au Sénégal</h1>
+          <BannerCarousel
+            slides={[{
+              id: 'default',
+              imageUrl: '',
+              title: 'Des produits vérifiés, livrés en confiance.',
+              description: 'Commandez en ligne, recevez en confiance.',
+              badge: null,
+              href: '/produits',
+            }]}
+          />
         </section>
       )}
 

@@ -8,6 +8,11 @@ export const PLACEMENT_LABELS: Record<Placement, string> = {
   promo: 'Cartes promo',
 }
 
+export const BANNER_KINDS = ['promo', 'new_arrival'] as const
+export type BannerKind = (typeof BANNER_KINDS)[number]
+
+export { BANNER_KIND_LABELS } from './bannerKinds'
+
 // Nombre maximal de bannières enregistrées par emplacement (actives ou non)
 export const MAX_BANNERS_PER_PLACEMENT = 30
 
@@ -31,6 +36,7 @@ export type BannerValues = {
   ends_at?: string | null
   is_active?: boolean
   sort_order?: number
+  kind?: BannerKind
 }
 
 type ExistingBanner = {
@@ -86,6 +92,13 @@ export async function parseBannerInput(
       return { error: "Ordre d'affichage invalide." }
     }
     values.sort_order = body.sort_order
+  }
+
+  if (body.kind !== undefined) {
+    if (typeof body.kind !== 'string' || !BANNER_KINDS.includes(body.kind as BannerKind)) {
+      return { error: 'Type de bannière invalide.' }
+    }
+    values.kind = body.kind as BannerKind
   }
 
   // Lien : aucune destination, une catégorie ou un produit du site (jamais une adresse libre)
