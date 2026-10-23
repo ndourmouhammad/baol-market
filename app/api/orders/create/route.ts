@@ -7,7 +7,7 @@ import { isValidDepartmentForRegion } from '@/lib/senegalDepartments'
 // Quantité maximale commandable par produit en une seule commande
 const MAX_QUANTITY_PER_PRODUCT = 20
 
-type CartItemInput = { productId: string; quantity: number }
+type CartItemInput = { productId: string; quantity: number; size?: string | null }
 
 export async function POST(request: Request) {
   // 1. Identité du client : vérifiée côté serveur à partir de la session,
@@ -51,9 +51,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Mode de livraison invalide.' }, { status: 400 })
   }
 
-  // 2. Quantités : entiers entre 1 et le maximum. Un même produit présent
-  //    plusieurs fois est fusionné en une seule ligne.
-  const quantities = new Map<string, number>()
+  // 2. Quantités : entiers entre 1 et le maximum. Un même produit avec la même taille
+  //    est fusionné en une seule ligne (productId + taille).
+  type MergedLine = {
+    productId: string
+    size: string | null
+    quantity: number
+  }
+  const mergedLines = new Map<string, MergedLine>()
+
   for (const item of items) {
     if (
       typeof item?.productId !== 'string' ||
@@ -63,30 +69,80 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json({ error: 'Quantité invalide.' }, { status: 400 })
     }
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity)
+
+    let size: string | null = null
+    if (item.size !== undefined && item.size !== null) {
+      if (typeof item.size !== 'string') {
+        return NextResponse.json({ error: 'Format de taille invalide.' }, { status: 400 })
+      }
+      const trimmed = item.size.trim()
+      size = trimmed.length > 0 ? trimmed : null
+    }
+
+    const key = `${item.productId}|${size ?? ''}`
+    const existing = mergedLines.get(key)
+    if (existing) {
+      existing.quantity += item.quantity
+    } else {
+      mergedLines.set(key, { productId: item.productId, size, quantity: item.quantity })
+    }
   }
-  for (const quantity of quantities.values()) {
-    if (quantity > MAX_QUANTITY_PER_PRODUCT) {
+
+  for (const line of mergedLines.values()) {
+    if (line.quantity > MAX_QUANTITY_PER_PRODUCT) {
       return NextResponse.json(
-        { error: `Quantité maximale par produit : ${MAX_QUANTITY_PER_PRODUCT}.` },
+        { error: `Quantité maximale par article : ${MAX_QUANTITY_PER_PRODUCT}.` },
         { status: 400 }
       )
     }
   }
 
   // 3. Produits : seuls les produits disponibles peuvent être commandés.
-  const productIds = Array.from(quantities.keys())
+  //    La vérification se fait sur les identifiants de produits uniques.
+  const uniqueProductIds = Array.from(new Set(Array.from(mergedLines.values()).map((l) => l.productId)))
   const { data: products, error: productsError } = await supabaseAdmin
     .from('products')
-    .select('id, name, price, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
+    .select('id, name, price, flash_price, flash_starts_at, flash_ends_at, size_options, categories ( fulfillment_type )')
     .eq('is_available', true)
-    .in('id', productIds)
+    .in('id', uniqueProductIds)
 
-  if (productsError || !products || products.length !== productIds.length) {
+  if (productsError || !products || products.length !== uniqueProductIds.length) {
     return NextResponse.json(
       { error: 'Un ou plusieurs produits sont introuvables ou indisponibles.' },
       { status: 404 }
     )
+  }
+
+  const productMap = new Map(products.map((p) => [p.id, p]))
+
+  // Vérification des tailles pour chaque ligne commandée
+  for (const line of mergedLines.values()) {
+    const p = productMap.get(line.productId)!
+    const productSizes = Array.isArray(p.size_options) && p.size_options.length > 0
+      ? p.size_options
+      : null
+
+    if (productSizes) {
+      if (!line.size) {
+        return NextResponse.json(
+          { error: `Veuillez choisir une taille pour le produit « ${p.name} ».` },
+          { status: 400 }
+        )
+      }
+      if (!productSizes.includes(line.size)) {
+        return NextResponse.json(
+          { error: `La taille « ${line.size} » n'est pas disponible pour le produit « ${p.name} ».` },
+          { status: 400 }
+        )
+      }
+    } else {
+      if (line.size) {
+        return NextResponse.json(
+          { error: `Le produit « ${p.name} » ne propose pas de choix de taille.` },
+          { status: 400 }
+        )
+      }
+    }
   }
 
   // Refuser toute commande contenant un produit de type 'visit' (immobilier, véhicules, etc.)
@@ -180,12 +236,16 @@ export async function POST(request: Request) {
   // Prix toujours relus depuis la base, jamais depuis le navigateur.
   // Si une vente flash est en cours à cet instant, c'est le prix flash qui est facturé.
   const now = new Date()
-  const orderItemsLines = products.map((product) => ({
-    product_id: product.id,
-    name: product.name,
-    unit_price: effectivePrice(product, now),
-    quantity: quantities.get(product.id)!,
-  }))
+  const orderItemsLines = Array.from(mergedLines.values()).map((line) => {
+    const product = productMap.get(line.productId)!
+    return {
+      product_id: product.id,
+      name: product.name,
+      size: line.size,
+      unit_price: effectivePrice(product, now),
+      quantity: line.quantity,
+    }
+  })
 
   const subtotalAmount = orderItemsLines.reduce((sum, line) => sum + line.unit_price * line.quantity, 0)
   const totalAmount = subtotalAmount + deliveryFee
@@ -216,6 +276,7 @@ export async function POST(request: Request) {
     product_id: line.product_id,
     quantity: line.quantity,
     unit_price: line.unit_price,
+    size: line.size,
   }))
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItemsPayload)
@@ -226,7 +287,7 @@ export async function POST(request: Request) {
   }
 
   const itemsSummary = orderItemsLines
-    .map((line) => `${line.quantity}x ${line.name}`)
+    .map((line) => `${line.quantity}x ${line.name}${line.size ? ` (${line.size})` : ''}`)
     .join(', ')
     .slice(0, 100)
 

@@ -18,6 +18,7 @@ import {
 type OrderItem = {
   quantity: number
   unit_price: number
+  size?: string | null
   products: { name: string } | null
 }
 
@@ -540,7 +541,10 @@ export default function AdminOrdersPage() {
                       <ul className="space-y-1 mb-2">
                         {order.order_items.map((item, i) => (
                           <li key={i} className="flex justify-between text-(--encre)">
-                            <span>{item.quantity}× {item.products?.name ?? 'Produit inconnu'}</span>
+                            <span>
+                              {item.quantity}× {item.products?.name ?? 'Produit inconnu'}
+                              {item.size ? ` (taille ${item.size})` : ''}
+                            </span>
                           </li>
                         ))}
                       </ul>

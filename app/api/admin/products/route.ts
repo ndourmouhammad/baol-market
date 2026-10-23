@@ -4,13 +4,15 @@ import { verifyStaff } from '@/lib/verifyStaff'
 import { logActivity } from '@/lib/activityLog'
 import { parseFlashInput } from '@/lib/flashSale'
 
+import { normalizeSizes } from '@/lib/sizes'
+
 export async function GET(request: Request) {
   const staff = await verifyStaff(request)
   if (!staff) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { data, error } = await supabaseAdmin
     .from('products')
-    .select('id, name, description, price, image_url, is_available, category_id, merchant_id, flash_price, flash_starts_at, flash_ends_at, categories(name), merchants(name)')
+    .select('id, name, description, price, image_url, is_available, category_id, merchant_id, flash_price, flash_starts_at, flash_ends_at, size_options, size_notes, categories(name), merchants(name)')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -47,6 +49,26 @@ export async function POST(request: Request) {
     }
   }
 
+  // Tailles facultatives
+  let sizeOptions: string[] | null = null
+  if (body.size_options !== undefined && body.size_options !== null) {
+    try {
+      const normalized = normalizeSizes(body.size_options)
+      sizeOptions = normalized.length > 0 ? normalized : null
+    } catch (err: unknown) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Tailles invalides' }, { status: 400 })
+    }
+  }
+
+  let sizeNotes: string | null = null
+  if (typeof body.size_notes === 'string') {
+    const trimmed = body.size_notes.trim()
+    if (trimmed.length > 600) {
+      return NextResponse.json({ error: 'Les mesures ne doivent pas dépasser 600 caractères.' }, { status: 400 })
+    }
+    sizeNotes = trimmed.length > 0 ? trimmed : null
+  }
+
   const { data: created, error } = await supabaseAdmin
     .from('products')
     .insert({
@@ -57,6 +79,8 @@ export async function POST(request: Request) {
       merchant_id: body.merchant_id || null,
       image_url: body.image_url || null,
       is_available: true,
+      size_options: sizeOptions,
+      size_notes: sizeNotes,
       ...(flash.values ?? {}),
     })
     .select('id')

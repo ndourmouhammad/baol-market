@@ -30,7 +30,7 @@ export default function CartPage() {
       <div className="space-y-4 mb-8">
         {lines.map((item) => (
           <div
-            key={item.productId}
+            key={item.lineKey}
             className={`bg-white border border-gray-100 rounded-2xl p-4 flex gap-4 items-center ${item.available ? '' : 'opacity-60'}`}
           >
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 shrink-0 relative">
@@ -45,6 +45,9 @@ export default function CartPage() {
 
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-(--encre) truncate">{item.name}</h3>
+              {item.size && (
+                <p className="text-xs text-(--gris-texte)">Taille : {item.size}</p>
+              )}
               {!item.available ? (
                 <p className="text-sm font-bold text-(--rouge-erreur)">Plus disponible</p>
               ) : item.onSale ? (
@@ -59,7 +62,7 @@ export default function CartPage() {
 
             <div className={`flex items-center gap-2 shrink-0 ${item.available ? '' : 'pointer-events-none'}`}>
               <button
-                onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                onClick={() => updateQuantity(item.lineKey, item.quantity - 1)}
                 className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50"
                 aria-label="Diminuer la quantité"
               >
@@ -67,7 +70,7 @@ export default function CartPage() {
               </button>
               <span className="w-6 text-center font-medium">{item.quantity}</span>
               <button
-                onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                onClick={() => updateQuantity(item.lineKey, item.quantity + 1)}
                 className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50"
                 aria-label="Augmenter la quantité"
               >
@@ -76,7 +79,7 @@ export default function CartPage() {
             </div>
 
             <button
-              onClick={() => removeItem(item.productId)}
+              onClick={() => removeItem(item.lineKey)}
               className="text-(--rouge-erreur) hover:bg-red-50 p-2 rounded-lg shrink-0"
               aria-label="Retirer du panier"
             >

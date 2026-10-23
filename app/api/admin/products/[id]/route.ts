@@ -3,15 +3,16 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 import { logActivity } from '@/lib/activityLog'
 import { parseFlashInput } from '@/lib/flashSale'
+import { normalizeSizes } from '@/lib/sizes'
 
 // Seuls ces champs peuvent être modifiés via l'API
-const EDITABLE_FIELDS = ['name', 'description', 'price', 'category_id', 'merchant_id', 'image_url', 'is_available'] as const
+const EDITABLE_FIELDS = ['name', 'description', 'price', 'category_id', 'merchant_id', 'image_url', 'is_available', 'size_options', 'size_notes'] as const
 // La vente flash est vérifiée à part (cohérence prix / dates)
 const FLASH_FIELDS = ['flash_price', 'flash_starts_at', 'flash_ends_at'] as const
 const ALL_FIELDS = [...EDITABLE_FIELDS, ...FLASH_FIELDS]
 
 // Pour ces champs, le journal garde l'ancienne et la nouvelle valeur.
-// Pour les autres (description, image, catégorie, commerçant, dates), il note seulement « modifié ».
+// Pour les autres (description, image, catégorie, commerçant, dates, tailles, mesures), il note seulement « modifié ».
 const VALUE_FIELDS = ['name', 'price', 'is_available', 'flash_price']
 
 // "" et null sont considérés comme identiques (champ vide)
@@ -27,6 +28,12 @@ function sameValue(field: string, a: unknown, b: unknown): boolean {
     const timeA = a ? new Date(a as string).getTime() : null
     const timeB = b ? new Date(b as string).getTime() : null
     return timeA === timeB
+  }
+  if (field === 'size_options') {
+    const arrA = Array.isArray(a) ? (a as string[]) : []
+    const arrB = Array.isArray(b) ? (b as string[]) : []
+    if (arrA.length !== arrB.length) return false
+    return arrA.every((val, idx) => val === arrB[idx])
   }
   return a === b
 }
@@ -50,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: existing } = await supabaseAdmin
     .from('products')
-    .select('name, description, price, category_id, merchant_id, image_url, is_available, flash_price, flash_starts_at, flash_ends_at')
+    .select('name, description, price, category_id, merchant_id, image_url, is_available, flash_price, flash_starts_at, flash_ends_at, size_options, size_notes')
     .eq('id', id)
     .maybeSingle()
 
@@ -58,6 +65,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Produit introuvable.' }, { status: 404 })
   }
   const before = existing as Record<string, unknown>
+
+  // Tailles facultatives
+  if ('size_options' in updates) {
+    if (updates.size_options === null || updates.size_options === undefined || (Array.isArray(updates.size_options) && updates.size_options.length === 0)) {
+      updates.size_options = null
+    } else {
+      try {
+        const normalized = normalizeSizes(updates.size_options)
+        updates.size_options = normalized.length > 0 ? normalized : null
+      } catch (err: unknown) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : 'Tailles invalides' }, { status: 400 })
+      }
+    }
+  }
+
+  // Mesures facultatives
+  if ('size_notes' in updates) {
+    if (updates.size_notes === null || updates.size_notes === undefined || updates.size_notes === '') {
+      updates.size_notes = null
+    } else if (typeof updates.size_notes === 'string') {
+      const trimmed = updates.size_notes.trim()
+      if (trimmed.length > 600) {
+        return NextResponse.json({ error: 'Les mesures ne doivent pas dépasser 600 caractères.' }, { status: 400 })
+      }
+      updates.size_notes = trimmed.length > 0 ? trimmed : null
+    }
+  }
 
   // Vente flash : cohérence avec le prix normal (nouveau ou actuel)
   const newPrice = 'price' in updates ? Number(updates.price) : Number(before.price)

@@ -21,6 +21,7 @@ interface Product {
   flash?: FlashDisplay | null;
   fulfillment_type?: string | null;
   categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null;
+  size_options?: string[] | null;
 }
 
 interface ProductCardProps {
@@ -152,6 +153,17 @@ export function ProductCard({ product }: ProductCardProps) {
               <MessageSquare className="w-4 h-4 shrink-0" />
               <span>Demander une visite</span>
             </a>
+          ) : Array.isArray(product.size_options) && product.size_options.length > 0 ? (
+            <Link href={`/produit/${product.id}`} className="block w-full outline-none">
+              <Button
+                variant="primary"
+                fullWidth
+                size="sm"
+                className="min-h-[40px] text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-offset-2"
+              >
+                Choisir la taille
+              </Button>
+            </Link>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
               <Button

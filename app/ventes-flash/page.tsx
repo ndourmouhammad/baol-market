@@ -36,7 +36,7 @@ export default async function VentesFlashPage() {
 
   const { data, error } = await supabase
     .from('products')
-    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at, categories ( fulfillment_type )')
+    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at, size_options, categories ( fulfillment_type )')
     .eq('is_available', true)
     .not('flash_price', 'is', null)
     .gt('flash_ends_at', nowIso)

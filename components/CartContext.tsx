@@ -3,6 +3,10 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { fetchLivePrices, type LivePrice } from '@/lib/livePrices'
 
+export function getLineKey(productId: string, size?: string | null): string {
+  return `${productId}|${size ?? ''}`
+}
+
 export type CartItem = {
   productId: string
   name: string
@@ -10,10 +14,13 @@ export type CartItem = {
   imageUrl: string | null
   quantity: number
   fulfillmentType?: string | null
+  size?: string | null
+  lineKey?: string
 }
 
 // Une ligne du panier avec les prix ACTUELS (ceux que le serveur facturera maintenant)
 export type CartLine = CartItem & {
+  lineKey: string
   unitPrice: number
   regularPrice: number
   onSale: boolean
@@ -23,9 +30,9 @@ export type CartLine = CartItem & {
 type CartContextType = {
   items: CartItem[]
   lines: CartLine[]
-  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void
-  updateQuantity: (productId: string, quantity: number) => void
-  removeItem: (productId: string) => void
+  addItem: (item: Omit<CartItem, 'quantity' | 'lineKey'>, quantity?: number) => void
+  updateQuantity: (lineKey: string, quantity: number) => void
+  removeItem: (lineKey: string) => void
   clearCart: () => void
   totalItems: number
   /** Total des produits disponibles, aux prix actuels */
@@ -52,7 +59,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     queueMicrotask(() => {
       try {
         const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) setItems(JSON.parse(stored))
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            // Rétrocompatibilité : assure que chaque article a un lineKey et un champ size
+            const migrated = parsed.map((item: CartItem) => ({
+              ...item,
+              size: item.size ?? null,
+              lineKey: item.lineKey || getLineKey(item.productId, item.size),
+            }))
+            setItems(migrated)
+          }
+        }
       } catch (e) {
         console.error('Erreur lecture panier:', e)
       }
@@ -75,7 +93,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items])
 
   const refreshPrices = useCallback(async () => {
-    const ids = itemsRef.current.map((i) => i.productId)
+    const ids = Array.from(new Set(itemsRef.current.map((i) => i.productId)))
     if (ids.length === 0) return {}
     const prices = await fetchLivePrices(ids)
     if (prices) setLivePrices((previous) => ({ ...previous, ...prices }))
@@ -84,7 +102,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Prix actuels : à l'arrivée, quand les produits du panier changent,
   // toutes les minutes, et quand le client revient sur l'onglet.
-  const idsKey = items.map((i) => i.productId).sort().join(',')
+  const idsKey = Array.from(new Set(items.map((i) => i.productId))).sort().join(',')
   useEffect(() => {
     if (!hydrated || idsKey === '') return
 
@@ -101,7 +119,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, idsKey, refreshPrices])
 
-  const addItem = useCallback((item: Omit<CartItem, 'quantity'>, quantity = 1) => {
+  const addItem = useCallback((item: Omit<CartItem, 'quantity' | 'lineKey'>, quantity = 1) => {
     // Les produits de type 'visit' ne peuvent jamais être ajoutés au panier
     if (
       item.fulfillmentType === 'visit' ||
@@ -109,26 +127,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     ) {
       return
     }
+    const lineKey = getLineKey(item.productId, item.size)
+    const normalizedItem: CartItem = {
+      ...item,
+      size: item.size ?? null,
+      lineKey,
+      quantity,
+    }
+
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === item.productId)
+      const existing = prev.find((i) => (i.lineKey || getLineKey(i.productId, i.size)) === lineKey)
       if (existing) {
         return prev.map((i) =>
-          i.productId === item.productId ? { ...i, quantity: i.quantity + quantity } : i
+          (i.lineKey || getLineKey(i.productId, i.size)) === lineKey
+            ? { ...i, quantity: i.quantity + quantity }
+            : i
         )
       }
-      return [...prev, { ...item, quantity }]
+      return [...prev, normalizedItem]
     })
   }, [])
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
+  const updateQuantity = useCallback((targetKey: string, quantity: number) => {
     setItems((prev) => {
-      if (quantity <= 0) return prev.filter((i) => i.productId !== productId)
-      return prev.map((i) => (i.productId === productId ? { ...i, quantity } : i))
+      const hasExactLineKey = prev.some((i) => (i.lineKey || getLineKey(i.productId, i.size)) === targetKey)
+      const matches = (i: CartItem) => {
+        const k = i.lineKey || getLineKey(i.productId, i.size)
+        return hasExactLineKey ? k === targetKey : i.productId === targetKey
+      }
+      if (quantity <= 0) return prev.filter((i) => !matches(i))
+      return prev.map((i) => (matches(i) ? { ...i, quantity } : i))
     })
   }, [])
 
-  const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId))
+  const removeItem = useCallback((targetKey: string) => {
+    setItems((prev) => {
+      const hasExactLineKey = prev.some((i) => (i.lineKey || getLineKey(i.productId, i.size)) === targetKey)
+      const matches = (i: CartItem) => {
+        const k = i.lineKey || getLineKey(i.productId, i.size)
+        return hasExactLineKey ? k === targetKey : i.productId === targetKey
+      }
+      return prev.filter((i) => !matches(i))
+    })
   }, [])
 
   const clearCart = useCallback(() => {
@@ -137,11 +177,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Tant que le serveur n'a pas répondu (ou s'il est injoignable), on garde le prix enregistré
   const lines: CartLine[] = items.map((item) => {
+    const lineKey = item.lineKey || getLineKey(item.productId, item.size)
     const live = livePrices[item.productId]
     const unitPrice = live ? live.unitPrice : item.price
     const regularPrice = live ? live.regularPrice : item.price
     return {
       ...item,
+      size: item.size ?? null,
+      lineKey,
       unitPrice,
       regularPrice,
       onSale: unitPrice < regularPrice,

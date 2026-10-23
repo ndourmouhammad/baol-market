@@ -67,7 +67,7 @@ export default async function CategoryPage({
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at')
+    .select('id, name, description, price, image_url, flash_price, flash_starts_at, flash_ends_at, size_options')
     .eq('category_id', category.id)
     .eq('is_available', true)
     .order('created_at', { ascending: false })

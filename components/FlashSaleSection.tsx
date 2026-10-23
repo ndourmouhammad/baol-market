@@ -13,6 +13,7 @@ type FlashProduct = {
   price: number
   image_url: string | null
   flash: FlashDisplay
+  size_options?: string[] | null
 }
 
 // Temps restant en millisecondes ; null tant que le navigateur n'a pas démarré le compte à rebours

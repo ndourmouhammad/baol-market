@@ -18,6 +18,7 @@ type Product = {
   category_id?: string
   flash?: FlashDisplay | null
   fulfillment_type?: string | null
+  size_options?: string[] | null
   categories?: { fulfillment_type?: string | null } | { fulfillment_type?: string | null }[] | null
 }
 

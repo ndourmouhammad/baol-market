@@ -71,6 +71,8 @@ const FLAG_LABELS: Record<string, string> = {
   neighborhood: 'Adresse modifiée',
   photo_path: 'Photo modifiée',
   id_document_path: "Pièce d'identité modifiée",
+  size_options: 'Tailles modifiées',
+  size_notes: 'Mesures modifiées',
 }
 
 const PLACEMENT_TEXT: Record<string, string> = {

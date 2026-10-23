@@ -26,6 +26,8 @@ type ProductRow = {
   flash_price: number | null
   flash_starts_at: string | null
   flash_ends_at: string | null
+  size_options: string[] | null
+  size_notes: string | null
   categories:
     | {
         name: string
@@ -61,6 +63,8 @@ const getProduct = cache(async (id: string): Promise<ProductRow | null> => {
       flash_price,
       flash_starts_at,
       flash_ends_at,
+      size_options,
+      size_notes,
       categories (
         name,
         slug,
@@ -411,6 +415,8 @@ export default async function ProductDetailPage({ params }: Props) {
                 name={product.name}
                 imageUrl={product.image_url}
                 currentPrice={currentPrice}
+                sizeOptions={product.size_options}
+                sizeNotes={product.size_notes}
               />
             )}
 

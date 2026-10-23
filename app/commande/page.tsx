@@ -130,7 +130,7 @@ export default function CheckoutPage() {
         Authorization: `Bearer ${session?.access_token}`,
       },
       body: JSON.stringify({
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, size: i.size ?? null })),
         deliveryMode: deliveryChoice.mode,
         deliveryZoneId: deliveryChoice.zoneId,
         deliveryDepartment: deliveryChoice.department,
@@ -246,12 +246,17 @@ export default function CheckoutPage() {
           <h2 className="font-bold text-(--encre) mb-4">Récapitulatif</h2>
           <ul className="space-y-2 mb-4 text-sm">
             {lines.map((item) => (
-              <li key={item.productId} className="flex justify-between text-(--gris-texte)">
-                <span className={item.available ? '' : 'line-through'}>{item.quantity}× {item.name}</span>
+              <li key={item.lineKey} className="flex justify-between items-start text-(--gris-texte)">
+                <div className="min-w-0 pr-2">
+                  <span className={item.available ? '' : 'line-through'}>{item.quantity}× {item.name}</span>
+                  {item.size && (
+                    <span className="block text-xs text-(--gris-texte)">Taille : {item.size}</span>
+                  )}
+                </div>
                 {item.available ? (
-                  <span>{(item.unitPrice * item.quantity).toLocaleString('fr-SN')} FCFA</span>
+                  <span className="shrink-0">{(item.unitPrice * item.quantity).toLocaleString('fr-SN')} FCFA</span>
                 ) : (
-                  <span className="text-(--rouge-erreur) font-medium">Indisponible</span>
+                  <span className="text-(--rouge-erreur) font-medium shrink-0">Indisponible</span>
                 )}
               </li>
             ))}

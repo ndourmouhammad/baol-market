@@ -25,6 +25,8 @@ type Product = {
   name: string
   price: number
   image_url?: string
+  size_options?: string[] | null
+  size_notes?: string | null
 }
 
 export default function OrderPage() {
@@ -35,6 +37,7 @@ export default function OrderPage() {
   const [zones, setZones] = useState<DeliveryZone[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>({
     mode: null,
     zoneId: '',
@@ -56,7 +59,7 @@ export default function OrderPage() {
       // Seuls les produits disponibles peuvent être commandés
       const { data: productData, error: productError } = await supabase
         .from('products')
-        .select('id, name, price, image_url, category_id, categories ( fulfillment_type )')
+        .select('id, name, price, image_url, category_id, size_options, size_notes, categories ( fulfillment_type )')
         .eq('id', id)
         .eq('is_available', true)
         .single()
@@ -80,6 +83,13 @@ export default function OrderPage() {
         setError('Ce produit est introuvable ou indisponible.')
       } else {
         setProduct(productData)
+        // Validation du paramètre de taille transmis par l'URL
+        const searchParams = new URLSearchParams(window.location.search)
+        const rawTaille = searchParams.get('taille')
+        const availableSizes = productData.size_options
+        if (Array.isArray(availableSizes) && availableSizes.length > 0 && rawTaille && availableSizes.includes(rawTaille)) {
+          setSelectedSize(rawTaille)
+        }
       }
       setZones(zonesData || [])
       setInitLoading(false)
@@ -127,7 +137,7 @@ export default function OrderPage() {
       router.push(`/login?next=${nextParam}`)
       return
     }
-    if (!product || !isDeliveryValid) return
+    if (!product || !isDeliveryValid || !isSizeValid) return
 
     setLoading(true)
     setError('')
@@ -162,7 +172,7 @@ export default function OrderPage() {
         Authorization: `Bearer ${session?.access_token}`,
       },
       body: JSON.stringify({
-        items: [{ productId: product.id, quantity }],
+        items: [{ productId: product.id, quantity, size: selectedSize ?? null }],
         deliveryMode: deliveryChoice.mode,
         deliveryZoneId: deliveryChoice.zoneId,
         deliveryDepartment: deliveryChoice.department,
@@ -183,7 +193,9 @@ export default function OrderPage() {
   const increaseQty = () => setQuantity(q => q + 1)
   const decreaseQty = () => setQuantity(q => Math.max(1, q - 1))
 
-  const isFormValid = isDeliveryValid && !!user && livePrice?.available !== false
+  const hasSizes = Array.isArray(product?.size_options) && product.size_options.length > 0
+  const isSizeValid = !hasSizes || (!!selectedSize && (product?.size_options ?? []).includes(selectedSize))
+  const isFormValid = isDeliveryValid && isSizeValid && !!user && livePrice?.available !== false
 
   if (initLoading) {
     return (
@@ -282,6 +294,58 @@ export default function OrderPage() {
                 </div>
               </section>
 
+              {/* Section Taille (si le produit a des options de taille) */}
+              {hasSizes && (
+                <section>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="w-8 h-8 flex items-center justify-center bg-(--vert-baol)/10 text-(--vert-baol) font-bold rounded-lg shrink-0">
+                      T
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-bold text-(--encre)">
+                        Taille <span className="text-(--rouge-baol)">*</span>
+                      </h2>
+                      {selectedSize ? (
+                        <p className="text-xs text-(--gris-texte)">
+                          Taille sélectionnée : <span className="font-bold text-(--encre)">{selectedSize}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-700 font-semibold">
+                          Veuillez choisir une taille avant de continuer
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5">
+                    {product.size_options!.map((size) => {
+                      const isSelected = selectedSize === size
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => setSelectedSize(size)}
+                          className={`min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-xl text-sm font-bold border transition-all select-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) ${
+                            isSelected
+                              ? 'bg-(--vert-baol) text-white border-(--vert-baol) shadow-sm'
+                              : 'bg-white text-(--encre) border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {product.size_notes && (
+                    <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-(--gris-texte) space-y-1">
+                      <span className="font-semibold text-(--encre) block">Mesures du produit :</span>
+                      <p className="whitespace-pre-line leading-relaxed">{product.size_notes}</p>
+                    </div>
+                  )}
+                </section>
+              )}
+
               {/* Section 2: Livraison */}
               <section>
                 <div className="flex items-center gap-3 mb-5">
@@ -357,6 +421,9 @@ export default function OrderPage() {
                 </div>
                 <div className="flex flex-col justify-center">
                   <h3 className="font-bold text-(--encre) line-clamp-2 leading-snug mb-1">{product.name}</h3>
+                  {selectedSize && (
+                    <p className="text-xs font-semibold text-(--vert-baol) mb-1">Taille : {selectedSize}</p>
+                  )}
                   {onSale ? (
                     <p className="text-sm flex items-baseline gap-2 flex-wrap">
                       <span className="font-bold text-(--rouge-baol)">{unitPrice.toLocaleString('fr-SN')} FCFA</span>
