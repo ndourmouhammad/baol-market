@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/components/CartContext'
 import { NotificationBell } from '@/components/NotificationBell'
-import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart, Search, ChevronRight, MessageCircle } from 'lucide-react'
+import { Menu, X, ShoppingBag, LogOut, User, LayoutDashboard, Store, ShoppingCart, Search, ChevronRight, MessageCircle, HardHat } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/Button'
 import { formatPhoneDisplay } from '@/lib/phoneAuth'
@@ -214,6 +214,16 @@ export default function Header() {
               >
                 <Store className="w-4 h-4" />
                 Catalogue
+              </Link>
+
+              <Link
+                href="/services"
+                className={`flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) rounded-md px-2 py-1 ${
+                  pathname.startsWith('/services') ? 'text-(--vert-baol)' : 'text-(--gris-texte) hover:text-(--encre)'
+                }`}
+              >
+                <HardHat className="w-4 h-4" />
+                Services
               </Link>
 
               {user && !isStaff && (
@@ -437,6 +447,17 @@ export default function Header() {
             >
               <Store className={`w-5 h-5 ${pathname === '/produits' ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
               Catalogue
+            </Link>
+
+            <Link
+              href="/services"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3.5 text-base font-medium rounded-xl transition-colors ${
+                pathname.startsWith('/services') ? 'bg-(--vert-baol)/10 text-(--vert-baol-fonce)' : 'text-(--encre) hover:bg-gray-50'
+              }`}
+            >
+              <HardHat className={`w-5 h-5 ${pathname.startsWith('/services') ? 'text-(--vert-baol)' : 'text-gray-400'}`} />
+              Services
             </Link>
 
             <Link

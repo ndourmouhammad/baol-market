@@ -31,6 +31,10 @@ export const ACTION_LABELS: Record<string, string> = {
   rider_updated: 'Modification de livreur',
   rider_availability_changed: "Activité d'un livreur",
   rider_deleted: 'Suppression de livreur',
+  service_provider_created: 'Création de prestataire',
+  service_provider_updated: 'Modification de prestataire',
+  service_provider_availability_changed: "Activité d'un prestataire",
+  service_provider_deleted: 'Suppression de prestataire',
   partner_document_viewed: "Consultation d'une pièce d'identité",
   partner_document_uploaded: "Ajout d'un document de partenaire",
 }
@@ -69,8 +73,15 @@ const FLAG_LABELS: Record<string, string> = {
   region: 'Adresse modifiée',
   department: 'Adresse modifiée',
   neighborhood: 'Adresse modifiée',
-  photo_path: 'Photo modifiée',
-  id_document_path: "Pièce d'identité modifiée",
+  address_details: 'Adresse modifiée',
+  years_experience: 'Expérience modifiée',
+  profession: 'Métier modifié',
+  photo_path: 'Pièce modifiée',
+  id_document_path: 'Pièce modifiée',
+  license_path: 'Pièce modifiée',
+  insurance_path: 'Pièce modifiée',
+  license_expires_on: 'Dates de validité modifiées',
+  insurance_expires_on: 'Dates de validité modifiées',
   size_options: 'Tailles modifiées',
   size_notes: 'Mesures modifiées',
   kind: 'Type de bannière modifié',
@@ -100,6 +111,7 @@ export function entityLabel(entityType: string | null, entityId: string | null, 
 
   if (entityType === 'merchant') return name ? `Commerçant « ${name} »` : 'Commerçant'
   if (entityType === 'rider') return name ? `Livreur « ${name} »` : 'Livreur'
+  if (entityType === 'service_provider') return name ? `Prestataire « ${name} »` : 'Prestataire'
   if (entityType === 'banner') return name ? `Bannière « ${name} »` : 'Bannière'
 
   return entityId ? `${entityType} ${entityId}` : '—'
@@ -152,6 +164,7 @@ export function detailsLabel(action: string, details: Details): string {
     case 'category_updated':
     case 'merchant_updated':
     case 'rider_updated':
+    case 'service_provider_updated':
     case 'banner_updated':
       return changesText(details.changes)
     case 'staff_created': {
@@ -173,6 +186,7 @@ export function detailsLabel(action: string, details: Details): string {
       return details.to === true ? 'Activée' : details.to === false ? 'Désactivée' : '—'
     case 'product_availability_changed':
     case 'rider_availability_changed':
+    case 'service_provider_availability_changed':
       return details.to === true ? 'Activé' : details.to === false ? 'Désactivé' : '—'
     case 'order_refunded': {
       const ref = typeof details.reference === 'string' ? details.reference : '—'
@@ -180,9 +194,17 @@ export function detailsLabel(action: string, details: Details): string {
       return `Réf. ${ref} · ${amount} FCFA`
     }
     case 'partner_document_viewed':
-      return details?.kind === 'id_document' ? "Pièce d'identité" : 'Document'
+      if (details?.kind === 'id_document') return "Pièce d'identité"
+      if (details?.kind === 'license') return 'Permis de conduire'
+      if (details?.kind === 'insurance') return 'Attestation d’assurance'
+      if (details?.kind === 'photo') return 'Photo de profil'
+      return 'Document'
     case 'partner_document_uploaded':
-      return details?.kind === 'id_document' ? "Pièce d'identité téléversée" : details?.kind === 'photo' ? 'Photo téléversée' : 'Document téléversé'
+      if (details?.kind === 'id_document') return "Pièce d'identité téléversée"
+      if (details?.kind === 'license') return 'Permis téléversé'
+      if (details?.kind === 'insurance') return 'Assurance téléversée'
+      if (details?.kind === 'photo') return 'Photo téléversée'
+      return 'Document téléversé'
     default:
       return '—'
   }
