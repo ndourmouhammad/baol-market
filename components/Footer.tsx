@@ -130,7 +130,7 @@ export default function Footer() {
       <div className="border-t border-white/10 bg-black/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-[11px] text-gray-500 text-center md:text-left">
-            Mohamed Saw Business &nbsp;|&nbsp; NINEA : 010768721 &nbsp;|&nbsp; RCCM : SN.DBL.2023.A.5300 &nbsp;|&nbsp; Diourbel, Sénégal
+            M-S BUSINESS &nbsp;|&nbsp; NINEA : 010768721 &nbsp;|&nbsp; RCCM : SN.DBL.2023.A.5300 &nbsp;|&nbsp; Diourbel, Sénégal
           </p>
         </div>
       </div>
