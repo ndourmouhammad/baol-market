@@ -20,6 +20,12 @@ function isPdf(buffer: Buffer): boolean {
   return buffer.subarray(0, 4).toString('ascii') === '%PDF'
 }
 
+function isAcceptedPdf(file: File, buffer: Buffer): boolean {
+  const mimeIsPdf = file.type === 'application/pdf' || file.type === 'application/octet-stream'
+  const hasPdfExtension = file.name.toLowerCase().endsWith('.pdf')
+  return isPdf(buffer) && (mimeIsPdf || hasPdfExtension)
+}
+
 function getImageExtension(buffer: Buffer, mime: string): string | null {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return '.jpg'
@@ -115,7 +121,7 @@ export async function POST(request: Request) {
     let contentType = file.type
 
     if (kind === 'id_document' || kind === 'license' || kind === 'insurance') {
-      if (!isPdf(buffer) || file.type !== 'application/pdf') {
+      if (!isAcceptedPdf(file, buffer)) {
         const docLabel =
           kind === 'id_document'
             ? "La pièce d'identité"

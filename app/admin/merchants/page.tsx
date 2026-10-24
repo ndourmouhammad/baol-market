@@ -540,7 +540,10 @@ export default function AdminMerchantsPage() {
                             setError('Le fichier CNI ne doit pas dépasser 5 Mo.')
                             return
                           }
-                          if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                          const isPdfFile =
+                            (file.type === 'application/pdf' || file.type === 'application/octet-stream') &&
+                            file.name.toLowerCase().endsWith('.pdf')
+                          if (!isPdfFile && !file.name.toLowerCase().endsWith('.pdf')) {
                             setError('La CNI doit être un fichier PDF.')
                             return
                           }

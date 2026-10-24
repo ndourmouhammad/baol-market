@@ -298,6 +298,12 @@ export default function AdminServicesPage() {
     setError('')
   }
 
+  function isPdfFile(file: File) {
+    const isMimePdf = file.type === 'application/pdf' || file.type === 'application/octet-stream'
+    const hasPdfExtension = file.name.toLowerCase().endsWith('.pdf')
+    return isMimePdf || hasPdfExtension
+  }
+
   function handlePdfChange(
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (file: File | null) => void,
@@ -305,7 +311,7 @@ export default function AdminServicesPage() {
   ) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.type !== 'application/pdf') {
+    if (!isPdfFile(file)) {
       setError(`${label} doit être un fichier PDF.`)
       return
     }
