@@ -17,11 +17,14 @@ type KindType = (typeof VALID_KINDS)[number]
 
 function isPdf(buffer: Buffer): boolean {
   if (buffer.length < 4) return false
-  return buffer.subarray(0, 4).toString('ascii') === '%PDF'
+  const header = buffer.subarray(0, Math.min(buffer.length, 1024)).toString('latin1')
+  return header.includes('%PDF-') || header.startsWith('%PDF')
 }
 
 function isAcceptedPdf(file: File, buffer: Buffer): boolean {
-  const mimeIsPdf = file.type === 'application/pdf' || file.type === 'application/octet-stream'
+  const mime = file.type ? file.type.toLowerCase() : ''
+  const validMimes = ['application/pdf', 'application/x-pdf', 'application/octet-stream', '']
+  const mimeIsPdf = validMimes.includes(mime)
   const hasPdfExtension = file.name.toLowerCase().endsWith('.pdf')
   return isPdf(buffer) && (mimeIsPdf || hasPdfExtension)
 }
@@ -219,13 +222,19 @@ export async function POST(request: Request) {
     }
 
     // Mettre à jour le chemin dans la table correspondante
+    const updatePayload: Record<string, unknown> = { [column]: storagePath }
+    if (entity === 'service_provider') {
+      updatePayload.updated_at = new Date().toISOString()
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from(tableName)
-      .update({ [column]: storagePath, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', id)
 
     if (updateError) {
       console.error('Erreur mise à jour chemin document:', updateError)
+      await supabaseAdmin.storage.from(bucketName).remove([storagePath]).catch(() => {})
       return NextResponse.json({ error: 'Impossible d’enregistrer le document.' }, { status: 500 })
     }
 

@@ -424,6 +424,7 @@ export default function AdminRidersPage() {
                             setError('La photo ne doit pas dépasser 5 Mo.')
                             return
                           }
+                          setError('')
                           setPhotoFile(file)
                           setPhotoPreview(URL.createObjectURL(file))
                         }}
@@ -475,12 +476,15 @@ export default function AdminRidersPage() {
                             return
                           }
                           const isPdfFile =
-                            (file.type === 'application/pdf' || file.type === 'application/octet-stream') &&
-                            file.name.toLowerCase().endsWith('.pdf')
-                          if (!isPdfFile && !file.name.toLowerCase().endsWith('.pdf')) {
+                            file.name.toLowerCase().endsWith('.pdf') ||
+                            file.type === 'application/pdf' ||
+                            file.type === 'application/octet-stream' ||
+                            file.type === 'application/x-pdf'
+                          if (!isPdfFile) {
                             setError('La CNI doit être un fichier PDF.')
                             return
                           }
+                          setError('')
                           setIdDocumentFile(file)
                         }}
                       />
