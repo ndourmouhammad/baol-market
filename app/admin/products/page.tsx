@@ -685,7 +685,7 @@ export default function AdminProductsPage() {
               >
                 <option value="" disabled>Choisir un commerçant</option>
                 {merchants.map((m) => {
-                  const isComplete = Boolean(m.region && m.department && m.has_photo && m.has_id_document)
+                  const isComplete = Boolean(m.region && m.department && m.has_id_document)
                   const isDisabled = !isComplete && m.id !== merchantId
                   return (
                     <option key={m.id} value={m.id} disabled={isDisabled}>

@@ -103,8 +103,8 @@ export async function POST(request: Request) {
     if (!kind || !VALID_KINDS.includes(kind)) {
       return NextResponse.json({ error: 'Type de document invalide.' }, { status: 400 })
     }
-    if (entity !== 'service_provider' && (kind === 'license' || kind === 'insurance')) {
-      return NextResponse.json({ error: 'Type de document non autorisé pour ce profil.' }, { status: 400 })
+    if (entity !== 'service_provider' && kind !== 'id_document') {
+      return NextResponse.json({ error: 'Seule la pièce d’identité est acceptée pour ce profil.' }, { status: 400 })
     }
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: 'Fichier manquant.' }, { status: 400 })

@@ -128,10 +128,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Ce livreur est actuellement inactif.' }, { status: 400 })
     }
 
-    const isComplete = Boolean(rider.region && rider.department && rider.photo_path && rider.id_document_path)
+    const isComplete = Boolean(rider.region && rider.department && rider.id_document_path)
     if (!isComplete) {
       return NextResponse.json(
-        { error: 'Ce livreur ne peut pas être affecté car son dossier est incomplet (adresse, photo ou CNI manquante).' },
+        { error: 'Ce livreur ne peut pas être affecté car son dossier est incomplet (adresse ou CNI manquante).' },
         { status: 400 }
       )
     }

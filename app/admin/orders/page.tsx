@@ -438,7 +438,7 @@ export default function AdminOrdersPage() {
                             <option value="">Aucun livreur</option>
                             {riders.map((r) => {
                               const isBusyElsewhere = busyRiderIds.has(r.id) && r.id !== order.rider_id
-                              const isComplete = Boolean(r.region && r.department && r.has_photo && r.has_id_document)
+                              const isComplete = Boolean(r.region && r.department && r.has_id_document)
                               const isDisabled = isBusyElsewhere || (!isComplete && r.id !== order.rider_id)
                               return (
                                 <option key={r.id} value={r.id} disabled={isDisabled}>

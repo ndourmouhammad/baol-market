@@ -114,10 +114,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!merchant) {
       return NextResponse.json({ error: 'Commerçant introuvable.' }, { status: 404 })
     }
-    const isComplete = Boolean(merchant.region && merchant.department && merchant.photo_path && merchant.id_document_path)
+    const isComplete = Boolean(merchant.region && merchant.department && merchant.id_document_path)
     if (!isComplete) {
       return NextResponse.json(
-        { error: 'Ce commerçant ne peut pas être associé à ce produit car son dossier est incomplet (adresse, photo ou CNI manquante).' },
+        { error: 'Ce commerçant ne peut pas être associé à ce produit car son dossier est incomplet (adresse ou CNI manquante).' },
         { status: 400 }
       )
     }

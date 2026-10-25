@@ -18,7 +18,6 @@ import {
   Lock,
   MapPin,
   FileText,
-  ImageIcon,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/Button'
@@ -49,12 +48,12 @@ async function authFetch(url: string, options: RequestInit = {}) {
   })
 }
 
-async function uploadPartnerFile(entity: 'rider' | 'merchant', id: string, kind: 'photo' | 'id_document', file: File) {
+async function uploadPartnerFile(id: string, file: File) {
   const { data: { session } } = await supabase.auth.getSession()
   const formData = new FormData()
-  formData.append('entity', entity)
+  formData.append('entity', 'rider')
   formData.append('id', id)
-  formData.append('kind', kind)
+  formData.append('kind', 'id_document')
   formData.append('file', file)
 
   const res = await fetch('/api/admin/partner-files', {
@@ -65,74 +64,29 @@ async function uploadPartnerFile(entity: 'rider' | 'merchant', id: string, kind:
 
   if (!res.ok) {
     const json = await res.json()
-    throw new Error(json.error || `Échec du téléversement du fichier (${kind})`)
+    throw new Error(json.error || 'Échec du téléversement du document')
   }
 }
 
-function PartnerPhoto({ id, hasPhoto, name }: { id: string; hasPhoto?: boolean; name: string }) {
-  const [url, setUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!hasPhoto) return
-    let cancelled = false
-    queueMicrotask(() => {
-      if (!cancelled) setLoading(true)
-    })
-    authFetch(`/api/admin/partner-files?entity=rider&id=${id}&kind=photo`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && data.url) setUrl(data.url)
-      })
-      .catch(() => { })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [id, hasPhoto])
-
-  if (!hasPhoto) {
-    return (
-      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
-        <Bike className="w-6 h-6" />
-      </div>
-    )
-  }
-
-  if (loading || !url) {
-    return (
-      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 animate-pulse">
-        <Loader2 className="w-4 h-4 animate-spin text-(--vert-baol)" />
-      </div>
-    )
-  }
-
+function RiderAvatar() {
   return (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      src={url}
-      alt={name}
-      className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
-    />
+    <div className="w-12 h-12 rounded-xl bg-(--vert-baol)/10 flex items-center justify-center text-(--vert-baol) shrink-0">
+      <Bike className="w-6 h-6" />
+    </div>
   )
 }
 
 function DossierBadge({
   region,
   department,
-  hasPhoto,
   hasIdDocument,
 }: {
   region: string | null
   department: string | null
-  hasPhoto: boolean
   hasIdDocument: boolean
 }) {
   const missing: string[] = []
   if (!region || !department) missing.push('adresse')
-  if (!hasPhoto) missing.push('photo')
   if (!hasIdDocument) missing.push('CNI')
 
   if (missing.length === 0) {
@@ -166,8 +120,6 @@ export default function AdminRidersPage() {
   const [department, setDepartment] = useState('')
   const [neighborhood, setNeighborhood] = useState('')
 
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [idDocumentFile, setIdDocumentFile] = useState<File | null>(null)
 
   const [viewingCniId, setViewingCniId] = useState<string | null>(null)
@@ -245,11 +197,8 @@ export default function AdminRidersPage() {
 
       const targetId = editingId || json.id
 
-      if (photoFile && targetId) {
-        await uploadPartnerFile('rider', targetId, 'photo', photoFile)
-      }
       if (idDocumentFile && targetId) {
-        await uploadPartnerFile('rider', targetId, 'id_document', idDocumentFile)
+        await uploadPartnerFile(targetId, idDocumentFile)
       }
 
       setSaving(false)
@@ -269,9 +218,6 @@ export default function AdminRidersPage() {
     setRegion(rider.region || '')
     setDepartment(rider.department || '')
     setNeighborhood(rider.neighborhood || '')
-    setPhotoFile(null)
-    if (photoPreview) URL.revokeObjectURL(photoPreview)
-    setPhotoPreview(null)
     setIdDocumentFile(null)
     setError('')
   }
@@ -283,9 +229,6 @@ export default function AdminRidersPage() {
     setRegion('')
     setDepartment('')
     setNeighborhood('')
-    setPhotoFile(null)
-    if (photoPreview) URL.revokeObjectURL(photoPreview)
-    setPhotoPreview(null)
     setIdDocumentFile(null)
     setError('')
   }
@@ -388,58 +331,7 @@ export default function AdminRidersPage() {
                 helperText="Max 100 caractères"
               />
 
-              {/* Photo */}
-              <div className="space-y-1.5 pt-2 border-t border-gray-100">
-                <label className="text-sm font-medium text-(--encre) block">Photo du livreur</label>
-                <div className="border border-dashed border-gray-300 rounded-xl p-3 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors">
-                  {photoPreview ? (
-                    <div className="flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-gray-200">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photoPreview} alt="Aperçu" className="w-10 h-10 rounded-lg object-cover" />
-                      <span className="text-xs text-(--encre) truncate flex-1 text-left font-medium">
-                        {photoFile?.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (photoPreview) URL.revokeObjectURL(photoPreview)
-                          setPhotoFile(null)
-                          setPhotoPreview(null)
-                        }}
-                        className="text-gray-400 hover:text-red-600 p-1"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer block">
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          if (file.size > 5 * 1024 * 1024) {
-                            setError('La photo ne doit pas dépasser 5 Mo.')
-                            return
-                          }
-                          setError('')
-                          setPhotoFile(file)
-                          setPhotoPreview(URL.createObjectURL(file))
-                        }}
-                      />
-                      <div className="flex flex-col items-center gap-1 py-1 text-xs text-(--gris-texte)">
-                        <ImageIcon className="w-5 h-5 text-gray-400" />
-                        <span className="font-semibold text-(--vert-baol)">
-                          {editingId ? 'Remplacer la photo' : 'Choisir une photo'}
-                        </span>
-                        <span className="text-[11px] text-gray-400">JPEG, PNG ou WebP (max 5 Mo)</span>
-                      </div>
-                    </label>
-                  )}
-                </div>
-              </div>
+
 
               {/* Pièce d'identité (CNI) */}
               <div className="space-y-1.5">
@@ -538,7 +430,7 @@ export default function AdminRidersPage() {
                     <div>
                       <div className="flex justify-between items-start gap-3 mb-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <PartnerPhoto id={r.id} hasPhoto={r.has_photo} name={r.name} />
+                          <RiderAvatar />
                           <div className="min-w-0">
                             <h3 className="font-bold text-(--encre) text-lg truncate">{r.name}</h3>
                           </div>
@@ -555,7 +447,6 @@ export default function AdminRidersPage() {
                         <DossierBadge
                           region={r.region}
                           department={r.department}
-                          hasPhoto={r.has_photo}
                           hasIdDocument={r.has_id_document}
                         />
                       </div>
