@@ -59,7 +59,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <Link
         href={`/produit/${product.id}`}
         aria-label={`Voir la fiche de ${product.name}`}
-        className="aspect-[4/3] w-full overflow-hidden bg-gray-50 flex items-center justify-center relative block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-inset"
+        className="relative block aspect-square w-full overflow-hidden bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--vert-baol) focus-visible:ring-inset"
       >
         <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 z-10 origin-top-left scale-[0.75] sm:scale-100 [&>div]:!top-0 [&>div]:!left-0">
           <VerifiedBadge />
@@ -78,7 +78,7 @@ export function ProductCard({ product }: ProductCardProps) {
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400 bg-gray-50">
             <ShoppingBag className="w-8 h-8" />
             <span className="text-xs font-medium">Photo à venir</span>
           </div>
