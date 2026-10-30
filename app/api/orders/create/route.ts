@@ -296,8 +296,19 @@ export async function POST(request: Request) {
     })
 
     if (waveResult.error || !waveResult.wave_launch_url) {
+      console.error('[Orders Create] Échec création paiement Wave:', {
+        orderId: order.id,
+        status: waveResult.status,
+        code: waveResult.code,
+      })
       await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-      return NextResponse.json({ error: waveResult.error || "Impossible d'initier le paiement." }, { status: 500 })
+      return NextResponse.json(
+        {
+          error:
+            "Le paiement n'est pas disponible pour le moment. Veuillez réessayer dans quelques instants ou nous contacter sur WhatsApp au +221 78 150 75 05.",
+        },
+        { status: 500 }
+      )
     }
 
     await supabaseAdmin

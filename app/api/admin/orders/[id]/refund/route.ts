@@ -64,8 +64,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (order.wave_checkout_id) {
     const waveRes = await refundWaveCheckout(order.wave_checkout_id)
     if (!waveRes.ok) {
+      console.error('[Admin Orders Refund] Échec remboursement Wave:', {
+        orderId: id,
+        waveCheckoutId: order.wave_checkout_id,
+        status: waveRes.status,
+        code: waveRes.code,
+      })
       return NextResponse.json(
-        { error: waveRes.message || 'Erreur lors du remboursement Wave.' },
+        { error: "Le remboursement Wave n'a pas pu être effectué pour le moment." },
         { status: 400 }
       )
     }

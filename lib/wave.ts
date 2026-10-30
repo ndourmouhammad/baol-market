@@ -12,16 +12,20 @@ type CreateCheckoutParams = {
   amount: number
 }
 
+export const WAVE_PAYMENT_UNAVAILABLE_MESSAGE =
+  "Le paiement n'est pas disponible pour le moment. Veuillez réessayer dans quelques instants ou nous contacter sur WhatsApp au +221 78 150 75 05."
+
 type CreateCheckoutResult =
-  | { id: string; wave_launch_url: string; error?: undefined }
-  | { error: string; id?: undefined; wave_launch_url?: undefined }
+  | { id: string; wave_launch_url: string; error?: undefined; status?: undefined; code?: undefined }
+  | { error: string; status?: number; code?: string; id?: undefined; wave_launch_url?: undefined }
 
 export async function createWaveCheckout(
   params: CreateCheckoutParams,
 ): Promise<CreateCheckoutResult> {
   const apiKey = (process.env.WAVE_API_KEY || '').trim()
   if (!apiKey) {
-    return { error: 'Configuration de paiement manquante.' }
+    console.error('[Wave] Configuration de paiement manquante (clé API absente).')
+    return { error: WAVE_PAYMENT_UNAVAILABLE_MESSAGE, code: 'config-missing' }
   }
 
   const bodyObj = {
@@ -66,28 +70,33 @@ export async function createWaveCheckout(
     const json = await res.json().catch(() => ({}))
 
     if (!res.ok) {
-      const code = json?.code ?? json?.error?.code ?? 'unknown'
-      const msg = json?.message ?? json?.error?.message ?? ''
-      console.error('[Wave] Erreur création checkout:', res.status, code, msg)
-      if (code === 'ip-not-allowed') {
-        return { error: `Wave : adresse IP non autorisée (${msg || 'ip-not-allowed'}).` }
+      const code = (json?.code ?? json?.error?.code ?? 'unknown') as string
+      console.error('[Wave] Erreur création checkout:', { status: res.status, code })
+      return {
+        error: WAVE_PAYMENT_UNAVAILABLE_MESSAGE,
+        status: res.status,
+        code,
       }
-      return { error: 'Erreur lors de la création du paiement.' }
     }
 
     if (!json.id || !json.wave_launch_url) {
-      console.error('[Wave] Réponse inattendue lors de la création du checkout.')
-      return { error: 'Réponse inattendue du prestataire de paiement.' }
+      console.error('[Wave] Réponse inattendue lors de la création du checkout:', { status: res.status })
+      return {
+        error: WAVE_PAYMENT_UNAVAILABLE_MESSAGE,
+        status: res.status,
+        code: 'invalid-response',
+      }
     }
 
     return { id: json.id, wave_launch_url: json.wave_launch_url }
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       console.error('[Wave] Timeout lors de la création du checkout.')
+      return { error: WAVE_PAYMENT_UNAVAILABLE_MESSAGE, code: 'timeout' }
     } else {
       console.error('[Wave] Erreur réseau lors de la création du checkout.')
+      return { error: WAVE_PAYMENT_UNAVAILABLE_MESSAGE, code: 'network-error' }
     }
-    return { error: 'Impossible de contacter le prestataire de paiement.' }
   }
 }
 
@@ -115,11 +124,12 @@ export async function expireWaveCheckout(checkoutId: string): Promise<void> {
 
 type RefundResult =
   | { ok: true }
-  | { ok: false; code: string; message: string }
+  | { ok: false; code: string; status?: number; message: string }
 
 export async function refundWaveCheckout(checkoutId: string): Promise<RefundResult> {
-  const apiKey = process.env.WAVE_API_KEY
+  const apiKey = (process.env.WAVE_API_KEY || '').trim()
   if (!apiKey) {
+    console.error('[Wave Refund] Configuration de paiement manquante (clé API absente).')
     return { ok: false, code: 'config-missing', message: 'Configuration de paiement manquante.' }
   }
 
@@ -137,9 +147,16 @@ export async function refundWaveCheckout(checkoutId: string): Promise<RefundResu
     }
 
     const json = await res.json().catch(() => ({}))
-    const code = (json?.code as string) || 'unknown'
-    return { ok: false, code, message: json?.message || 'Erreur inconnue.' }
+    const code = (json?.code ?? json?.error?.code ?? 'unknown') as string
+    console.error('[Wave Refund] Erreur lors du remboursement Wave:', { status: res.status, code })
+    return {
+      ok: false,
+      code,
+      status: res.status,
+      message: 'Erreur lors du remboursement Wave.',
+    }
   } catch {
+    console.error('[Wave Refund] Erreur réseau lors du remboursement Wave.')
     return { ok: false, code: 'network-error', message: 'Impossible de contacter le prestataire de paiement.' }
   }
 }

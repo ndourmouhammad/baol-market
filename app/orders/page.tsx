@@ -7,6 +7,7 @@ import OrderTimeline from '@/components/OrderTimeline'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { PushToggle } from '@/components/PushToggle'
+import { ConfirmModal } from '@/components/ConfirmModal'
 import { isActiveStatus, canCancelOrder, FULFILLMENT_LABELS, type FulfillmentMethod } from '@/lib/orderStatus'
 import { PAYMENT_SHORT } from '@/lib/paymentInfo'
 
@@ -60,6 +61,9 @@ export default function OrdersPage() {
   const [notifications, setNotifications] = useState<NotificationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const router = useRouter()
 
   async function loadOrders() {
@@ -115,27 +119,51 @@ export default function OrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function handleCancel(orderId: string) {
-    if (!confirm('Voulez-vous vraiment annuler cette commande ?')) return
+  function requestCancel(order: Order) {
+    setCancelError(null)
+    setOrderToCancel(order)
+  }
+
+  function closeCancelModal() {
+    if (cancellingId) return
+    setOrderToCancel(null)
+    setCancelError(null)
+  }
+
+  async function handleConfirmCancel() {
+    if (!orderToCancel) return
+    const orderId = orderToCancel.id
     setCancellingId(orderId)
+    setCancelError(null)
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch('/api/orders/cancel', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-      body: JSON.stringify({ orderId }),
-    })
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ orderId }),
+      })
 
-    setCancellingId(null)
+      const json = await res.json().catch(() => ({}))
 
-    if (res.ok) {
-      loadOrders()
-    } else {
-      const json = await res.json()
-      alert(json.error || "Impossible d'annuler cette commande.")
+      if (res.ok) {
+        setOrderToCancel(null)
+        setFeedbackMessage({
+          type: 'success',
+          text: 'Votre commande a été annulée avec succès.',
+        })
+        setTimeout(() => setFeedbackMessage(null), 5000)
+        await loadOrders()
+      } else {
+        setCancelError(json.error || "Impossible d'annuler cette commande.")
+      }
+    } catch {
+      setCancelError("Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.")
+    } finally {
+      setCancellingId(null)
     }
   }
 
@@ -161,6 +189,32 @@ export default function OrdersPage() {
             <PushToggle />
           </div>
         </div>
+
+        {feedbackMessage && (
+          <div
+            className={`mb-6 p-4 rounded-2xl flex items-center justify-between text-sm transition-all ${
+              feedbackMessage.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  feedbackMessage.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+                }`}
+              />
+              <span>{feedbackMessage.text}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="text-xs font-bold opacity-70 hover:opacity-100 ml-4 cursor-pointer"
+              aria-label="Fermer le message"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-4">
@@ -267,9 +321,9 @@ export default function OrdersPage() {
 
                         {canCancelOrder(order.status) && (
                           <button
-                            onClick={() => handleCancel(order.id)}
+                            onClick={() => requestCancel(order)}
                             disabled={cancellingId === order.id}
-                            className="mt-4 text-sm font-medium text-(--rouge-erreur) hover:underline disabled:opacity-50"
+                            className="mt-4 text-sm font-medium text-(--rouge-erreur) hover:underline disabled:opacity-50 cursor-pointer"
                           >
                             {cancellingId === order.id ? 'Annulation...' : 'Annuler ma commande'}
                           </button>
@@ -311,6 +365,49 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Modale moderne de confirmation d'annulation */}
+      <ConfirmModal
+        open={Boolean(orderToCancel)}
+        onClose={closeCancelModal}
+        onConfirm={handleConfirmCancel}
+        title="Annuler la commande"
+        confirmLabel="Confirmer l'annulation"
+        cancelLabel="Conserver ma commande"
+        variant="danger"
+        loading={Boolean(cancellingId)}
+      >
+        <div className="space-y-3">
+          <p>
+            Voulez-vous vraiment annuler votre commande du{' '}
+            <span className="font-semibold text-(--encre)">
+              {orderToCancel ? formatDate(orderToCancel.created_at) : ''}
+            </span>{' '}
+            d&apos;un montant de{' '}
+            <span className="font-semibold text-(--encre)">
+              {orderToCancel ? `${orderToCancel.total_amount.toLocaleString('fr-SN')} FCFA` : ''}
+            </span>{' '}
+            ?
+          </p>
+
+          {orderToCancel && (orderToCancel.paid_at || orderToCancel.status === 'paid') ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+              <p className="font-semibold mb-0.5">ℹ️ Commande déjà payée</p>
+              <p>Votre commande a déjà été réglée. Un remboursement sera automatiquement enclenché sous 3 jours ouvrables.</p>
+            </div>
+          ) : (
+            <p className="text-xs text-(--gris-texte)">
+              Cette action est irréversible. Votre commande sera immédiatement arrêtée.
+            </p>
+          )}
+
+          {cancelError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700">
+              {cancelError}
+            </div>
+          )}
+        </div>
+      </ConfirmModal>
     </div>
   )
 }
