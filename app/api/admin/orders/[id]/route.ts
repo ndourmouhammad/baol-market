@@ -5,6 +5,7 @@ import { canCancelOrder, ORDER_STATUSES, allowedNextStatuses } from '@/lib/order
 import { createOrderNotification } from '@/lib/orderNotifications'
 import { getStaffIdsWithMatricule, verifyMatricule } from '@/lib/matricule'
 import { logActivity } from '@/lib/activityLog'
+import { expireWaveCheckout } from '@/lib/wave'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const staff = await verifyStaff(request)
@@ -17,7 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: current, error: currentError } = await supabaseAdmin
     .from('orders')
-    .select('status, rider_id, paid_at, fulfillment_method')
+    .select('status, rider_id, paid_at, fulfillment_method, wave_checkout_id')
     .eq('id', id)
     .single()
 
@@ -156,6 +157,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   if (statusChanging) {
+    if (body.status === 'cancelled' && current.status === 'created' && current.wave_checkout_id) {
+      expireWaveCheckout(current.wave_checkout_id).catch(() => {})
+    }
     await createOrderNotification(id, body.status)
     await logActivity(staff, {
       action: 'order_status_changed',

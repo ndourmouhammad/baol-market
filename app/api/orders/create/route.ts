@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { requestPaytechPayment } from '@/lib/paytech'
+import { createWaveCheckout } from '@/lib/wave'
 import { effectivePrice } from '@/lib/flashSale'
 import { isValidDepartmentForRegion } from '@/lib/senegalDepartments'
 
@@ -284,6 +285,27 @@ export async function POST(request: Request) {
   if (itemsError) {
     await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
     return NextResponse.json({ error: 'Une erreur est survenue avec les articles de votre commande.' }, { status: 500 })
+  }
+
+  const paymentProvider = (process.env.PAYMENT_PROVIDER || 'paytech').trim().toLowerCase()
+
+  if (paymentProvider === 'wave') {
+    const waveResult = await createWaveCheckout({
+      orderId: order.id,
+      amount: totalAmount,
+    })
+
+    if (waveResult.error || !waveResult.wave_launch_url) {
+      await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
+      return NextResponse.json({ error: waveResult.error || "Impossible d'initier le paiement." }, { status: 500 })
+    }
+
+    await supabaseAdmin
+      .from('orders')
+      .update({ wave_checkout_id: waveResult.id })
+      .eq('id', order.id)
+
+    return NextResponse.json({ orderId: order.id, redirectUrl: waveResult.wave_launch_url })
   }
 
   const itemsSummary = orderItemsLines

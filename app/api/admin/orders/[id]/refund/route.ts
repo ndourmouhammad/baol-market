@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyStaff, hasRole } from '@/lib/verifyStaff'
 import { createOrderNotification } from '@/lib/orderNotifications'
 import { logActivity } from '@/lib/activityLog'
+import { refundWaveCheckout } from '@/lib/wave'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const staff = await verifyStaff(request)
@@ -17,25 +18,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
 
   // --- Validation du body ---
-  let body: { reference?: unknown }
+  let body: { reference?: unknown } = {}
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Corps de requête invalide.' }, { status: 400 })
+    // Body optionnel si l'opération se fait via Wave
   }
 
-  const reference = typeof body.reference === 'string' ? body.reference.trim() : ''
-  if (reference.length < 3 || reference.length > 100) {
-    return NextResponse.json(
-      { error: 'La référence de remboursement doit faire entre 3 et 100 caractères.' },
-      { status: 400 }
-    )
-  }
+  const rawReference = typeof body.reference === 'string' ? body.reference.trim() : ''
 
   // --- Vérifier les conditions ---
   const { data: order, error: fetchError } = await supabaseAdmin
     .from('orders')
-    .select('id, status, paid_at, refunded_at, total_amount')
+    .select('id, status, paid_at, refunded_at, total_amount, wave_checkout_id')
     .eq('id', id)
     .single()
 
@@ -62,6 +57,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { error: 'Cette commande a déjà été remboursée.' },
       { status: 400 }
     )
+  }
+
+  // --- Remboursement Wave ou référence manuelle (PayTech) ---
+  let reference = rawReference
+  if (order.wave_checkout_id) {
+    const waveRes = await refundWaveCheckout(order.wave_checkout_id)
+    if (!waveRes.ok) {
+      return NextResponse.json(
+        { error: waveRes.message || 'Erreur lors du remboursement Wave.' },
+        { status: 400 }
+      )
+    }
+    if (!reference) {
+      reference = order.wave_checkout_id
+    }
+  } else {
+    if (reference.length < 3 || reference.length > 100) {
+      return NextResponse.json(
+        { error: 'La référence de remboursement doit faire entre 3 et 100 caractères.' },
+        { status: 400 }
+      )
+    }
   }
 
   // --- Mise à jour atomique (empêche le double-clic) ---

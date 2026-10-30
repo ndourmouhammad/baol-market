@@ -25,6 +25,7 @@ export async function GET(request: Request) {
       id, status, payment_method, total_amount, subtotal_amount, delivery_fee, delivery_fee_confirmed,
       delivery_address, created_at, updated_at, customer_id, rider_id, fulfillment_method,
       paid_at, refunded_at, refund_reference, delivery_department,
+      wave_checkout_id, wave_transaction_id,
       order_items ( quantity, unit_price, size, products ( name ) ),
       riders ( id, name ),
       delivery_zones ( id, name )

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { canCancelOrder } from '@/lib/orderStatus'
 import { createOrderNotification } from '@/lib/orderNotifications'
+import { expireWaveCheckout } from '@/lib/wave'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
   const { data: order, error: fetchError } = await supabaseAdmin
     .from('orders')
-    .select('id, status, customer_id')
+    .select('id, status, customer_id, wave_checkout_id')
     .eq('id', orderId)
     .single()
 
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+
+  if (order.wave_checkout_id && order.status === 'created') {
+    expireWaveCheckout(order.wave_checkout_id).catch(() => {})
   }
 
   await createOrderNotification(orderId, 'cancelled')

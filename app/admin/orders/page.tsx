@@ -54,6 +54,8 @@ type Order = {
   refund_reference: string | null
   fulfillment_method: string | null
   delivery_department: string | null
+  wave_checkout_id?: string | null
+  wave_transaction_id?: string | null
 }
 
 const FULFILLMENT_BADGES: Record<FulfillmentMethod, string> = {
@@ -260,7 +262,7 @@ export default function AdminOrdersPage() {
     e.preventDefault()
     if (!refundOrder) return
     const trimmed = refundRef.trim()
-    if (trimmed.length < 3) return
+    if (!refundOrder.wave_checkout_id && trimmed.length < 3) return
 
     setRefunding(true)
     setRefundError('')
@@ -361,6 +363,11 @@ export default function AdminOrdersPage() {
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${FULFILLMENT_BADGES[method]}`}>
                         {FULFILLMENT_LABELS[method]}
                       </span>
+                      {order.wave_checkout_id && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-200">
+                          Wave
+                        </span>
+                      )}
                       {!orderCancellable && isActiveStatus(order.status) && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                           Non annulable
@@ -662,13 +669,21 @@ export default function AdminOrdersPage() {
             <p className="text-(--gris-texte) mb-4 text-sm font-medium">
               Montant : <span className="font-bold text-(--encre)">{refundOrder.total_amount.toLocaleString('fr-FR')} FCFA</span>
             </p>
+            {refundOrder.wave_checkout_id && (
+              <div className="bg-cyan-50 border border-cyan-200 text-cyan-900 rounded-xl p-3 text-xs mb-4">
+                <span className="font-bold block mb-1">Remboursement Wave automatique</span>
+                Le remboursement sera exécuté directement auprès de Wave sur le compte de l&apos;acheteur.
+              </div>
+            )}
             <div className="space-y-1.5">
-              <label className="font-bold text-(--encre) block text-sm">Référence du remboursement</label>
+              <label className="font-bold text-(--encre) block text-sm">
+                Référence du remboursement {refundOrder.wave_checkout_id ? '(optionnel)' : ''}
+              </label>
               <input
                 type="text"
                 value={refundRef}
                 onChange={(e) => setRefundRef(e.target.value)}
-                placeholder="N° de transaction du remboursement"
+                placeholder={refundOrder.wave_checkout_id ? 'Optionnel (laisser vide pour ID Wave)' : 'N° de transaction du remboursement'}
                 autoFocus
                 autoComplete="off"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-(--encre) text-sm focus:ring-2 focus:ring-(--vert-baol) focus:border-(--vert-baol) outline-none"
@@ -687,7 +702,7 @@ export default function AdminOrdersPage() {
               </button>
               <button
                 type="submit"
-                disabled={refunding || refundRef.trim().length < 3}
+                disabled={refunding || (!refundOrder.wave_checkout_id && refundRef.trim().length < 3)}
                 className="px-4 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold transition-colors disabled:opacity-50"
               >
                 {refunding ? 'En cours...' : 'Confirmer'}
