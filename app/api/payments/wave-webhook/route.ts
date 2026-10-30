@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const rawBody = await request.text()
 
   // 2. Verify signature
-  const webhookSecret = process.env.WAVE_WEBHOOK_SECRET
+  const webhookSecret = (process.env.WAVE_WEBHOOK_SECRET || '').trim()
   if (!webhookSecret) {
     console.error('[Wave Webhook] WAVE_WEBHOOK_SECRET non configuré.')
     return new NextResponse('Configuration error', { status: 500 })
@@ -22,7 +22,11 @@ export async function POST(request: Request) {
   const signatureHeader = request.headers.get('wave-signature') ?? ''
 
   if (!verifyWaveWebhookSignature(rawBody, signatureHeader, webhookSecret)) {
-    console.error('[Wave Webhook] Signature invalide.')
+    const hasHeader = Boolean(signatureHeader)
+    const secretPrefix = webhookSecret.slice(0, 12)
+    console.error(
+      `[Wave Webhook] Signature invalide. (header présent: ${hasHeader}, préfixe secret configuré: ${secretPrefix}..., longueur body: ${rawBody.length})`,
+    )
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
@@ -74,6 +78,8 @@ export async function POST(request: Request) {
     await handleCheckoutCompleted(data)
   } else if (eventType === 'checkout.session.payment_failed') {
     console.info('[Wave Webhook] Échec de paiement signalé, aucune action.')
+  } else if (eventType === 'test.test_event') {
+    console.info('[Wave Webhook] Événement de test reçu et validé avec succès.')
   }
   // All other event types: respond 200 without action
 

@@ -19,7 +19,7 @@ type CreateCheckoutResult =
 export async function createWaveCheckout(
   params: CreateCheckoutParams,
 ): Promise<CreateCheckoutResult> {
-  const apiKey = process.env.WAVE_API_KEY
+  const apiKey = (process.env.WAVE_API_KEY || '').trim()
   if (!apiKey) {
     return { error: 'Configuration de paiement manquante.' }
   }
@@ -39,7 +39,7 @@ export async function createWaveCheckout(
   }
 
   // Optional request signing
-  const signingSecret = process.env.WAVE_API_SIGNING_SECRET
+  const signingSecret = (process.env.WAVE_API_SIGNING_SECRET || '').trim()
   if (signingSecret) {
     const timestamp = Math.floor(Date.now() / 1000)
     const payload = `${timestamp}${rawBody}`
@@ -63,10 +63,15 @@ export async function createWaveCheckout(
 
     clearTimeout(timeout)
 
-    const json = await res.json()
+    const json = await res.json().catch(() => ({}))
 
     if (!res.ok) {
-      console.error('[Wave] Erreur création checkout:', res.status, json?.code ?? 'unknown')
+      const code = json?.code ?? json?.error?.code ?? 'unknown'
+      const msg = json?.message ?? json?.error?.message ?? ''
+      console.error('[Wave] Erreur création checkout:', res.status, code, msg)
+      if (code === 'ip-not-allowed') {
+        return { error: `Wave : adresse IP non autorisée (${msg || 'ip-not-allowed'}).` }
+      }
       return { error: 'Erreur lors de la création du paiement.' }
     }
 
@@ -151,10 +156,11 @@ export function verifyWaveWebhookSignature(
 ): boolean {
   if (!signatureHeader || !secret) return false
 
-  const parts = signatureHeader.split(',')
+  const cleanSecret = secret.trim()
+  const parts = signatureHeader.split(',').map((p) => p.trim())
   const tPart = parts.find((p) => p.startsWith('t='))
   if (!tPart) return false
-  const timestamp = tPart.slice(2)
+  const timestamp = tPart.slice(2).trim()
   const t = Number(timestamp)
   if (!Number.isFinite(t)) return false
 
@@ -169,14 +175,14 @@ export function verifyWaveWebhookSignature(
   // Compute expected HMAC
   const payload = `${timestamp}${rawBody}`
   const expectedHmac = crypto
-    .createHmac('sha256', secret)
+    .createHmac('sha256', cleanSecret)
     .update(payload)
     .digest('hex')
   const expectedBuffer = Buffer.from(expectedHmac, 'hex')
 
   // Constant-time comparison against each v1 value
   for (const v1Part of v1Parts) {
-    const sig = v1Part.slice(3)
+    const sig = v1Part.slice(3).trim()
     if (sig.length !== expectedHmac.length) continue
     try {
       const sigBuffer = Buffer.from(sig, 'hex')
